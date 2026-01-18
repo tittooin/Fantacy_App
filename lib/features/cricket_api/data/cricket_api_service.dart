@@ -33,28 +33,49 @@ class RapidApiCricketService implements CricketApiService {
       final response = await _dio.get(
         '$_localUrl/matches',
         options: Options(
-           headers: {
-             'X-RapidAPI-Key': ApiKeys.rapidApiKey, // Pass Key for Fallback
-             'X-RapidAPI-Host': ApiKeys.rapidApiHost,
-           }
+          receiveTimeout: const Duration(seconds: 5),
+          sendTimeout: const Duration(seconds: 5),
         )
       );
       
       if (response.statusCode == 200) {
+        debugPrint("Local Scraper Success");
+        // Assuming _parseMatches is similar to _parseRapidApiMatches or fromMap
+        // For now, using the existing _parseRapidApiMatches if the scraper returns RapidAPI-like structure
+        // Or, if scraper returns a direct list of maps, use CricketMatchModel.fromMap
         final data = response.data;
         if (data is Map<String, dynamic> && data['matches'] is List) {
            final matches = (data['matches'] as List)
               .map((m) => CricketMatchModel.fromMap(m))
               .toList();
            debugPrint("Proxy Scraper: Fetched ${matches.length} matches");
-           return matches;
+           if (matches.isNotEmpty) return matches;
+        } else if (data is Map<String, dynamic> && data['typeMatches'] != null) {
+           // If scraper returns data in RapidAPI format
+           final matches = _parseRapidApiMatches(data);
+           if (matches.isNotEmpty) return matches;
         }
       }
     } catch (e) {
-      debugPrint("Local Proxy Fetch Error: $e. Is the scraper running?");
+      debugPrint("Local Scraper failed/unreachable: $e. Is the scraper running?");
     }
 
-    // 2. Try RapidAPI Directly if Key is available (Might fail on Web due to CORS)
+    // 2. Try Cloudflare Pages Function (For Production Web)
+    // This avoids CORS by calling the server-side function /api/matches
+    try {
+      debugPrint("Attempting to fetch from Cloudflare Function: /api/matches");
+      // Use relative path which works on Web to hit same-origin
+      final response = await _dio.get('/api/matches');
+      
+      if (response.statusCode == 200) {
+        debugPrint("Cloudflare Function Success");
+        return _parseRapidApiMatches(response.data);
+      }
+    } catch (e) {
+      debugPrint("Cloudflare Function failed (Local/Dev?): $e");
+    }
+
+    // 3. Try RapidAPI Directly if Key is available (Might fail on Web due to CORS)
     debugPrint("Checking API Key for RapidAPI fallback...");
     if (ApiKeys.rapidApiKey.isNotEmpty) {
        // ... [API Call Logic] ...
