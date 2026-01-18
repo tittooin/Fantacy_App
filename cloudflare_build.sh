@@ -16,9 +16,14 @@ export PATH="$PATH:`pwd`/flutter/bin"
 flutter config --enable-web
 
 # 4. Get Dependencies
+echo "Getting packages..."
 flutter pub get
 
-# 5. Build Web
+# 5. Run Build Runner (Generate code for Freezed/Riverpod)
+echo "Generating code..."
+dart run build_runner build --delete-conflicting-outputs
+
+# 6. Build Web
 # Note: RAPID_API_KEY must be set in Cloudflare Environment Variables
 echo "Building for Web..."
 flutter build web --release --dart-define=RAPID_API_KEY="$RAPID_API_KEY"
