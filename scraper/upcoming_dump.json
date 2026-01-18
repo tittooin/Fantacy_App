@@ -1,0 +1,343 @@
+{
+  "typeMatches": [
+    {
+      "matchType": "International",
+      "seriesMatches": [
+        {
+          "seriesAdWrapper": {
+            "seriesId": 11176,
+            "seriesName": "Afghanistan v West Indies in UAE, 2026",
+            "matches": [
+              {
+                "matchInfo": {
+                  "matchId": 137819,
+                  "seriesId": 11176,
+                  "seriesName": "Afghanistan v West Indies in UAE, 2026",
+                  "matchDesc": "1st T20I",
+                  "matchFormat": "T20",
+                  "startDate": "1768833000000",
+                  "endDate": "1768845600000",
+                  "state": "Preview",
+                  "status": "Match starts at Jan 19, 14:30 GMT",
+                  "team1": {
+                    "teamId": 96,
+                    "teamName": "Afghanistan",
+                    "teamSName": "AFG",
+                    "imageId": 776177
+                  },
+                  "team2": {
+                    "teamId": 10,
+                    "teamName": "West Indies",
+                    "teamSName": "WI",
+                    "imageId": 776191
+                  },
+                  "venueInfo": {
+                    "id": 153,
+                    "ground": "Dubai International Cricket Stadium",
+                    "city": "Dubai",
+                    "timezone": "+04:00",
+                    "latitude": "25.046842",
+                    "longitude": "55.218969"
+                  },
+                  "seriesStartDt": "1768780800000",
+                  "seriesEndDt": "1769212800000",
+                  "isTimeAnnounced": true,
+                  "stateTitle": "Preview"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "matchType": "League",
+      "seriesMatches": [
+        {
+          "seriesAdWrapper": {
+            "seriesId": 10394,
+            "seriesName": "SA20, 2025-26",
+            "matches": [
+              {
+                "matchInfo": {
+                  "matchId": 126620,
+                  "seriesId": 10394,
+                  "seriesName": "SA20, 2025-26",
+                  "matchDesc": "30th Match",
+                  "matchFormat": "T20",
+                  "startDate": "1768836600000",
+                  "endDate": "1768849200000",
+                  "state": "Preview",
+                  "status": "Match starts at Jan 19, 15:30 GMT",
+                  "team1": {
+                    "teamId": 1235,
+                    "teamName": "Paarl Royals",
+                    "teamSName": "PR",
+                    "imageId": 824972
+                  },
+                  "team2": {
+                    "teamId": 1249,
+                    "teamName": "Joburg Super Kings",
+                    "teamSName": "JSK",
+                    "imageId": 824974
+                  },
+                  "venueInfo": {
+                    "id": 207,
+                    "ground": "Boland Park",
+                    "city": "Paarl",
+                    "timezone": "+02:00",
+                    "latitude": "-33.730900",
+                    "longitude": "18.970760"
+                  },
+                  "seriesStartDt": "1766707200000",
+                  "seriesEndDt": "1769472000000",
+                  "isTimeAnnounced": true,
+                  "stateTitle": "Preview"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "seriesAdWrapper": {
+            "seriesId": 10763,
+            "seriesName": "Super Smash 2025-26",
+            "matches": [
+              {
+                "matchInfo": {
+                  "matchId": 132929,
+                  "seriesId": 10763,
+                  "seriesName": "Super Smash 2025-26",
+                  "matchDesc": "23rd Match",
+                  "matchFormat": "T20",
+                  "startDate": "1768793100000",
+                  "endDate": "1768805700000",
+                  "state": "Preview",
+                  "status": "Match starts at Jan 19, 03:25 GMT",
+                  "team1": {
+                    "teamId": 314,
+                    "teamName": "Wellington",
+                    "teamSName": "WEL",
+                    "imageId": 172364
+                  },
+                  "team2": {
+                    "teamId": 312,
+                    "teamName": "Canterbury",
+                    "teamSName": "CNTBRY",
+                    "imageId": 172362
+                  },
+                  "venueInfo": {
+                    "id": 45,
+                    "ground": "Basin Reserve",
+                    "city": "Wellington",
+                    "timezone": "+13:00",
+                    "latitude": "-41.161720",
+                    "longitude": "175.323914"
+                  },
+                  "seriesStartDt": "1766707200000",
+                  "seriesEndDt": "1769990400000",
+                  "isTimeAnnounced": true,
+                  "stateTitle": "Preview"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "matchType": "Domestic",
+      "seriesMatches": [
+        {
+          "seriesAdWrapper": {
+            "seriesId": 11209,
+            "seriesName": "ICC Under 19 World Cup 2026",
+            "matches": [
+              {
+                "matchInfo": {
+                  "matchId": 138391,
+                  "seriesId": 11209,
+                  "seriesName": "ICC Under 19 World Cup 2026",
+                  "matchDesc": "12th Match, Group C",
+                  "matchFormat": "ODI",
+                  "startDate": "1768807800000",
+                  "endDate": "1768836600000",
+                  "state": "Preview",
+                  "status": "Match starts at Jan 19, 07:30 GMT",
+                  "team1": {
+                    "teamId": 56,
+                    "teamName": "Pakistan U19",
+                    "teamSName": "PAKU19",
+                    "imageId": 776309
+                  },
+                  "team2": {
+                    "teamId": 228,
+                    "teamName": "Scotland U19",
+                    "teamSName": "SCOU19",
+                    "imageId": 776281
+                  },
+                  "venueInfo": {
+                    "id": 762,
+                    "ground": "Takashinga Sports Club",
+                    "city": "Harare",
+                    "timezone": "+02:00",
+                    "latitude": "-17.88849",
+                    "longitude": "30.99021"
+                  },
+                  "seriesStartDt": "1768435200000",
+                  "seriesEndDt": "1770508800000",
+                  "isTimeAnnounced": true,
+                  "stateTitle": "Preview"
+                }
+              },
+              {
+                "matchInfo": {
+                  "matchId": 138392,
+                  "seriesId": 11209,
+                  "seriesName": "ICC Under 19 World Cup 2026",
+                  "matchDesc": "13th Match, Group A",
+                  "matchFormat": "ODI",
+                  "startDate": "1768807800000",
+                  "endDate": "1768836600000",
+                  "state": "Preview",
+                  "status": "Match starts at Jan 19, 07:30 GMT",
+                  "team1": {
+                    "teamId": 172,
+                    "teamName": "Sri Lanka U19",
+                    "teamSName": "SLU19",
+                    "imageId": 776266
+                  },
+                  "team2": {
+                    "teamId": 226,
+                    "teamName": "Ireland U19",
+                    "teamSName": "IREU19",
+                    "imageId": 776288
+                  },
+                  "venueInfo": {
+                    "id": 1438021,
+                    "ground": "Namibia Cricket Ground",
+                    "city": " Windhoek",
+                    "timezone": "+02:00",
+                    "latitude": "-22.5872377",
+                    "longitude": "17.0677249"
+                  },
+                  "seriesStartDt": "1768435200000",
+                  "seriesEndDt": "1770508800000",
+                  "isTimeAnnounced": true,
+                  "stateTitle": "Preview"
+                }
+              },
+              {
+                "matchInfo": {
+                  "matchId": 138403,
+                  "seriesId": 11209,
+                  "seriesName": "ICC Under 19 World Cup 2026",
+                  "matchDesc": "14th Match, Group D",
+                  "matchFormat": "ODI",
+                  "startDate": "1768807800000",
+                  "endDate": "1768836600000",
+                  "state": "Preview",
+                  "status": "Match starts at Jan 19, 07:30 GMT",
+                  "team1": {
+                    "teamId": 57,
+                    "teamName": "South Africa U19",
+                    "teamSName": "RSAU19",
+                    "imageId": 776292
+                  },
+                  "team2": {
+                    "teamId": 2971,
+                    "teamName": "Tanzania U19",
+                    "teamSName": "TAN U19",
+                    "imageId": 784493
+                  },
+                  "venueInfo": {
+                    "id": 1438052,
+                    "ground": "High Performance Oval",
+                    "city": "Windhoek",
+                    "timezone": "+02:00",
+                    "latitude": "-22.5859618",
+                    "longitude": "17.0436255"
+                  },
+                  "seriesStartDt": "1768435200000",
+                  "seriesEndDt": "1770508800000",
+                  "isTimeAnnounced": true,
+                  "stateTitle": "Preview"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "ad": {
+            "name": "native_matches",
+            "layout": "native_large",
+            "position": 4
+          }
+        }
+      ]
+    },
+    {
+      "matchType": "Women",
+      "seriesMatches": [
+        {
+          "seriesAdWrapper": {
+            "seriesId": 11275,
+            "seriesName": "Women's Premier League 2026",
+            "matches": [
+              {
+                "matchInfo": {
+                  "matchId": 139681,
+                  "seriesId": 11275,
+                  "seriesName": "Women's Premier League 2026",
+                  "matchDesc": "12th Match",
+                  "matchFormat": "T20",
+                  "startDate": "1768831200000",
+                  "endDate": "1768843800000",
+                  "state": "Preview",
+                  "status": "Match starts at Jan 19, 14:00 GMT",
+                  "team1": {
+                    "teamId": 1479,
+                    "teamName": "Gujarat Giants Women",
+                    "teamSName": "GGTW",
+                    "imageId": 254722
+                  },
+                  "team2": {
+                    "teamId": 1465,
+                    "teamName": "Royal Challengers Bengaluru Women",
+                    "teamSName": "RCBW",
+                    "imageId": 254725
+                  },
+                  "venueInfo": {
+                    "id": 1843,
+                    "ground": "BCA Stadium, Kotambi",
+                    "city": "Vadodara",
+                    "timezone": "+05:30",
+                    "latitude": "22.3234",
+                    "longitude": "73.1607"
+                  },
+                  "seriesStartDt": "1767916800000",
+                  "seriesEndDt": "1770422400000",
+                  "isTimeAnnounced": true,
+                  "stateTitle": "Preview"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "filters": {
+    "matchType": [
+      "International",
+      "League",
+      "Domestic",
+      "Women"
+    ]
+  },
+  "appIndex": {
+    "seoTitle": "Live Cricket Score - Scorecard and Match Results",
+    "webURL": "www.cricbuzz.com/live-cricket-scores/"
+  },
+  "responseLastUpdated": "1768769174"
+}

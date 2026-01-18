@@ -115,32 +115,49 @@ class RapidApiCricketService implements CricketApiService {
            if (type['seriesMatches'] != null) {
               final seriesList = type['seriesMatches'] as List;
               for (var series in seriesList) {
-                 final seriesName = series['seriesAdWrapper']?['seriesName'] ?? "T20 Series";
-                 if (series['matches'] != null) {
-                    final mList = series['matches'] as List;
-                    for (var m in mList) {
-                       final matchInfo = m['matchInfo'];
-                       final team1 = matchInfo['team1'];
-                       final team2 = matchInfo['team2'];
-                       
-                       matches.add(CricketMatchModel(
-                          id: matchInfo['matchId'],
-                          seriesName: seriesName,
-                          matchDesc: matchInfo['matchDesc'] ?? "Match",
-                          matchFormat: matchInfo['matchFormat'] ?? "T20",
-                          team1Name: team1['teamName'],
-                          team1ShortName: team1['teamSName'],
-                          team1Img: team1['imageId']?.toString() ?? "1",
-                          team2Name: team2['teamName'],
-                          team2ShortName: team2['teamSName'],
-                          team2Img: team2['imageId']?.toString() ?? "1",
-                          startDate: (matchInfo['startDate'] as num).toInt(),
-                          endDate: (matchInfo['startDate'] as num).toInt() + 14400000, 
-                          venue: "${matchInfo['venueInfo']['ground']}, ${matchInfo['venueInfo']['city']}",
-                          status: "Upcoming", 
-                       ));
-                    }
-                 }
+                  // Check for seriesAdWrapper structure (Common in v1/upcoming)
+                  var seriesData = series;
+                  if (series['seriesAdWrapper'] != null) {
+                    seriesData = series['seriesAdWrapper'];
+                  }
+                  
+                  final seriesName = seriesData['seriesName'] ?? "T20 Series";
+                  
+                  if (seriesData['matches'] != null) {
+                     final mList = seriesData['matches'] as List;
+                     for (var m in mList) {
+                        final matchInfo = m['matchInfo'];
+                        final team1 = matchInfo['team1'];
+                        final team2 = matchInfo['team2'];
+                        
+                        // Parse Date safely
+                        int startDt = 0;
+                        int endDt = 0;
+                        try {
+                           startDt = int.parse(matchInfo['startDate'].toString());
+                           endDt = int.parse(matchInfo['endDate'].toString());
+                        } catch (e) {
+                           startDt = DateTime.now().millisecondsSinceEpoch;
+                        }
+
+                        matches.add(CricketMatchModel(
+                           id: matchInfo['matchId'],
+                           seriesName: seriesName,
+                           matchDesc: matchInfo['matchDesc'] ?? "Match",
+                           matchFormat: matchInfo['matchFormat'] ?? "T20",
+                           team1Name: team1['teamName'],
+                           team1ShortName: team1['teamSName'],
+                           team1Img: team1['imageId']?.toString() ?? "1",
+                           team2Name: team2['teamName'],
+                           team2ShortName: team2['teamSName'],
+                           team2Img: team2['imageId']?.toString() ?? "1",
+                           startDate: startDt,
+                           endDate: endDt, 
+                           venue: "${matchInfo['venueInfo']['ground']}, ${matchInfo['venueInfo']['city']}",
+                           status: "Upcoming", 
+                        ));
+                     }
+                  }
               }
            }
         }
