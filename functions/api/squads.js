@@ -42,8 +42,29 @@ export async function onRequestGet(context) {
         }
 
         // 2. Fallback: Series Squads (Best for Upcoming Matches)
-        if (seriesId && t1Id && t2Id) {
-            const url2 = `https://${apiHost}/series/v1/${seriesId}/squads`;
+        let sId = seriesId;
+        let team1Id = t1Id;
+        let team2Id = t2Id;
+
+        // Robustness: If IDs are missing, fetch them from Match Info
+        if (!sId || !team1Id || !team2Id || sId == '0') {
+            try {
+                const matchRes = await fetch(`https://${apiHost}/mcenter/v1/${matchId}`, { headers });
+                if (matchRes.ok) {
+                    const mData = await matchRes.json();
+                    if (mData.matchInfo) {
+                        sId = mData.matchInfo.seriesId || sId;
+                        team1Id = mData.matchInfo.team1?.teamId || team1Id;
+                        team2Id = mData.matchInfo.team2?.teamId || team2Id;
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        if (sId && team1Id && team2Id) {
+            const url2 = `https://${apiHost}/series/v1/${sId}/squads`;
             const resp2 = await fetch(url2, { headers });
             if (resp2.ok) {
                 const squadData = await resp2.json();
@@ -55,8 +76,8 @@ export async function onRequestGet(context) {
 
                 if (squads) {
                     for (const s of squads) {
-                        if (s.teamId == t1Id) t1SquadId = s.squadId;
-                        if (s.teamId == t2Id) t2SquadId = s.squadId;
+                        if (s.teamId == team1Id) t1SquadId = s.squadId;
+                        if (s.teamId == team2Id) t2SquadId = s.squadId;
                     }
                 }
 
