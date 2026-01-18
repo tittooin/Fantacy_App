@@ -203,7 +203,7 @@ class RapidApiCricketService implements CricketApiService {
       ),
     ];
   }
-}
+
 
   // Fetch Squads from API (via Proxy)
   Future<List<dynamic>> fetchSquads(int matchId, String t1Short, String t2Short) async {

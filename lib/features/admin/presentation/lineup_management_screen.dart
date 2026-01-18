@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
+import 'package:axevora11/features/cricket_api/data/cricket_api_service.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
-import 'package:axevora11/features/team/data/firestore_player_service.dart'; // Replaced Mock
+import 'package:axevora11/features/team/data/firestore_player_service.dart';
 
-class LineupManagementScreen extends StatefulWidget {
+class LineupManagementScreen extends ConsumerStatefulWidget {
   final String matchId;
   final CricketMatchModel match;
 
   const LineupManagementScreen({super.key, required this.matchId, required this.match});
 
   @override
-  State<LineupManagementScreen> createState() => _LineupManagementScreenState();
+  ConsumerState<LineupManagementScreen> createState() => _LineupManagementScreenState();
 }
 
-class _LineupManagementScreenState extends State<LineupManagementScreen> {
+class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen> {
   List<PlayerModel> _team1Squad = [];
   List<PlayerModel> _team2Squad = [];
   

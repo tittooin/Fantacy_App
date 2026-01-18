@@ -16,7 +16,7 @@ class FirestorePlayerService {
         return [];
       }
 
-      return snapshot.docs.map((doc) => PlayerModel.fromMap(doc.data())).toList();
+      return snapshot.docs.map((doc) => PlayerModel.fromJson(doc.data())).toList();
     } catch (e) {
       print("Error fetching players for match $matchId: $e");
       return [];
@@ -30,7 +30,7 @@ class FirestorePlayerService {
 
     for (var player in players) {
       final docRef = squadRef.doc(player.id);
-      batch.set(docRef, player.toMap());
+      batch.set(docRef, player.toJson());
     }
 
     await batch.commit();
