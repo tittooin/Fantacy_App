@@ -99,6 +99,48 @@ class _LineupManagementScreenState extends State<LineupManagementScreen> {
     }
   }
 
+  Future<void> _importSquadFromApi() async {
+     setState(() => _isLoading = true);
+     try {
+       final apiService = ref.read(cricketApiServiceProvider);
+       
+       final rawPlayers = await apiService.fetchSquads(
+          widget.match.id, 
+          widget.match.team1ShortName, 
+          widget.match.team2ShortName
+       );
+       
+       if (rawPlayers.isEmpty) {
+          throw "No squad data found via API.";
+       }
+       
+       List<PlayerModel> parsedPlayers = rawPlayers.map((json) {
+         return PlayerModel(
+           id: json['id'],
+           name: json['name'],
+           teamShortName: json['teamShortName'],
+           role: json['role'],
+           credits: (json['credits'] as num).toDouble(),
+           imageUrl: json['imageUrl'] ?? '',
+           points: 0,
+         );
+       }).toList();
+
+       // Save to Firestore
+       await FirestorePlayerService().saveSquad(widget.matchId, parsedPlayers);
+       
+       // Refresh UI
+       await _loadSquads();
+       
+       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Imported ${parsedPlayers.length} Players!")));
+       
+     } catch (e) {
+       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Import Failed: $e")));
+     } finally {
+       if (mounted) setState(() => _isLoading = false);
+     }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -113,6 +155,11 @@ class _LineupManagementScreenState extends State<LineupManagementScreen> {
             ],
           ),
           actions: [
+            IconButton(
+              onPressed: _isLoading ? null : _importSquadFromApi,
+              icon: const Icon(Icons.cloud_download),
+              tooltip: "Import Squad from API",
+            ),
             IconButton(
               onPressed: _isLoading ? null : _confirmLineup,
               icon: const Icon(Icons.check_circle),

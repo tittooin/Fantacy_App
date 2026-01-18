@@ -285,6 +285,27 @@ app.get('/scorecard/:matchId', async (req, res) => {
     };
 
     res.json(mockScorecard);
+    res.json(mockScorecard);
+});
+
+// Generic Proxy for any RapidAPI Endpoint
+app.get('/proxy', async (req, res) => {
+    const endpoint = req.query.endpoint;
+    const apiKey = req.headers['x-rapidapi-key'];
+    const apiHost = req.headers['x-rapidapi-host'];
+
+    if (!endpoint || !apiKey) return res.status(400).json({ error: "Missing endpoint or API Key" });
+
+    try {
+        console.log(`Tunneling Generic Request: ${endpoint}`);
+        const response = await axios.get(`https://${apiHost}${endpoint}`, {
+            headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': apiHost }
+        });
+        res.json(response.data);
+    } catch (error) {
+        console.error("Proxy Error:", error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.listen(PORT, () => {

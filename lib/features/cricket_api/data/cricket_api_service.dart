@@ -205,6 +205,69 @@ class RapidApiCricketService implements CricketApiService {
   }
 }
 
+  // Fetch Squads from API (via Proxy)
+  Future<List<dynamic>> fetchSquads(int matchId, String t1Short, String t2Short) async {
+     // Uses the generic /proxy route in scraper to hit any RapidAPI endpoint
+    try {
+      debugPrint("Fetching Squads for $matchId via Proxy...");
+      final response = await _dio.get(
+        '$_localUrl/proxy',
+        queryParameters: {
+          'endpoint': '/mcenter/v1/$matchId/scov2' 
+        },
+        options: Options(
+          headers: {
+            'X-RapidAPI-Key': ApiKeys.rapidApiKey,
+            'X-RapidAPI-Host': ApiKeys.rapidApiHost,
+          },
+          validateStatus: (status) => true,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        List<Map<String, dynamic>> parsedPlayers = [];
+        
+        if (data['matchInfo'] != null) {
+           final mInfo = data['matchInfo'];
+           
+           void processTeam(dynamic teamData, String teamShort) {
+              if (teamData != null && teamData['playerDetails'] != null) {
+                  for (var p in teamData['playerDetails']) {
+                      // Map Role
+                      String role = 'BAT';
+                      String apiRole = p['role']?.toString().toLowerCase() ?? '';
+                      if (apiRole.contains('keeper')) role = 'WK';
+                      else if (apiRole.contains('all')) role = 'AR';
+                      else if (apiRole.contains('bowl')) role = 'BOWL';
+                      
+                      parsedPlayers.add({
+                        'id': p['id'].toString(),
+                        'name': p['name'] ?? 'Unknown',
+                        'teamShortName': teamShort,
+                        'role': role,
+                        'credits': 8.5, // Default
+                        'imageUrl': p['faceImageId']?.toString() ?? '',
+                        'points': 0.0
+                      });
+                  }
+              }
+           }
+           
+           processTeam(mInfo['team1'], t1Short);
+           processTeam(mInfo['team2'], t2Short);
+        }
+        
+        debugPrint("API: Fetched & Parsed ${parsedPlayers.length} players");
+        return parsedPlayers;
+      }
+    } catch (e) {
+      debugPrint("Squad Fetch Error: $e");
+    }
+    return [];
+  }
+}
+
 final cricketApiServiceProvider = Provider<RapidApiCricketService>((ref) {
   return RapidApiCricketService(Dio());
 });
