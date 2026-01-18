@@ -44,8 +44,8 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
 
     if (mounted) {
       setState(() {
-        _team1Squad = allPlayers.where((p) => p.teamShortName == widget.match.team1ShortName).toList();
-        _team2Squad = allPlayers.where((p) => p.teamShortName == widget.match.team2ShortName).toList();
+        _team1Squad = _sortPlayersByRole(allPlayers.where((p) => p.teamShortName == widget.match.team1ShortName).toList());
+        _team2Squad = _sortPlayersByRole(allPlayers.where((p) => p.teamShortName == widget.match.team2ShortName).toList());
       });
     }
     
@@ -57,6 +57,17 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
          _selectedIds = existing.toSet();
        });
     }
+  }
+
+  List<PlayerModel> _sortPlayersByRole(List<PlayerModel> players) {
+    const roleOrder = {'WK': 0, 'BAT': 1, 'AR': 2, 'BOWL': 3};
+    players.sort((a, b) {
+      int roleA = roleOrder[a.role] ?? 99;
+      int roleB = roleOrder[b.role] ?? 99;
+      if (roleA != roleB) return roleA.compareTo(roleB);
+      return a.name.compareTo(b.name); // Secondary sort by name
+    });
+    return players;
   }
 
   void _toggleSelection(String id) {
