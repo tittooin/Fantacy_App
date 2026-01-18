@@ -30,6 +30,8 @@ export async function onRequestGet(context) {
             if (resp1.ok) {
                 const data = await resp1.json();
                 if (data.matchInfo && data.matchInfo.team1 && data.matchInfo.team1.playerDetails) {
+                    // Add Source Flag
+                    data.source = 'playing_xi';
                     return new Response(JSON.stringify(data), {
                         headers: { "Content-Type": "application/json" }
                     });
@@ -80,6 +82,7 @@ export async function onRequestGet(context) {
 
                 return new Response(JSON.stringify({
                     isFallback: true,
+                    source: 'series_squad',
                     team1: p1,
                     team2: p2
                 }), { headers: { "Content-Type": "application/json" } });

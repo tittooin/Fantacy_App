@@ -246,8 +246,7 @@ class RapidApiCricketService implements CricketApiService {
   }
 
 
-  // Fetch Squads from API (via Proxy)
-  Future<List<dynamic>> fetchSquads(int matchId, int seriesId, int t1Id, int t2Id, String t1Short, String t2Short) async {
+  Future<Map<String, dynamic>> fetchSquads(int matchId, int seriesId, int t1Id, int t2Id, String t1Short, String t2Short) async {
      // Uses the generic /proxy route in scraper to hit any RapidAPI endpoint
     try {
       debugPrint("Fetching Squads for $matchId via Function...");
@@ -264,6 +263,12 @@ class RapidApiCricketService implements CricketApiService {
 
       final data = response.data;
       List<Map<String, dynamic>> parsedPlayers = [];
+      bool isXI = false;
+
+      // Check Source
+      if (data['source'] == 'playing_xi') {
+          isXI = true;
+      }
       
       // Helper function to process player list
       void processPlayerList(List<dynamic>? players, String teamShort) {
@@ -310,13 +315,16 @@ class RapidApiCricketService implements CricketApiService {
           }
       }
         
-        debugPrint("API: Fetched & Parsed ${parsedPlayers.length} players");
-        return parsedPlayers;
-      }
+      debugPrint("API: Fetched & Parsed ${parsedPlayers.length} players. isXI: $isXI");
+      return {
+        'players': parsedPlayers,
+        'isXI': isXI
+      };
+
     } catch (e) {
       debugPrint("Squad Fetch Error: $e");
     }
-    return [];
+    return {'players': [], 'isXI': false};
   }
 }
 

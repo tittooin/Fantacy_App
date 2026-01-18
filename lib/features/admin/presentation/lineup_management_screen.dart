@@ -106,7 +106,7 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
      try {
        final apiService = ref.read(cricketApiServiceProvider);
        
-       final rawPlayers = await apiService.fetchSquads(
+       final result = await apiService.fetchSquads(
         widget.match.id, 
         widget.match.seriesId,
         widget.match.team1Id,
@@ -115,6 +115,9 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
         widget.match.team2ShortName
        );
        
+       final rawPlayers = result['players'] as List<dynamic>;
+       final isXI = result['isXI'] as bool;
+
        if (rawPlayers.isEmpty) {
           throw "No squad data found via API.";
        }
@@ -131,13 +134,18 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
          );
        }).toList();
 
-       // Save to Firestore
-       await FirestorePlayerService().saveSquad(widget.matchId, parsedPlayers);
-       
-       // Refresh UI
-       await _loadSquads();
-       
-       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Imported ${parsedPlayers.length} Players!")));
+       if (isXI) {
+          // Auto-Select Logic
+          setState(() {
+             _selectedIds = parsedPlayers.map((p) => p.id).toSet();
+          });
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Auto-Selected ${parsedPlayers.length} Playing XI Players!")));
+       } else {
+          // Full Squad Import Logic
+          await FirestorePlayerService().saveSquad(widget.matchId, parsedPlayers);
+          await _loadSquads();
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Imported ${parsedPlayers.length} Players into Pool!")));
+       }
        
      } catch (e) {
        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Import Failed: $e")));
