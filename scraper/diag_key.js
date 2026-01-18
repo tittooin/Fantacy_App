@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const apiKey = '70a8792460msh629f8e0af8cc36bp17accbjsn7c270b8814ee';
+const apiKey = '0f7ca5bd05msh3c4666a53a408e7p18a355jsnf0b0ef39619e';
 const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
 
 async function testEndpoint(name, path) {

@@ -1,6 +1,7 @@
 export async function onRequestGet(context) {
     const apiKey = context.env.RAPID_API_KEY;
-    const apiHost = "cricbuzz-cricket.p.rapidapi.com";
+    // CORRECTED HOST: cricbuzz-cricket2 (Added '2')
+    const apiHost = "cricbuzz-cricket2.p.rapidapi.com";
 
     if (!apiKey) {
         return new Response(JSON.stringify({ error: "Configuration Error: RAPID_API_KEY missing" }), {
@@ -9,9 +10,8 @@ export async function onRequestGet(context) {
         });
     }
 
-    // SWITCHED TO matches/list-upcoming
-    // v1/upcoming was returning 403 (Forbidden)
-    const url = `https://${apiHost}/matches/list-upcoming`;
+    // Using v1/upcoming as seen in the working screenshot
+    const url = `https://${apiHost}/matches/v1/upcoming`;
 
     try {
         const response = await fetch(url, {
