@@ -270,7 +270,7 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
       itemCount: players.length,
       itemBuilder: (context, index) {
         final player = players[index];
-        final isSelected = _selectedIds.contains(player.id);
+        final isPlaying = widget.match.playingXI.contains(player.id);
         
         return Container(
           decoration: BoxDecoration(
@@ -290,8 +290,20 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
                    const Positioned(bottom: 0, right: 0, child: Icon(Icons.circle, size: 10, color: Colors.red))
               ],
             ),
-            title: Text(player.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
-            subtitle: Text("Sel by 10% • ${player.points} pts", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            title: Row(
+              children: [
+                Text(player.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                if (isPlaying) ...[
+                   const SizedBox(width: 8),
+                   Container(
+                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(4)),
+                     child: const Text("Playing", style: TextStyle(fontSize: 8, color: Colors.white)),
+                   )
+                ]
+              ],
+            ),
+             subtitle: Text("Sel by 10% • ${player.points} pts", style: const TextStyle(fontSize: 11, color: Colors.grey)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
