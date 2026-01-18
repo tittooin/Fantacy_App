@@ -9,9 +9,9 @@ export async function onRequestGet(context) {
         });
     }
 
-    // Use List Upcoming for safer wide data, or v1/upcoming if preferred.
-    // Using v1/upcoming as established.
-    const url = `https://${apiHost}/matches/v1/upcoming`;
+    // SWITCHED TO matches/list-upcoming
+    // v1/upcoming was returning 403 (Forbidden)
+    const url = `https://${apiHost}/matches/list-upcoming`;
 
     try {
         const response = await fetch(url, {
@@ -23,7 +23,11 @@ export async function onRequestGet(context) {
         });
 
         if (!response.ok) {
-            return new Response(JSON.stringify({ error: `Upstream API Error: ${response.status}` }), {
+            const errText = await response.text();
+            return new Response(JSON.stringify({
+                error: `Upstream API Error: ${response.status}`,
+                details: errText
+            }), {
                 status: response.status,
                 headers: { "Content-Type": "application/json" }
             });
@@ -33,7 +37,6 @@ export async function onRequestGet(context) {
         return new Response(JSON.stringify(data), {
             headers: {
                 "Content-Type": "application/json",
-                // Allow CORS if needed, though same-origin is default
                 "Access-Control-Allow-Origin": "*"
             }
         });
