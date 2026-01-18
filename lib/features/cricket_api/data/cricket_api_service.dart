@@ -61,7 +61,7 @@ class RapidApiCricketService implements CricketApiService {
        // (Keeping extensive logging code here if Proxy fails)
        try {
          final response = await _dio.get(
-           'https://${ApiKeys.rapidApiHost}/matches/list-upcoming', 
+           'https://${ApiKeys.rapidApiHost}/matches/v1/upcoming', 
            options: Options(
               headers: {
                 'X-RapidAPI-Key': ApiKeys.rapidApiKey,
