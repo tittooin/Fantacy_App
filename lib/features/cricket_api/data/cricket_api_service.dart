@@ -246,6 +246,7 @@ class RapidApiCricketService implements CricketApiService {
   // Fetch Squads from API (via Proxy)
   Future<List<dynamic>> fetchSquads(int matchId, String t1Short, String t2Short) async {
      // Uses the generic /proxy route in scraper to hit any RapidAPI endpoint
+    try {
       debugPrint("Fetching Squads for $matchId via Function...");
       // Use Cloudflare Function /api/squads
       final response = await _dio.get(
