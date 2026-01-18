@@ -3,7 +3,7 @@ class ApiKeys {
   static const String rapidApiKey = String.fromEnvironment('RAPID_API_KEY'); 
   // Key removed for security. Pass via --dart-define or Cloudflare Environment Variables.
   
-  static const String rapidApiHost = 'cricbuzz-cricket.p.rapidapi.com';
+  static const String rapidApiHost = 'cricbuzz-cricket2.p.rapidapi.com';
 
   // Cashfree Payments
   static const String cashfreeAppId = String.fromEnvironment('CASHFREE_APP_ID'); 
