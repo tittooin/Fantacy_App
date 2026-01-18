@@ -15,7 +15,10 @@ class CricketMatchModel {
   final String status; // 'Created', 'Upcoming', 'Live', 'Completed'
   final String lineupStatus; // 'Pending' or 'Confirmed'
   final List<String> playingXI;
-  final String? leagueId; // Added for Multi-League support
+  final String? leagueId; 
+  final int seriesId;
+  final int team1Id;
+  final int team2Id;
 
   const CricketMatchModel({
     required this.id,
@@ -35,6 +38,9 @@ class CricketMatchModel {
     this.lineupStatus = 'Pending',
     this.playingXI = const [],
     this.leagueId,
+    this.seriesId = 0,
+    this.team1Id = 0,
+    this.team2Id = 0,
   });
 
   factory CricketMatchModel.fromJson(Map<String, dynamic> json) {
@@ -61,6 +67,9 @@ class CricketMatchModel {
       lineupStatus: 'Pending',
       playingXI: const [],
       leagueId: json['leagueId'] as String?,
+      seriesId: matchInfo['seriesId'] as int? ?? 0,
+      team1Id: team1['teamId'] as int? ?? 0,
+      team2Id: team2['teamId'] as int? ?? 0,
     );
   }
 
@@ -83,6 +92,9 @@ class CricketMatchModel {
       lineupStatus: map['lineupStatus'] as String? ?? 'Pending',
       playingXI: (map['playingXI'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       leagueId: map['leagueId'] as String?,
+      seriesId: map['seriesId'] as int? ?? 0,
+      team1Id: map['team1Id'] as int? ?? 0,
+      team2Id: map['team2Id'] as int? ?? 0,
     );
   }
 
@@ -105,6 +117,9 @@ class CricketMatchModel {
       'lineupStatus': lineupStatus,
       'playingXI': playingXI,
       'leagueId': leagueId,
+      'seriesId': seriesId,
+      'team1Id': team1Id,
+      'team2Id': team2Id,
     };
   }
 }

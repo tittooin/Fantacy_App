@@ -154,7 +154,10 @@ class RapidApiCricketService implements CricketApiService {
                            startDate: startDt,
                            endDate: endDt, 
                            venue: "${matchInfo['venueInfo']['ground']}, ${matchInfo['venueInfo']['city']}",
-                           status: "Upcoming", 
+                           status: "Upcoming",
+                           seriesId: matchInfo['seriesId'] ?? 0,
+                           team1Id: team1['teamId'] ?? 0,
+                           team2Id: team2['teamId'] ?? 0,
                         ));
                      }
                   }
@@ -244,7 +247,7 @@ class RapidApiCricketService implements CricketApiService {
 
 
   // Fetch Squads from API (via Proxy)
-  Future<List<dynamic>> fetchSquads(int matchId, String t1Short, String t2Short) async {
+  Future<List<dynamic>> fetchSquads(int matchId, int seriesId, int t1Id, int t2Id, String t1Short, String t2Short) async {
      // Uses the generic /proxy route in scraper to hit any RapidAPI endpoint
     try {
       debugPrint("Fetching Squads for $matchId via Function...");
@@ -252,43 +255,60 @@ class RapidApiCricketService implements CricketApiService {
       final response = await _dio.get(
         '/api/squads',
         queryParameters: {
-          'id': matchId
+          'id': matchId,
+          'seriesId': seriesId,
+          't1Id': t1Id,
+          't2Id': t2Id
         },
       );
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        List<Map<String, dynamic>> parsedPlayers = [];
-        
-        if (data['matchInfo'] != null) {
-           final mInfo = data['matchInfo'];
-           
-           void processTeam(dynamic teamData, String teamShort) {
-              if (teamData != null && teamData['playerDetails'] != null) {
-                  for (var p in teamData['playerDetails']) {
-                      // Map Role
-                      String role = 'BAT';
-                      String apiRole = p['role']?.toString().toLowerCase() ?? '';
-                      if (apiRole.contains('keeper')) role = 'WK';
-                      else if (apiRole.contains('all')) role = 'AR';
-                      else if (apiRole.contains('bowl')) role = 'BOWL';
-                      
-                      parsedPlayers.add({
-                        'id': p['id'].toString(),
-                        'name': p['name'] ?? 'Unknown',
-                        'teamShortName': teamShort,
-                        'role': role,
-                        'credits': 8.5, // Default
-                        'imageUrl': p['faceImageId']?.toString() ?? '',
-                        'points': 0.0
-                      });
-                  }
-              }
-           }
-           
-           processTeam(mInfo['team1'], t1Short);
-           processTeam(mInfo['team2'], t2Short);
-        }
+      final data = response.data;
+      List<Map<String, dynamic>> parsedPlayers = [];
+      
+      // Helper function to process player list
+      void processPlayerList(List<dynamic>? players, String teamShort) {
+         if (players == null) return;
+         for (var p in players) {
+             // Skip header entries
+             if (p['isHeader'] == true) continue;
+
+             String role = 'BAT';
+             String apiRole = p['role']?.toString().toLowerCase() ?? '';
+             if (apiRole.contains('keeper')) role = 'WK';
+             else if (apiRole.contains('all')) role = 'AR';
+             else if (apiRole.contains('bowl')) role = 'BOWL';
+             
+             parsedPlayers.add({
+               'id': p['id'].toString(),
+               'name': p['name'] ?? 'Unknown',
+               'teamShortName': teamShort,
+               'role': role,
+               'credits': 8.5,
+               // Fallback: Use imageId if faceImageId is missing
+               'imageUrl': (p['faceImageId'] ?? p['imageId'])?.toString() ?? '',
+               'points': 0.0
+             });
+         }
+      }
+
+      // Check for Falback Structure (Series Squads)
+      if (data['isFallback'] == true) {
+          processPlayerList(data['team1'], t1Short);
+          processPlayerList(data['team2'], t2Short);
+      } 
+      // Check for Standard Structure (scov2)
+      else if (data['matchInfo'] != null) {
+          final mInfo = data['matchInfo'];
+          // scov2 structure usually has team1 -> playerDetails
+          // But sometimes it might be team1 -> squad? verify if needed. 
+          // Assuming test_squad_data.js structure: team1.playerDetails
+          if (mInfo['team1'] != null) {
+             processPlayerList(mInfo['team1']['playerDetails'], t1Short);
+          }
+          if (mInfo['team2'] != null) {
+             processPlayerList(mInfo['team2']['playerDetails'], t2Short);
+          }
+      }
         
         debugPrint("API: Fetched & Parsed ${parsedPlayers.length} players");
         return parsedPlayers;

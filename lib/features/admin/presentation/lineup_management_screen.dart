@@ -107,9 +107,12 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
        final apiService = ref.read(cricketApiServiceProvider);
        
        final rawPlayers = await apiService.fetchSquads(
-          widget.match.id, 
-          widget.match.team1ShortName, 
-          widget.match.team2ShortName
+        widget.match.id, 
+        widget.match.seriesId,
+        widget.match.team1Id,
+        widget.match.team2Id,
+        widget.match.team1ShortName, 
+        widget.match.team2ShortName
        );
        
        if (rawPlayers.isEmpty) {
