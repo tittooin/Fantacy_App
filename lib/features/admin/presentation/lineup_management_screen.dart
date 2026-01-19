@@ -180,6 +180,11 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
           ),
           actions: [
             IconButton(
+              onPressed: _showPasteDialog,
+              icon: const Icon(Icons.paste),
+              tooltip: "Paste Playing XI",
+            ),
+            IconButton(
               onPressed: _isLoading ? null : _importSquadFromApi,
               icon: const Icon(Icons.cloud_download),
               tooltip: "Import Squad from API",
@@ -210,6 +215,81 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
         ),
       ),
     );
+  }
+  
+  void _showPasteDialog() {
+    final TextEditingController _controller = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Paste Playing XI Names"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Copy names from Cricbuzz/Espncricinfo and paste here. We will try to match them.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _controller,
+              maxLines: 6,
+              decoration: const InputDecoration(border: OutlineInputBorder(), hintText: "e.g. Kohli, Rohit, Dhoni..."),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+               _processPastedText(_controller.text);
+               Navigator.pop(ctx);
+            },
+            child: const Text("Auto Select"),
+          )
+        ],
+      )
+    );
+  }
+
+  void _processPastedText(String text) {
+    if (text.isEmpty) return;
+    String normalized = text.toLowerCase();
+    Set<String> newSelection = {};
+    int matchCount = 0;
+    
+    List<PlayerModel> all = [..._team1Squad, ..._team2Squad];
+    
+    for (var p in all) {
+       // Match Logic: Check if Full Name matches OR Surname matches
+       // Split name
+       List<String> parts = p.name.toLowerCase().split(' ').where((s) => s.length > 2).toList();
+       
+       bool matched = false;
+       for (var part in parts) {
+          if (normalized.contains(part)) {
+             matched = true;
+             break;
+          }
+       }
+       
+       if (matched) {
+         newSelection.add(p.id);
+         matchCount++;
+       } else {
+         // Keep existing if any? No, Paste implies "Set Selection".
+         // But maybe we should MERGE? "User wants to PASTE list of XI".
+         // So likely user provided ALL names.
+         // Let's MERGE for safety (User can untick).
+         if (_selectedIds.contains(p.id)) {
+            newSelection.add(p.id); 
+         }
+       }
+    }
+    
+    setState(() {
+      _selectedIds.addAll(newSelection);
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Auto-Matched $matchCount players from text!")));
   }
 
   int _countSelected(List<PlayerModel> squad) {
