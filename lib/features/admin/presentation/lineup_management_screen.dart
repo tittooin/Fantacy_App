@@ -181,7 +181,7 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
           actions: [
             IconButton(
               onPressed: _showPasteDialog,
-              icon: const Icon(Icons.paste),
+              icon: const Icon(Icons.paste, color: Colors.white),
               tooltip: "Paste Playing XI",
             ),
             IconButton(
