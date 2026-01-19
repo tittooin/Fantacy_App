@@ -176,28 +176,24 @@ class RapidApiCricketService implements CricketApiService {
     
     // 1. Try Local Proxy Tunnel (Web CORS Fix)
     // Routes to localhost:3000/scorecard/:id which then calls RapidAPI
-    if (!forceMock && ApiKeys.rapidApiKey.isNotEmpty) {
-      try {
-        debugPrint("Fetching Scorecard via Proxy: $_localUrl/scorecard/$matchId");
-        final response = await _dio.get(
-          '$_localUrl/scorecard/$matchId', 
-           options: Options(
-              headers: {
-                'X-RapidAPI-Key': ApiKeys.rapidApiKey,
-                'X-RapidAPI-Host': ApiKeys.rapidApiHost,
-              },
-              validateStatus: (status) => true,
-           )
-        );
-        
-        if (response.statusCode == 200) {
-           return response.data as Map<String, dynamic>;
-        } else {
-           debugPrint("Proxy Scorecard Error: ${response.statusCode} - ${response.data}");
-        }
-      } catch (e) {
-        debugPrint("Proxy Scorecard Exception: $e. Is Scraper 'node index.js' running?");
+    // 1. Fetch via Cloudflare Function (Production Ready)
+    try {
+      debugPrint("Fetching Scorecard via Function: /api/score?id=$matchId");
+      final response = await _dio.get(
+        '/api/score', 
+        queryParameters: {'id': matchId}
+      );
+      
+      if (response.statusCode == 200) {
+         Map<String, dynamic> data = response.data;
+         // Pass through the data (Standard scov2 structure)
+         debugPrint("Scorecard Fetched. Keys: ${data.keys.toList()}");
+         return data;
+      } else {
+         debugPrint("Scorecard Function Error: ${response.statusCode} - ${response.data}");
       }
+    } catch (e) {
+      debugPrint("Scorecard Fetch Exception (Cloudflare): $e");
     }
 
     // 2. Fallback Mock Scorecard
