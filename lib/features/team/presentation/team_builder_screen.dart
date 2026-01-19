@@ -270,6 +270,7 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
       itemCount: players.length,
       itemBuilder: (context, index) {
         final player = players[index];
+        final isSelected = _selectedIds.contains(player.id);
         final isPlaying = widget.match.playingXI.contains(player.id);
         
         return Container(
