@@ -279,9 +279,14 @@ class RapidApiCricketService implements CricketApiService {
 
              String role = 'BAT';
              String apiRole = p['role']?.toString().toLowerCase() ?? '';
-             if (apiRole.contains('keeper')) role = 'WK';
-             else if (apiRole.contains('all')) role = 'AR';
-             else if (apiRole.contains('bowl')) role = 'BOWL';
+             
+             if (apiRole.contains('keeper') || apiRole.contains('wk') || apiRole.contains('wicket')) {
+               role = 'WK';
+             } else if (apiRole.contains('all') || apiRole.contains('allrounder')) {
+               role = 'AR';
+             } else if (apiRole.contains('bowl')) {
+               role = 'BOWL';
+             }
              
              parsedPlayers.add({
                'id': p['id'].toString(),
