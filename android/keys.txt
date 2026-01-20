@@ -1,0 +1,156 @@
+> Task :gradle:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle:compileKotlin UP-TO-DATE
+> Task :gradle:compileJava NO-SOURCE
+> Task :gradle:compileGroovy NO-SOURCE
+> Task :gradle:pluginDescriptors UP-TO-DATE
+> Task :gradle:processResources UP-TO-DATE
+> Task :gradle:classes UP-TO-DATE
+> Task :gradle:jar UP-TO-DATE
+
+> Task :app:signingReport
+Variant: debug
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+Variant: release
+Config: release
+Store: G:\Fantacy_App\android\app\upload-keystore.jks
+Alias: upload
+MD5: 6D:C5:01:83:EA:45:92:29:54:71:14:AF:6C:8F:6A:DA
+SHA1: 2C:DC:54:2A:2E:C4:71:B7:32:94:F1:53:16:B9:E2:A1:2C:3F:2B:89
+SHA-256: C8:EE:82:C7:BB:2A:81:CE:F7:2A:52:0B:E6:E0:73:5B:2A:CA:3E:34:94:8A:C8:69:E9:8D:94:35:17:70:FC:E1
+Valid until: Wednesday, 4 June, 2053
+----------
+Variant: profile
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+> Task :cloud_firestore:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+> Task :firebase_auth:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+> Task :firebase_core:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+> Task :flutter_cashfree_pg_sdk:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+> Task :google_sign_in_android:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+> Task :path_provider_android:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+> Task :shared_preferences_android:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+> Task :sqflite_android:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+> Task :url_launcher_android:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\tittoo\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 26:0E:FD:6A:A9:1F:2E:A4:80:A8:B8:0F:84:9C:CE:61
+SHA1: 23:82:30:C7:C3:44:73:E1:F3:33:E3:08:FC:E9:C0:57:CA:9A:1C:DC
+SHA-256: 25:30:70:8F:92:D1:56:06:6C:02:C6:1B:5D:F5:BE:4B:1A:52:AA:A0:23:20:AB:8F:31:28:5E:89:29:9F:35:3B
+Valid until: Wednesday, 15 December, 2055
+----------
+
+[Incubating] Problems report is available at: file:///G:/Fantacy_App/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 3s
+14 actionable tasks: 10 executed, 4 up-to-date

@@ -11,6 +11,7 @@ import 'package:axevora11/features/contest/domain/user_contest_entity.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
+import 'package:axevora11/features/cricket_api/presentation/widgets/match_score_header.dart';
 
 class MatchDetailScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -137,8 +138,11 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
   }
 
   Widget _buildContestsTab() {
+    final showScore = _effectiveMatch?.status == 'Live' || _effectiveMatch?.status == 'Completed';
+    
     return Column(
       children: [
+        if (showScore) MatchScoreHeader(matchId: widget.matchId),
         // Filter Bar
         Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),

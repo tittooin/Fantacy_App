@@ -91,8 +91,14 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
          if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
-         final docs = snapshot.data?.docs ?? [];
-         if (docs.isEmpty) return const Center(child: Text("No matches saved in database."));
+         final allDocs = snapshot.data?.docs ?? [];
+         // Filter out archived matches
+         final docs = allDocs.where((d) {
+            final data = d.data() as Map<String, dynamic>;
+            return data['isArchived'] != true;
+         }).toList();
+
+         if (docs.isEmpty) return const Center(child: Text("No active saved matches found."));
 
          return ListView.builder(
            itemCount: docs.length,
@@ -101,17 +107,18 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
                   final match = CricketMatchModel.fromMap(data);
 
                   return Card(
+                    color: Colors.white, // Explicit White Background
+                    elevation: 2,
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     child: ListTile(
                       onTap: () {
-                        // Navigate to Contest Creator
                         context.go('/admin/matches/create-contest', extra: match);
                       },
                       leading: ClipOval(
                         child: Container(
                           width: 40,
                           height: 40,
-                          color: Colors.indigo.shade50,
+                          color: Colors.grey.shade100, // Light Grey
                           child: Image.network(
                             getTeamImage(match.team1Img),
                             fit: BoxFit.cover,
@@ -121,18 +128,38 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
                           ),
                         ),
                       ),
-                      title: Text("${match.team1ShortName} vs ${match.team2ShortName}"),
-                      subtitle: Text("${match.seriesName} • ${match.venue}"),
-                      trailing: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo.shade50,
-                          foregroundColor: Colors.indigo,
-                        ),
-                        onPressed: () {
-                          context.go('/admin/matches/create-contest', extra: match);
-                        },
-                        icon: const Icon(Icons.add_circle, size: 16),
-                        label: const Text("Create Contest"),
+                      title: Text("${match.team1ShortName} vs ${match.team2ShortName}", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      subtitle: Text("${match.seriesName} • ${match.venue}", style: const TextStyle(color: Colors.black54)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.indigo.shade50,
+                              foregroundColor: Colors.indigo,
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              context.go('/admin/matches/create-contest', extra: match);
+                            },
+                            icon: const Icon(Icons.add_circle, size: 16),
+                            label: const Text("Contest"),
+                          ),
+                          const SizedBox(width: 8),
+                          // Delete / Archive Actions
+                          if (match.status == 'Completed')
+                             IconButton(
+                               icon: const Icon(Icons.archive, color: Colors.orange),
+                               tooltip: "Archive Match",
+                               onPressed: () => _archiveMatch(match),
+                             )
+                          else if (match.status != 'Live')
+                             IconButton(
+                               icon: const Icon(Icons.delete_outline, color: Colors.red),
+                               tooltip: "Delete Match",
+                               onPressed: () => _deleteMatch(match),
+                             ),
+                        ],
                       ),
                     ),
                   );
@@ -140,6 +167,68 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
          );
        },
      );
+  }
+
+  Future<void> _archiveMatch(CricketMatchModel match) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Archive Match?", style: TextStyle(color: Colors.black)),
+        content: Text("This will hide '${match.team1ShortName} vs ${match.team2ShortName}' from this list.", style: const TextStyle(color: Colors.black87)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("CANCEL")),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("ARCHIVE", style: TextStyle(color: Colors.orange))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance.collection('matches').doc(match.id.toString()).update({'isArchived': true});
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Match Archived"), backgroundColor: Colors.orange));
+        }
+      } catch (e) {
+        debugPrint("Archive Error: $e");
+      }
+    }
+  }
+
+  Future<void> _deleteMatch(CricketMatchModel match) async {
+    // Safety handled by UI condition, but double check
+    if (match.status == 'Live') return;
+
+    // Confirmation
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Match?", style: TextStyle(color: Colors.red)),
+        content: Text("Are you sure you want to delete ${match.team1ShortName} vs ${match.team2ShortName}?\n\nThis will remove it from the database permanently.", style: const TextStyle(color: Colors.black87)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("CANCEL")),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("DELETE", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        // Use string ID for doc usually, confirm if model.id is int or string driven document.
+        // Assuming doc ID is same as match ID (int->string) based on Repo import logic.
+        await FirebaseFirestore.instance.collection('matches').doc(match.id.toString()).delete();
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text("Match deleted successfully"), backgroundColor: Colors.green)
+           );
+        }
+      } catch (e) {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text("Delete Error: $e"), backgroundColor: Colors.red)
+           );
+        }
+      }
+    }
   }
 
   Widget _buildImportTab() {
@@ -151,7 +240,7 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
             children: [
               Text(
                 "Fetch from RapidAPI",
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
               ),
               if (_matches.isNotEmpty)
                 Container(
@@ -183,7 +272,7 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _matches.isEmpty
-                ? const Center(child: Text("Click 'Fetch' to load data from API."))
+                ? const Center(child: Text("Click 'Fetch' to load data from API.", style: TextStyle(color: Colors.white70)))
                 : ListView.builder(
                     itemCount: _matches.length,
                     itemBuilder: (context, index) {
@@ -204,15 +293,15 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
                                ),
                             ),
                           ),
-                          title: Text("${match.team1ShortName} vs ${match.team2ShortName}"),
+                          title: Text("${match.team1ShortName} vs ${match.team2ShortName}", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(match.seriesName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              Text("${match.matchDesc} • ${match.venue}"),
+                              Text(match.seriesName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+                              Text("${match.matchDesc} • ${match.venue}", style: const TextStyle(color: Colors.black54)),
                               Text(
                                 DateTime.fromMillisecondsSinceEpoch(match.startDate).toString(),
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                style: const TextStyle(fontSize: 12, color: Colors.black54),
                               ),
                             ],
                           ),

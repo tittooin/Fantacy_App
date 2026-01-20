@@ -19,6 +19,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Placeholder imports for screens
 import 'package:axevora11/features/home/presentation/home_screen.dart';
+import 'package:axevora11/features/home/presentation/user_main_layout.dart';
+import 'package:axevora11/features/contest/presentation/my_matches_screen.dart';
+import 'package:axevora11/features/rewards/presentation/rewards_screen.dart';
 import 'package:axevora11/features/contest/presentation/match_detail_screen.dart';
 import 'package:axevora11/features/contest/presentation/contest_detail_screen.dart';
 import 'package:axevora11/features/team/presentation/team_builder_screen.dart';
@@ -27,6 +30,7 @@ import 'package:axevora11/features/team/presentation/captain_selection_screen.da
 import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:axevora11/features/wallet/presentation/wallet_screen.dart';
 import 'package:axevora11/features/user/presentation/profile_screen.dart';
+import 'package:axevora11/features/legal/presentation/legal_pages.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -115,24 +119,62 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
-        path: '/wallet',
+        path: '/wallet', // Wallet acts as a modal/fullscreen usually
         builder: (context, state) => const WalletScreen(),
-      ),
-      GoRoute(
-        path: '/profile/:uid',
-        builder: (context, state) {
-           final uid = state.pathParameters['uid']!;
-           return ProfileScreen(userId: uid);
-        },
       ),
       GoRoute(
         path: '/location-verify',
         builder: (context, state) => const StateSelectionScreen(),
       ),
       GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeScreen(),
+        path: '/terms',
+        builder: (context, state) => const TermsConditionsScreen(),
       ),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/refund-policy',
+        builder: (context, state) => const RefundPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/fair-play',
+        builder: (context, state) => const FairPlayScreen(),
+      ),
+      GoRoute(
+        path: '/responsible-play',
+        builder: (context, state) => const ResponsiblePlayScreen(),
+      ),
+
+      // User Shell Route (Bottom Nav Persist)
+      ShellRoute(
+        builder: (context, state, child) {
+          return UserMainLayout(child: child);
+        },
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/my-matches',
+            builder: (context, state) => const MyMatchesScreen(),
+          ),
+          GoRoute(
+            path: '/rewards',
+            builder: (context, state) => const RewardsScreen(),
+          ),
+          GoRoute(
+            path: '/profile/:uid',
+            builder: (context, state) {
+               final uid = state.pathParameters['uid']!;
+               return ProfileScreen(userId: uid);
+            },
+          ),
+        ],
+      ),
+
       GoRoute(
         name: 'match_detail',
         path: '/match/:matchId',

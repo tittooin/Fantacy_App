@@ -18,6 +18,7 @@ abstract class UserEntity with _$UserEntity {
     @Default(false) bool isRestricted,
     @Default(false) bool isPhoneVerified,
     @Default(false) bool isEmailVerified,
+    @Default(false) bool isKYCVerified, // Added for Payment Security
     @Default(0) double walletBalance,
     @Default(0) double bonusBalance,
     @Default(0) double winningBalance,

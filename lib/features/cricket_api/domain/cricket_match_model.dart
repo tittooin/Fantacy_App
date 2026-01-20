@@ -19,6 +19,8 @@ class CricketMatchModel {
   final int seriesId;
   final int team1Id;
   final int team2Id;
+  final Map<String, dynamic>? score; // Snapshot of the scorecard
+  final bool isArchived;
 
   const CricketMatchModel({
     required this.id,
@@ -41,6 +43,8 @@ class CricketMatchModel {
     this.seriesId = 0,
     this.team1Id = 0,
     this.team2Id = 0,
+    this.score,
+    this.isArchived = false,
   });
 
   factory CricketMatchModel.fromJson(Map<String, dynamic> json) {
@@ -70,6 +74,8 @@ class CricketMatchModel {
       seriesId: matchInfo['seriesId'] as int? ?? 0,
       team1Id: team1['teamId'] as int? ?? 0,
       team2Id: team2['teamId'] as int? ?? 0,
+      score: null, // API response doesn't have score in this structure usually
+      isArchived: json['isArchived'] as bool? ?? false,
     );
   }
 
@@ -95,6 +101,8 @@ class CricketMatchModel {
       seriesId: map['seriesId'] as int? ?? 0,
       team1Id: map['team1Id'] as int? ?? 0,
       team2Id: map['team2Id'] as int? ?? 0,
+      score: map['score'] as Map<String, dynamic>?,
+      isArchived: map['isArchived'] as bool? ?? false,
     );
   }
 
@@ -120,6 +128,8 @@ class CricketMatchModel {
       'seriesId': seriesId,
       'team1Id': team1Id,
       'team2Id': team2Id,
+      'score': score,
+      'isArchived': isArchived,
     };
   }
 }

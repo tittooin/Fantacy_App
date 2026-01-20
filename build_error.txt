@@ -1,0 +1,218 @@
+﻿[ +558 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[   +1 ms] executing: [C:\Users\tittoo\flutter/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[ +113 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[        ] 2025-11-20 17:53:13 -0500
+[  +20 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +4 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +65 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +36 ms] Skipping pub get: version match.
+[+1037 ms] Found plugin url_launcher at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +5 ms] Found plugin url_launcher_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +9 ms] Found plugin url_launcher_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.1\
+[   +4 ms] Found plugin url_launcher_macos at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +4 ms] Found plugin url_launcher_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +4 ms] Found plugin url_launcher_ios at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.3.6\
+[   +5 ms] Found plugin url_launcher_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.28\
+[   +8 ms] Found plugin shared_preferences at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.4\
+[   +3 ms] Found plugin shared_preferences_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +4 ms] Found plugin path_provider_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[   +5 ms] Found plugin shared_preferences_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[   +2 ms] Found plugin shared_preferences_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[   +3 ms] Found plugin path_provider_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.1\
+[   +6 ms] Found plugin shared_preferences_foundation at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[   +2 ms] Found plugin shared_preferences_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.18\
+[  +11 ms] Found plugin google_sign_in at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in-6.3.0\
+[   +2 ms] Found plugin google_sign_in_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_web-0.12.4+4\
+[   +6 ms] Found plugin google_sign_in_ios at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_ios-5.9.0\
+[   +2 ms] Found plugin google_sign_in_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_android-6.2.1\
+[   +6 ms] Found plugin path_provider at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.5\
+[   +2 ms] Found plugin path_provider_foundation at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.5.1\
+[   +3 ms] Found plugin path_provider_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.2.22\
+[  +25 ms] Found plugin firebase_core at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.3.0\
+[   +2 ms] Found plugin firebase_core_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.3.1\
+[   +3 ms] Found plugin firebase_auth at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.1.3\
+[   +2 ms] Found plugin firebase_auth_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.1\
+[   +7 ms] Found plugin cloud_firestore at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.1\
+[   +2 ms] Found plugin cloud_firestore_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.1\
+[   +8 ms] Found plugin sqflite at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite-2.4.2\
+[   +5 ms] Found plugin sqflite_darwin at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite_darwin-2.4.2\
+[   +1 ms] Found plugin sqflite_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite_android-2.4.2+2\
+[  +94 ms] Found plugin url_launcher at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +1 ms] Found plugin url_launcher_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +3 ms] Found plugin url_launcher_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.1\
+[   +1 ms] Found plugin url_launcher_macos at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +1 ms] Found plugin url_launcher_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +1 ms] Found plugin url_launcher_ios at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.3.6\
+[        ] Found plugin url_launcher_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.28\
+[   +1 ms] Found plugin shared_preferences at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.4\
+[   +1 ms] Found plugin shared_preferences_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +1 ms] Found plugin path_provider_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[   +3 ms] Found plugin shared_preferences_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[   +1 ms] Found plugin shared_preferences_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[   +1 ms] Found plugin path_provider_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.1\
+[   +2 ms] Found plugin shared_preferences_foundation at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[   +1 ms] Found plugin shared_preferences_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.18\
+[   +7 ms] Found plugin google_sign_in at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in-6.3.0\
+[   +1 ms] Found plugin google_sign_in_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_web-0.12.4+4\
+[   +2 ms] Found plugin google_sign_in_ios at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_ios-5.9.0\
+[   +1 ms] Found plugin google_sign_in_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_android-6.2.1\
+[   +3 ms] Found plugin path_provider at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.5\
+[   +1 ms] Found plugin path_provider_foundation at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.5.1\
+[   +1 ms] Found plugin path_provider_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.2.22\
+[  +14 ms] Found plugin firebase_core at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.3.0\
+[   +1 ms] Found plugin firebase_core_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.3.1\
+[   +1 ms] Found plugin firebase_auth at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.1.3\
+[   +1 ms] Found plugin firebase_auth_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.1\
+[   +4 ms] Found plugin cloud_firestore at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.1\
+[   +1 ms] Found plugin cloud_firestore_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.1\
+[   +4 ms] Found plugin sqflite at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite-2.4.2\
+[   +4 ms] Found plugin sqflite_darwin at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite_darwin-2.4.2\
+[   +1 ms] Found plugin sqflite_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite_android-2.4.2+2\
+[  +17 ms] Skipping generating web_plugin_registrant.dart because it is up-to-date.
+[  +56 ms] Found plugin url_launcher at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[        ] Found plugin url_launcher_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +2 ms] Found plugin url_launcher_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.1\
+[   +2 ms] Found plugin url_launcher_macos at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[        ] Found plugin url_launcher_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[        ] Found plugin url_launcher_ios at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.3.6\
+[        ] Found plugin url_launcher_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.28\
+[   +1 ms] Found plugin shared_preferences at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.4\
+[        ] Found plugin shared_preferences_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +1 ms] Found plugin path_provider_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[   +2 ms] Found plugin shared_preferences_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[   +1 ms] Found plugin shared_preferences_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[   +1 ms] Found plugin path_provider_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.1\
+[   +3 ms] Found plugin shared_preferences_foundation at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[   +1 ms] Found plugin shared_preferences_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.18\
+[   +6 ms] Found plugin google_sign_in at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in-6.3.0\
+[   +1 ms] Found plugin google_sign_in_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_web-0.12.4+4\
+[   +3 ms] Found plugin google_sign_in_ios at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_ios-5.9.0\
+[   +1 ms] Found plugin google_sign_in_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_android-6.2.1\
+[   +2 ms] Found plugin path_provider at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.5\
+[   +2 ms] Found plugin path_provider_foundation at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.5.1\
+[   +1 ms] Found plugin path_provider_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.2.22\
+[  +15 ms] Found plugin firebase_core at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.3.0\
+[        ] Found plugin firebase_core_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.3.1\
+[   +1 ms] Found plugin firebase_auth at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.1.3\
+[   +1 ms] Found plugin firebase_auth_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.1\
+[   +4 ms] Found plugin cloud_firestore at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.1\
+[   +1 ms] Found plugin cloud_firestore_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.1\
+[   +4 ms] Found plugin sqflite at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite-2.4.2\
+[   +2 ms] Found plugin sqflite_darwin at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite_darwin-2.4.2\
+[        ] Found plugin sqflite_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite_android-2.4.2+2\
+[  +12 ms] Generating G:\Fantacy_App\android\app\src\main\java\io\flutter\plugins\GeneratedPluginRegistrant.java
+[   +1 ms] Skipping generating GeneratedPluginRegistrant.java because it is up-to-date.
+[ +135 ms] Found plugin url_launcher at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +1 ms] Found plugin url_launcher_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +3 ms] Found plugin url_launcher_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.1\
+[   +2 ms] Found plugin url_launcher_macos at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +1 ms] Found plugin url_launcher_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[        ] Found plugin url_launcher_ios at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.3.6\
+[   +1 ms] Found plugin url_launcher_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.28\
+[   +1 ms] Found plugin shared_preferences at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.4\
+[   +1 ms] Found plugin shared_preferences_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +1 ms] Found plugin path_provider_windows at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[   +3 ms] Found plugin shared_preferences_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[   +1 ms] Found plugin shared_preferences_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[   +1 ms] Found plugin path_provider_linux at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.1\
+[   +1 ms] Found plugin shared_preferences_foundation at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[   +1 ms] Found plugin shared_preferences_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.18\
+[   +5 ms] Found plugin google_sign_in at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in-6.3.0\
+[   +1 ms] Found plugin google_sign_in_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_web-0.12.4+4\
+[   +3 ms] Found plugin google_sign_in_ios at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_ios-5.9.0\
+[   +1 ms] Found plugin google_sign_in_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\google_sign_in_android-6.2.1\
+[   +2 ms] Found plugin path_provider at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.5\
+[   +1 ms] Found plugin path_provider_foundation at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.5.1\
+[   +1 ms] Found plugin path_provider_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.2.22\
+[  +15 ms] Found plugin firebase_core at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.3.0\
+[   +1 ms] Found plugin firebase_core_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.3.1\
+[   +2 ms] Found plugin firebase_auth at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.1.3\
+[   +1 ms] Found plugin firebase_auth_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.1\
+[   +8 ms] Found plugin cloud_firestore at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.1\
+[   +1 ms] Found plugin cloud_firestore_web at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.1\
+[   +3 ms] Found plugin sqflite at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite-2.4.2\
+[   +3 ms] Found plugin sqflite_darwin at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite_darwin-2.4.2\
+[   +1 ms] Found plugin sqflite_android at C:\Users\tittoo\AppData\Local\Pub\Cache\hosted\pub.dev\sqflite_android-2.4.2+2\
+[   +3 ms] generated_plugin_registrant.dart not found. Skipping.
+[   +1 ms] Compiling lib\main.dart for the Web...
+[   +4 ms] Initializing file store
+[  +15 ms] Done initializing file store
+[  +78 ms] Skipping target: web_entrypoint
+[   +1 ms] invalidated build due to missing files: G:\Fantacy_App\web\*\index.html, G:\Fantacy_App\web\flutter_bootstrap.js
+[   +2 ms] Skipping target: dart_build
+[        ] Skipping target: gen_localizations
+[   +1 ms] web_templated_files: Starting due to {InvalidatedReasonKind.outputMissing: The following outputs were missing: G:\Fantacy_App\build\web\*\index.html, InvalidatedReasonKind.inputMissing: The following inputs were missing: G:\Fantacy_App\web\*\index.html,G:\Fantacy_App\web\flutter_bootstrap.js}
+[   +1 ms] web_static_assets: Starting due to {InvalidatedReasonKind.outputMissing: The following outputs were missing: G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\flutter.js,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\canvaskit.js,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\canvaskit.js.symbols,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\canvaskit.wasm,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\chromium\canvaskit.js,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\chromium\canvaskit.js.symbols,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\chromium\canvaskit.wasm,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\skwasm.js,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\skwasm.js.symbols,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\skwasm.wasm,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\skwasm_heavy.js,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\skwasm_heavy.js.symbols,G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\canvaskit\skwasm_heavy.wasm}
+[+1465 ms] web_static_assets: Complete
+[   +4 ms] dart2js: Starting due to {InvalidatedReasonKind.buildKeyChanged: The target build key changed., InvalidatedReasonKind.outputSetAddition: The following outputs were added to the output set: G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\main.dart.js}
+[   +6 ms] executing: C:\Users\tittoo\flutter\bin\cache\dart-sdk\bin\dart.exe compile js --platform-binaries=C:\Users\tittoo\flutter\bin\cache\flutter_web_sdk\kernel --invoker=flutter_tool -Ddart.vm.product=true -DFLUTTER_VERSION=3.38.3 -DFLUTTER_CHANNEL=stable -DFLUTTER_GIT_URL=https://github.com/flutter/flutter.git -DFLUTTER_FRAMEWORK_REVISION=19074d12f7 -DFLUTTER_ENGINE_REVISION=13e658725d -DFLUTTER_DART_VERSION=3.10.1 -DFLUTTER_WEB_USE_SKIA=true -DFLUTTER_WEB_USE_SKWASM=false -DFLUTTER_WEB_CANVASKIT_URL=https://www.gstatic.com/flutter-canvaskit/13e658725ddaa270601426d1485636157e38c34c/ --native-null-assertions --no-source-maps -O4 --minify -o G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\app.dill --packages=G:\Fantacy_App\.dart_tool\package_config.json --cfe-only G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\main.dart
+[   +1 ms] dart2wasm: Starting due to {}
+[   +1 ms] executing: C:\Users\tittoo\flutter\bin\cache\dart-sdk\bin\dart.exe compile wasm --packages=G:\Fantacy_App\.dart_tool\package_config.json --extra-compiler-option=--platform=C:\Users\tittoo\flutter\bin\cache\flutter_web_sdk\kernel\dart2wasm_platform.dill -Ddart.vm.profile=false -Ddart.vm.product=true --extra-compiler-option=--delete-tostring-package-uri=dart:ui --extra-compiler-option=--delete-tostring-package-uri=package:flutter --extra-compiler-option=--import-shared-memory --extra-compiler-option=--shared-memory-max-pages=32768 -DFLUTTER_VERSION=3.38.3 -DFLUTTER_CHANNEL=stable -DFLUTTER_GIT_URL=https://github.com/flutter/flutter.git -DFLUTTER_FRAMEWORK_REVISION=19074d12f7 -DFLUTTER_ENGINE_REVISION=13e658725d -DFLUTTER_DART_VERSION=3.10.1 -DFLUTTER_WEB_USE_SKIA=false -DFLUTTER_WEB_USE_SKWASM=true -DFLUTTER_WEB_CANVASKIT_URL=https://www.gstatic.com/flutter-canvaskit/13e658725ddaa270601426d1485636157e38c34c/ --extra-compiler-option=--depfile=G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\dart2wasm.d -O2 --strip-wasm --no-source-maps --minify --extra-compiler-option=--dry-run -o G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\main.dart.wasm G:\Fantacy_App\.dart_tool\flutter_build\d97cbe5e8dd734312835096aff524943\main.dart
+[  +26 ms] web_templated_files: Complete
+[+23361 ms] lib/features/auth/presentation/login_screen.dart:125:26:
+            Error: Not a constant expression.
+                              child: LandingPageContent(),
+                                     ^^^^^^^^^^^^^^^^^^
+            Error: Compilation failed.
+[  +76 ms] dart2wasm: Complete
+[   +9 ms] Persisting file store
+[  +45 ms] Done persisting file store
+[ +121 ms] Compiling lib\main.dart for the Web... (completed in 86.3s)
+[        ] "flutter web" took 88,243ms.
+[  +11 ms] Running 1 shutdown hook
+[  +16 ms] Shutdown hooks complete
+[ +152 ms] exiting with code 1

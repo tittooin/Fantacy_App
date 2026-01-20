@@ -147,8 +147,9 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
         final mobileContent = DefaultTabController(
           length: 4,
           child: Scaffold(
+            backgroundColor: const Color(0xFF0B1E3C), // Dark Blue Background
             appBar: AppBar(
-              backgroundColor: Colors.black,
+              backgroundColor: const Color(0xFF0B1E3C),
               title: const Text("Create Team", style: TextStyle(color: Colors.white, fontSize: 16)),
               bottom: _buildStatsHeader(),
             ),
@@ -157,7 +158,7 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
                 : Column(
               children: [
                 Container(
-                  color: Colors.black,
+                  color: const Color(0xFF0B1E3C),
                   child: TabBar(
                     labelColor: Colors.white,
                     unselectedLabelColor: Colors.grey,
@@ -210,7 +211,7 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
     return PreferredSize(
       preferredSize: const Size.fromHeight(60),
       child: Container(
-        color: Colors.black,
+        color: const Color(0xFF0B1E3C),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Column(
           children: [

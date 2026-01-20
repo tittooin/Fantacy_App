@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -14,21 +15,43 @@ class AdminDashboardScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Admin Dashboard",
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white),
+              "Axevora11 Admin",
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+              ),
             ),
-            const SizedBox(height: 24),
+            const Text("Real-time Platform Stats", style: TextStyle(color: Colors.white54, fontSize: 12)),
+            const SizedBox(height: 32),
             Expanded(
               child: GridView.count(
-                crossAxisCount: 3,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
+                crossAxisCount: MediaQuery.of(context).size.width > 900 ? 3 : 2,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20,
                 children: [
-                   _buildStatCard(context, "Total Users", "1,234", Icons.people),
-                   _buildStatCard(context, "Active Matches", "5", Icons.sports_cricket),
-                   _buildStatCard(context, "Total Revenue", "₹ 50,000", Icons.attach_money),
-                   _buildStatCard(context, "Match Controls", "GO LIVE", Icons.live_tv, 
-                      onTap: () => context.push('/admin/match-control')),
+                   _buildDynamicStatCard(
+                     context, 
+                     "Total Users", 
+                     FirebaseFirestore.instance.collection('users').snapshots(),
+                     Icons.people_alt_rounded,
+                     const Color(0xFF4FC3F7),
+                   ),
+                   _buildDynamicStatCard(
+                     context, 
+                     "Active Matches", 
+                     FirebaseFirestore.instance.collection('matches').where('status', isNotEqualTo: 'Completed').snapshots(),
+                     Icons.sports_cricket_rounded,
+                     const Color(0xFF00E5FF),
+                   ),
+                   _buildStatCard(
+                     context, 
+                     "Match Controls", 
+                     "MANAGE", 
+                     Icons.settings_suggest_rounded, 
+                     color: Colors.orangeAccent,
+                     onTap: () => context.push('/admin/match-control'),
+                   ),
                 ],
               ),
             ),
@@ -38,22 +61,68 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, {VoidCallback? onTap}) {
-    return Card(
-      color: const Color(0xFF1E293B), // CardSurface
+  Widget _buildDynamicStatCard(BuildContext context, String title, Stream<QuerySnapshot> stream, IconData icon, Color color) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: stream,
+      builder: (context, snapshot) {
+        final count = snapshot.hasData ? snapshot.data!.docs.length : "...";
+        return _buildStatCard(context, title, count.toString(), icon, color: color);
+      },
+    );
+  }
+
+  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, {Color color = const Color(0xFF00E5FF), VoidCallback? onTap}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1E3C), // Deep Navy
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 40, color: const Color(0xFF00E5FF)),
-              const SizedBox(height: 16),
-              Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 8),
-              Text(title, style: const TextStyle(color: Colors.grey)),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 32, color: color),
+              ),
+              const SizedBox(height: 20),
+              FittedBox(
+                child: Text(
+                  value, 
+                  style: const TextStyle(
+                    fontSize: 32, 
+                    fontWeight: FontWeight.w900, 
+                    color: Colors.white,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title.toUpperCase(), 
+                style: const TextStyle(
+                  color: Colors.white38, 
+                  fontSize: 10, 
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
             ],
           ),
         ),

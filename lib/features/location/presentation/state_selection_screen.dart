@@ -153,11 +153,11 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
                     dropdownColor: AppColors.cardSurface,
                     isExpanded: true,
                     icon: const Icon(Icons.arrow_drop_down, color: AppColors.accentGreen),
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    style: const TextStyle(color: AppColors.textBlack, fontSize: 16),
                     items: _allStates.map((state) {
                       return DropdownMenuItem(
                         value: state,
-                        child: Text(state, style: const TextStyle(color: Colors.white)),
+                        child: Text(state, style: const TextStyle(color: AppColors.textBlack)),
                       );
                     }).toList(),
                     onChanged: (val) => setState(() => _selectedState = val),

@@ -57,115 +57,75 @@ class HomeScreen extends ConsumerWidget {
           )
         ],
       ),
-      body: Column(
-        children: [
-          // Banner / Carousel Placeholder
-          Container(
-            height: 180,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.indigo, Colors.purple],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            // Banner / Carousel Placeholder
+            Container(
+              height: 180,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.indigo, Colors.purple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    bottom: -20,
+                    child: Icon(Icons.sports_cricket, size: 150, color: Colors.white.withOpacity(0.1)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(4)),
+                          child: const Text("MEGA CONTEST", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text("IPL 2026 is Here!", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const Text("Join the biggest fantasy league now.", style: TextStyle(color: Colors.white70)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -20,
-                  bottom: -20,
-                  child: Icon(Icons.sports_cricket, size: 150, color: Colors.white.withOpacity(0.1)),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(4)),
-                        child: const Text("MEGA CONTEST", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text("IPL 2026 is Here!", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const Text("Join the biggest fantasy league now.", style: TextStyle(color: Colors.white70)),
-                    ],
-                  ),
-                ),
-              ],
+            
+            // TABS
+            Container(
+              color: Colors.white,
+              child: const TabBar(
+                labelColor: Colors.indigo,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.indigo,
+                tabs: [
+                  Tab(text: "Upcoming"),
+                  Tab(text: "Completed"),
+                ],
+              ),
             ),
-          ),
 
-          Expanded(
-            child: FutureBuilder(
-              future: Future.delayed(const Duration(milliseconds: 1500)), 
-              builder: (context, delaySnapshot) {
-                if (delaySnapshot.connectionState == ConnectionState.waiting) {
-                   return ListView.builder(
-                     padding: const EdgeInsets.all(16),
-                     itemCount: 4,
-                     itemBuilder: (_, __) => const MatchCardSkeleton(),
-                   );
-                }
-
-                return StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('matches').snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                       return ListView.builder(
-                         padding: const EdgeInsets.all(16),
-                         itemCount: 4,
-                         itemBuilder: (_, __) => const MatchCardSkeleton(),
-                       );
-                    }
-    
-                    final docs = snapshot.data?.docs ?? [];
-                    
-                    if (docs.isEmpty) {
-                      return const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.sports_cricket_outlined, size: 64, color: Colors.grey),
-                             SizedBox(height: 16),
-                            Text("No Matches Available", style: TextStyle(color: Colors.grey)),
-                          ],
-                        ),
-                      );
-                    }
-    
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) {
-                        final data = docs[index].data() as Map<String, dynamic>;
-                        try {
-                          final match = CricketMatchModel.fromMap(data);
-                          return MatchCard(match: match);
-                        } catch (e) {
-                          return const SizedBox.shrink(); // Skip invalid data
-                        }
-                      },
-                    );
-                  },
-                );
-              }
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildMatchList(showCompleted: false),
+                  _buildMatchList(showCompleted: true),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        destinations: const [
-           NavigationDestination(icon: Icon(Icons.home), label: "Home"),
-           NavigationDestination(icon: Icon(Icons.emoji_events), label: "My Matches"),
-           NavigationDestination(icon: Icon(Icons.emoji_events_outlined), label: "Rewards"),
-           NavigationDestination(icon: Icon(Icons.person), label: "Profile"),
-        ],
-      ),
+      // bottomNavigationBar: Removed (Handled by ShellRoute)
     );
 
     return LayoutBuilder(
@@ -198,7 +158,59 @@ class HomeScreen extends ConsumerWidget {
       },
     );
   }
-}
+
+  Widget _buildMatchList({required bool showCompleted}) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('matches').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 4,
+              itemBuilder: (_, __) => const MatchCardSkeleton(),
+            );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        // FILTER LOGIC
+        final matches = docs.map((d) {
+           try {
+             return CricketMatchModel.fromMap(d.data() as Map<String, dynamic>);
+           } catch (e) {
+             return null;
+           }
+        }).where((m) => m != null).where((m) {
+           if (showCompleted) {
+             return m!.status == 'Completed';
+           } else {
+             return m!.status == 'Upcoming' || m.status == 'Live';
+           }
+        }).toList();
+        
+        if (matches.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.sports_cricket_outlined, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(showCompleted ? "No Completed Matches" : "No Upcoming Matches", style: const TextStyle(color: Colors.grey)),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: matches.length,
+          itemBuilder: (context, index) {
+             return MatchCard(match: matches[index]!);
+          },
+        );
+      },
+    );
+  }
 
 class MatchCard extends StatelessWidget {
   final CricketMatchModel match;

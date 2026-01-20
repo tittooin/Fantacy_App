@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:axevora11/features/wallet/data/wallet_repository.dart';
+import 'package:axevora11/features/wallet/data/payment_repository.dart'; // Added
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:axevora11/features/user/domain/user_entity.dart'; // Dynamic for now to avoid issues
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
@@ -25,11 +25,101 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
     setState(() => _isProcessing = true);
     Navigator.pop(context); // Close BottomSheet
+    
+    final orderId = "ORDER_${DateTime.now().millisecondsSinceEpoch}";
 
-    // 1. Web Mock Flow (Always on for now)
-    debugPrint("Web Mode: Simulating Payment...");
-    await Future.delayed(const Duration(seconds: 2));
-    _handleSuccess(amount);
+    // CALL CASHFREE REPOSITORY
+    await ref.read(paymentRepositoryProvider).depositCash(
+      amount: amount,
+      orderId: orderId,
+      onSuccess: (id) => _handleSuccess(amount), 
+      onFailure: (msg) {
+        if(mounted) {
+           setState(() => _isProcessing = false);
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Payment Failed: $msg"), backgroundColor: Colors.red));
+        }
+      }
+    );
+  }
+  
+  void _showWithdrawModal(BuildContext context) {
+    final TextEditingController amountController = TextEditingController();
+    final TextEditingController upiController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context, 
+      backgroundColor: Colors.grey[900],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Withdraw Winnings", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "Amount",
+                labelStyle: TextStyle(color: Colors.white54),
+                prefixText: "₹ ",
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
+                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.green)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: upiController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "UPI ID (e.g. 9876543210@upi)",
+                labelStyle: TextStyle(color: Colors.white54),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
+                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.green)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final amount = double.tryParse(amountController.text) ?? 0;
+                  final upi = upiController.text;
+                  
+                  if(amount < 100) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Minimum withdrawal is ₹100")));
+                    return;
+                  }
+                  if(upi.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Enter Valid UPI ID")));
+                    return;
+                  }
+                  
+                  Navigator.pop(context);
+                  setState(() => _isProcessing = true);
+                  
+                  try {
+                    await ref.read(paymentRepositoryProvider).requestWithdrawal(amount: amount, upiId: upi);
+                    if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Withdrawal Requested! Processing..."), backgroundColor: Colors.green));
+                  } catch (e) {
+                    if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+                  } finally {
+                    if(mounted) setState(() => _isProcessing = false);
+                  }
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: const EdgeInsets.symmetric(vertical: 16)),
+                child: const Text("REQUEST WITHDRAWAL", style: TextStyle(color: Colors.white)),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      )
+    );
   }
 
   Future<void> _handleSuccess(double amount) async {
@@ -47,7 +137,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             'type': 'DEPOSIT',
             'amount': amount,
             'timestamp': DateTime.now().toIso8601String(),
-            'desc': 'Cash Added'
+            'desc': 'Cash Added via Cashfree'
          }])
        });
 
@@ -130,7 +220,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () {
-                                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Withdraw coming soon!")));
+                                 _showWithdrawModal(context);
                               },
                               icon: const Icon(Icons.download),
                               label: const Text("WITHDRAW"),
@@ -148,7 +238,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     const SizedBox(height: 24),
                     const Divider(color: Colors.white10),
                     
-                    // 4. Transactions Title
+                    // 4. Transactions Title (Placeholder)
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Row(
