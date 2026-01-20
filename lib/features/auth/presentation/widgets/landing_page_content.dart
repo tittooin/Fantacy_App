@@ -83,7 +83,7 @@ class LandingPageContent extends StatelessWidget {
                   cursor: SystemMouseCursors.click,
                   child: GestureDetector(
                     onTap: () {
-                       launchUrl(Uri.parse('https://axevora11.in/app-release.apk'), mode: LaunchMode.externalApplication);
+                       launchUrl(Uri.parse('https://raw.githubusercontent.com/tittooin/Fantacy_App/main/release_builds/app-release.apk'), mode: LaunchMode.externalApplication);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24), // Increased padding
