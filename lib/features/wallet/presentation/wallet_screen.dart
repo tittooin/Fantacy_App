@@ -4,6 +4,7 @@ import 'package:axevora11/features/user/presentation/providers/user_provider.dar
 import 'package:axevora11/features/wallet/data/wallet_repository.dart';
 import 'package:axevora11/features/wallet/data/payment_repository.dart'; // Added
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
@@ -208,40 +209,85 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     // 3. Actions
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                _showAddCashModal(context, dynamicUser);
-                              },
-                              icon: const Icon(Icons.add),
-                              label: const Text("ADD CASH"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                textStyle: const TextStyle(fontWeight: FontWeight.bold)
+                        if (!kIsWeb)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      _showAddCashModal(context, dynamicUser);
+                                    },
+                                    icon: const Icon(Icons.add),
+                                    label: const Text("ADD CASH"),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
+                                        textStyle: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      _showWithdrawModal(context);
+                                    },
+                                    icon: const Icon(Icons.download),
+                                    label: const Text("WITHDRAW"),
+                                    style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
+                                        side: const BorderSide(
+                                            color: Colors.white54)),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                  color: Colors.amber.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: Colors.amber.withOpacity(0.3))),
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.android,
+                                      color: Colors.amber, size: 32),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    "Payments are available on Android App only.",
+                                    style: TextStyle(
+                                        color: Colors.amber,
+                                        fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: () async {
+                                      const url = "https://github.com/tittooin/Fantacy_App/releases/latest/download/app-release.apk";
+                                      if (await canLaunchUrl(Uri.parse(url))) {
+                                        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                      } else {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text("Could not launch download link")));
+                                        }
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.amber,
+                                        foregroundColor: Colors.black),
+                                    child: const Text("DOWNLOAD ANDROID APP"),
+                                  )
+                                ],
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                 _showWithdrawModal(context);
-                              },
-                              icon: const Icon(Icons.download),
-                              label: const Text("WITHDRAW"),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                side: const BorderSide(color: Colors.white54)
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
 
                     const SizedBox(height: 24),
