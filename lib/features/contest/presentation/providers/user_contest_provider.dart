@@ -60,11 +60,14 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
           throw Exception("Insufficient Balance");
         }
 
-        // 2. Read Contest Spots (Optional Safety Check)
-        // final contestSnapshot = await transaction.get(matchContestRef);
-        // if ((contestSnapshot.data()?['filledSpots'] ?? 0) >= (contestSnapshot.data()?['totalSpots'] ?? 0)) {
-        //    throw Exception("Contest Full");
-        // }
+        // 2. Read Contest Spots (Safety Check)
+        final contestSnapshot = await transaction.get(matchContestRef);
+        final currentFilled = (contestSnapshot.data()?['filledSpots'] as num?)?.toInt() ?? 0;
+        final totalSpots = (contestSnapshot.data()?['totalSpots'] as num?)?.toInt() ?? 0;
+        
+        if (totalSpots > 0 && currentFilled >= totalSpots) {
+           throw Exception("Contest Full");
+        }
 
         // 3. Writes
         // A. Deduct Balance & Add Transaction History
@@ -93,8 +96,9 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
 
         transaction.set(leaderboardRef, {
           'userId': user.uid,
+          'teamId': contest.teamId, // Added critical field for scoring
           'displayName': userName,
-          'teamName': 'Team 1', // TODO: Dynamic Team Name if multiple teams supported
+          'teamName': contest.teamName,
           'points': 0.0,
           'rank': 0,
           'joinedAt': DateTime.now().toIso8601String(),
