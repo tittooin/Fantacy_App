@@ -47,15 +47,45 @@ class UserMainLayout extends ConsumerWidget {
     
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _calculateSelectedIndex(context),
-        onDestinationSelected: (idx) => _onItemTapped(idx, context, ref),
-        destinations: const [
-           NavigationDestination(icon: Icon(Icons.home), label: "Home"),
-           NavigationDestination(icon: Icon(Icons.emoji_events), label: "My Matches"),
-           NavigationDestination(icon: Icon(Icons.card_giftcard), label: "Rewards"),
-           NavigationDestination(icon: Icon(Icons.person), label: "Profile"),
-        ],
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          labelTextStyle: MaterialStateProperty.all(const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          iconTheme: MaterialStateProperty.resolveWith((states) {
+             if (states.contains(MaterialState.selected)) {
+               return const IconThemeData(color: Colors.white);
+             }
+             return const IconThemeData(color: Colors.grey);
+          }),
+        ),
+        child: NavigationBar(
+          backgroundColor: Colors.white,
+          indicatorColor: Colors.indigo,
+          elevation: 2,
+          selectedIndex: _calculateSelectedIndex(context),
+          onDestinationSelected: (idx) => _onItemTapped(idx, context, ref),
+          destinations: const [
+             NavigationDestination(
+               icon: Icon(Icons.home_outlined), 
+               selectedIcon: Icon(Icons.home),
+               label: "Home"
+             ),
+             NavigationDestination(
+               icon: Icon(Icons.emoji_events_outlined), 
+               selectedIcon: Icon(Icons.emoji_events),
+               label: "My Matches"
+             ),
+             NavigationDestination(
+               icon: Icon(Icons.card_giftcard_outlined), 
+               selectedIcon: Icon(Icons.card_giftcard),
+               label: "Rewards"
+             ),
+             NavigationDestination(
+               icon: Icon(Icons.person_outline), 
+               selectedIcon: Icon(Icons.person),
+               label: "Profile"
+             ),
+          ],
+        ),
       ),
     );
   }

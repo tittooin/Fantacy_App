@@ -7,6 +7,8 @@ import 'package:axevora11/features/admin/presentation/admin_scaffold.dart';
 import 'package:axevora11/features/cricket_api/presentation/contest_creator_screen.dart';
 import 'package:axevora11/features/admin/presentation/match_control_screen.dart';
 import 'package:axevora11/features/admin/presentation/league_management_screen.dart'; // Added
+import 'package:axevora11/features/legal/presentation/contact_us_screen.dart';
+import 'package:axevora11/features/legal/presentation/faq_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/presentation/match_import_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
@@ -145,6 +147,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/responsible-play',
         builder: (context, state) => const ResponsiblePlayScreen(),
+      ),
+      GoRoute(
+        path: '/faq',
+        builder: (context, state) => const FAQScreen(),
+      ),
+      GoRoute(
+        path: '/contact',
+        builder: (context, state) => const ContactUsScreen(),
       ),
 
       // User Shell Route (Bottom Nav Persist)

@@ -57,6 +57,69 @@ class HomeScreen extends ConsumerWidget {
           )
         ],
       ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+             UserAccountsDrawerHeader(
+               accountName: Text(userAsync.value?.displayName ?? "User"), 
+               accountEmail: Text(userAsync.value?.phoneNumber ?? ""),
+               currentAccountPicture: CircleAvatar(
+                 backgroundColor: Colors.white,
+                 child: Text(userAsync.value?.displayName != null ? userAsync.value!.displayName![0] : "U"),
+               ),
+               decoration: const BoxDecoration(color: Colors.indigo),
+             ),
+             ListTile(
+               leading: const Icon(Icons.verified_user_outlined),
+               title: const Text("Fair Play"),
+               onTap: () => context.push('/legal/fair-play'),
+             ),
+             ListTile(
+               leading: const Icon(Icons.gavel),
+               title: const Text("Terms & Conditions"),
+               onTap: () => context.push('/legal/terms'),
+             ),
+             ListTile(
+               leading: const Icon(Icons.privacy_tip_outlined),
+               title: const Text("Privacy Policy"),
+               onTap: () => context.push('/legal/privacy'),
+             ),
+             ListTile(
+               leading: const Icon(Icons.help_outline),
+               title: const Text("FAQ"),
+               onTap: () => context.push('/faq'),
+             ),
+             ListTile(
+               leading: const Icon(Icons.support_agent),
+               title: const Text("Contact Us"),
+               onTap: () => context.push('/contact'),
+             ),
+             const Divider(),
+             Padding(
+               padding: const EdgeInsets.all(16.0),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   const Text("v1.0.0 (Release)", style: TextStyle(color: Colors.grey)),
+                   const SizedBox(height: 16),
+                   Row(
+                      children: [
+                        Icon(Icons.no_accounts, size: 16, color: Colors.grey.shade600),
+                        const SizedBox(width: 8),
+                        Text("18+ Only | No Gambling", style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                      ],
+                   ),
+                   const SizedBox(height: 4),
+                   Text("This game involves an element of financial risk and may be addictive. Please play responsibly and at your own risk.", 
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500)
+                   ),
+                 ],
+               ),
+             )
+          ],
+        ),
+      ),
       body: DefaultTabController(
         length: 2,
         child: Column(

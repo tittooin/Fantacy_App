@@ -160,13 +160,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                        ListTile(
                          leading: const Icon(Icons.email, color: Colors.indigo),
                          title: const Text("Email Us"),
-                         subtitle: const Text("support@axevora11.com"),
+                         subtitle: const Text("admin@axevora.com"),
                          onTap: () => Navigator.pop(ctx),
                        ),
                        ListTile(
                          leading: const Icon(Icons.chat, color: Colors.green),
-                         title: const Text("WhatsApp"),
-                         subtitle: const Text("+91-9876543210"),
+                         title: const Text("WhatsApp & Telegram"),
+                         subtitle: const Text("Support coming soon"),
                          onTap: () => Navigator.pop(ctx),
                        )
                      ],

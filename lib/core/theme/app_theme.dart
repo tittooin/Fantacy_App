@@ -16,8 +16,18 @@ class AppTheme {
         primary: AppColors.accentGreen,
         secondary: AppColors.accentRed,
         surface: AppColors.cardColor,
+        onSurface: Colors.black, // Ensure text on white cards is black
         background: AppColors.primaryBackground,
+        onBackground: AppColors.textWhite,
         error: AppColors.accentRed,
+      ),
+
+      // SnackBar Theme
+      snackBarTheme: const SnackBarThemeData(
+        backgroundColor: Colors.white,
+        contentTextStyle: TextStyle(color: Colors.black),
+        actionTextColor: Colors.indigo,
+        behavior: SnackBarBehavior.floating,
       ),
       
       // Text Theme
@@ -47,14 +57,13 @@ class AppTheme {
         ),
       ),
       
-      /*
       // Card Theme
       cardTheme: CardTheme(
         color: AppColors.cardColor,
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        surfaceTintColor: Colors.white, // Remove tint
       ),
-      */
       
       // AppBar Theme
       appBarTheme: AppBarTheme(
