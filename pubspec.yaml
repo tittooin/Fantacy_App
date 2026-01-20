@@ -54,7 +54,7 @@ dependencies:
   google_sign_in: ^6.2.2
   firebase_analytics: ^12.1.1
   # firebase_performance: ^0.11.1+4
-  # flutter_cashfree_pg_sdk: ^2.2.9+47
+  flutter_cashfree_pg_sdk: ^2.2.9+47
   # cashfree_pg: ^2.0.12+32
 
 dev_dependencies:

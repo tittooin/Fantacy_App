@@ -5,7 +5,7 @@ import 'package:axevora11/core/theme/app_theme.dart';
 import 'package:axevora11/features/location/data/location_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:firebase_performance/firebase_performance.dart';
+// import 'package:firebase_performance/firebase_performance.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,9 +32,9 @@ void main() async {
     
     // Initialize Analytics & Performance
     FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
-    if (!kIsWeb) {
+    /* if (!kIsWeb) {
       FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
-    }
+    } */
   } catch (e) {
     debugPrint("Firebase init failed: $e");
   }

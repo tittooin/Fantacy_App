@@ -1,9 +1,4 @@
-// import 'package:flutter_cashfree_pg_sdk/api/cfreasesion/cfree_session.dart';
-// import 'package:flutter_cashfree_pg_sdk/api/cferror/cferror.dart';
-// import 'package:flutter_cashfree_pg_sdk/utils/cfenums.dart';
-// import 'package:flutter_cashfree_pg_sdk/utils/cfexceptions.dart';
-// import 'package:flutter_cashfree_pg_sdk/api/cfpayment/cfwebcheckoutpayment.dart';
-// import 'package:flutter_cashfree_pg_sdk/api/cfpaymentgateway/cfpaymentgatewayservice.dart';
+import 'package:axevora11/features/wallet/data/platform/payment_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:axevora11/features/user/domain/user_entity.dart';
@@ -12,16 +7,9 @@ import 'package:flutter/foundation.dart';
 
 class PaymentRepository {
   final Ref ref;
-  // final CFPaymentGatewayService _cfPaymentGatewayService = CFPaymentGatewayService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   PaymentRepository(this.ref);
-
-  // Cashfree integration requires a "Session ID" from your backend.
-  // Since we are serverless (partially), we might need a Cloud Function or a secure way to generate this.
-  // For strict security, NEVER generate Session ID on client.
-  // Assuming we have a Cloud Function endpoint or similar.
-  // For Phase 19 Base, we will simulate the "Start" and handling.
 
   Future<void> depositCash({
     required double amount, 
@@ -30,56 +18,21 @@ class PaymentRepository {
     required Function(String) onFailure
   }) async {
     try {
-      debugPrint("Payment Stub: Deposit $amount for $orderId");
+      debugPrint("PaymentRepository: Initiating Deposit $amount for $orderId");
       
-      // TEMPORARY STUB FOR WEB BUILD (Cashfree SDK causing issues)
-      await Future.delayed(const Duration(seconds: 1));
-      if (amount < 100000) {
-         onSuccess(orderId);
-      } else {
-         onFailure("Mock Payment Failed: Limit exceeded");
-      }
-
-      /*
-      // 1. In a real app, call Backend to get 'payment_session_id' for this orderId + amount.
-      // String sessionId = await _backend.createOrder(amount, orderId);
+      // Use the platform-specific implementation (Android SDK or Web Mock)
+      // The correct implementation is loaded via conditional import in 'platform/payment_service.dart'
+      final paymentService = PaymentServiceImpl();
       
-      // MOCK for now (or Placeholder):
-      String sessionId = "session_placeholder_$orderId"; 
-      
-      // 2. Create Session
-      var session = CFSessionBuilder()
-          .setEnvironment(CFEnvironment.SANDBOX) // Switch to PRODUCTION when keys ready
-          .setOrderId(orderId)
-          .setPaymentSessionId(sessionId)
-          .build();
-
-      // 3. Web Checkout (since we are on Web mostly, or use specific flow)
-      // Check platform
-      if (kIsWeb) {
-        var cfWebCheckout = CFWebCheckoutPaymentBuilder()
-            .setSession(session)
-            .build();
-        _cfPaymentGatewayService.doPayment(cfWebCheckout);
-      } else {
-         // Android/iOS Native
-         // _cfPaymentGatewayService.doPayment(cfDropCheckoutPayment);
-         // For now, keeping it robust/simple.
-         onFailure("Native payment flows need 'Drop' checkout implementation.");
-      }
-      
-      // Listeners are usually set via the SDK callbacks globally or passed.
-      _cfPaymentGatewayService.setCallback(
-        (orderId) {
-           verifyPayment(orderId).then((success) {
-             if (success) onSuccess(orderId);
-             else onFailure("Verification Failed");
-           });
-        },
-        (error, orderId) => onFailure(error.getMessage() ?? "Payment Failed"),
+      await paymentService.depositCash(
+        amount: amount,
+        orderId: orderId,
+        onSuccess: onSuccess,
+        onFailure: onFailure,
       );
-      */
+
     } catch (e) {
+      debugPrint("PaymentRepository Error: $e");
       onFailure(e.toString());
     }
   }
