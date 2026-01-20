@@ -59,6 +59,20 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
       },
     );
   }
+
+  InputDecoration _buildInputDecoration(String label, {String? suffixText, String? prefixText}) {
+    return InputDecoration(
+      labelText: label,
+      suffixText: suffixText,
+      prefixText: prefixText,
+      border: const OutlineInputBorder(),
+      filled: true,
+      fillColor: Colors.white,
+      labelStyle: const TextStyle(color: Colors.black87),
+      hintStyle: const TextStyle(color: Colors.black54),
+      isDense: true,
+    );
+  }
   
   void _addPayoutTier() {
     int nextStart = 1;
@@ -334,17 +348,19 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
               Row(
                 children: [
                    Expanded(
-                     child: TextFormField(
+                       child: TextFormField(
                        controller: _entryFeeController,
-                       decoration: const InputDecoration(labelText: 'Entry Fee (₹)', border: OutlineInputBorder()),
+                       style: const TextStyle(color: Colors.black),
+                       decoration: _buildInputDecoration('Entry Fee (₹)'),
                        keyboardType: TextInputType.number,
                      ),
                    ),
                    const SizedBox(width: 16),
                    Expanded(
-                     child: TextFormField(
+                       child: TextFormField(
                        controller: _spotsController,
-                       decoration: const InputDecoration(labelText: 'Total Spots', border: OutlineInputBorder()),
+                       style: const TextStyle(color: Colors.black),
+                       decoration: _buildInputDecoration('Total Spots'),
                        keyboardType: TextInputType.number,
                      ),
                    ),
@@ -354,7 +370,9 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
               
               DropdownButtonFormField<String>(
                 value: _category,
-                decoration: const InputDecoration(labelText: 'Contest Category', border: OutlineInputBorder()),
+                style: const TextStyle(color: Colors.black),
+                dropdownColor: Colors.white,
+                decoration: _buildInputDecoration('Contest Category'),
                 items: ['Mega Contest', 'Head 2 Head', 'Winner Takes All', 'Practice']
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
@@ -418,7 +436,8 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
                       children: [
                         Expanded(child: TextFormField(
                           initialValue: tier['rankStart'].toString(),
-                          decoration: const InputDecoration(labelText: 'From Rank', isDense: true),
+                          style: const TextStyle(color: Colors.black),
+                          decoration: _buildInputDecoration('From Rank'),
                           keyboardType: TextInputType.number,
                           onChanged: (val) {
                              tier['rankStart'] = int.tryParse(val) ?? tier['rankStart'];
@@ -428,7 +447,8 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
                         const SizedBox(width: 8),
                          Expanded(child: TextFormField(
                           initialValue: tier['rankEnd'].toString(),
-                          decoration: const InputDecoration(labelText: 'To Rank', isDense: true),
+                          style: const TextStyle(color: Colors.black),
+                          decoration: _buildInputDecoration('To Rank'),
                           keyboardType: TextInputType.number,
                           onChanged: (val) {
                              tier['rankEnd'] = int.tryParse(val) ?? tier['rankEnd'];
@@ -438,7 +458,8 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
                         const SizedBox(width: 8),
                         Expanded(child: TextFormField(
                           initialValue: tier['amount'].toString(),
-                          decoration: const InputDecoration(labelText: 'Amount', prefixText: '₹', isDense: true),
+                          style: const TextStyle(color: Colors.black),
+                          decoration: _buildInputDecoration('Amount', prefixText: '₹'),
                           keyboardType: TextInputType.number,
                            onChanged: (val) {
                              tier['amount'] = int.tryParse(val) ?? tier['amount'];
@@ -493,7 +514,8 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _commissionController,
-                      decoration: const InputDecoration(labelText: 'Commission %', border: OutlineInputBorder(), suffixText: '%'),
+                      style: const TextStyle(color: Colors.black),
+                      decoration: _buildInputDecoration('Commission %', suffixText: '%'),
                       keyboardType: TextInputType.number,
                     ),
                   ),

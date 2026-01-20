@@ -209,6 +209,30 @@ class _ScoringConsoleScreenState extends ConsumerState<ScoringConsoleScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // SAFETY BANNER
+                  Container(
+                    width: double.infinity,
+                    color: Colors.red.shade900.withOpacity(0.2),
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    border: Border.all(color: Colors.redAccent),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 30),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("EMERGENCY OVERRIDE ONLY", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text("Manual entries will override API data. Use only if API Sync is broken.", style: TextStyle(color: Colors.red.shade200, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   // Over & Batting Team
                   Row(
                     children: [
@@ -322,9 +346,16 @@ class _ScoringConsoleScreenState extends ConsumerState<ScoringConsoleScreen> {
 
   Widget _buildPlayerDropdown(String label, PlayerModel? val, List<PlayerModel> options, Function(PlayerModel?) onChanged) {
     return DropdownButtonFormField<PlayerModel>(
-      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      style: const TextStyle(color: Colors.black),
+      dropdownColor: Colors.white,
       value: val,
-      items: options.map((p) => DropdownMenuItem(value: p, child: Text(p.name))).toList(),
+      items: options.map((p) => DropdownMenuItem(value: p, child: Text(p.name, style: const TextStyle(color: Colors.black)))).toList(),
       onChanged: onChanged,
     );
   }
@@ -335,7 +366,13 @@ class _ScoringConsoleScreenState extends ConsumerState<ScoringConsoleScreen> {
       margin: const EdgeInsets.only(right: 10),
       child: TextField(
         keyboardType: TextInputType.number,
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        style: const TextStyle(color: Colors.black),
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          filled: true,
+          fillColor: Colors.white,
+        ),
         controller: TextEditingController(text: val.toString()),
         onChanged: (str) => onChanged(int.tryParse(str) ?? 0),
       ),

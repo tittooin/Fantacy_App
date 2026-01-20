@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart';
+import 'package:axevora11/features/admin/presentation/admin_logs_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -51,6 +53,22 @@ class AdminDashboardScreen extends StatelessWidget {
                      Icons.settings_suggest_rounded, 
                      color: Colors.orangeAccent,
                      onTap: () => context.push('/admin/match-control'),
+                   ),
+                   _buildStatCard(
+                     context,
+                     "Wallet & Pay",
+                     "PAYOUTS",
+                     Icons.account_balance_wallet_rounded,
+                     color: const Color(0xFF66BB6A),
+                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminWalletScreen())),
+                   ),
+                   _buildStatCard(
+                     context,
+                     "Logs & Safe",
+                     "AUDIT",
+                     Icons.security_rounded,
+                     color: const Color(0xFFFF7043),
+                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminLogsScreen())),
                    ),
                 ],
               ),

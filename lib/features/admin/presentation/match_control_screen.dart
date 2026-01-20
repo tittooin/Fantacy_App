@@ -19,12 +19,12 @@ class MatchControlScreen extends ConsumerStatefulWidget {
 
 class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
   bool _isLoading = false;
+  bool _isPollingPaused = false; // Safety: Pause Sync
   Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
-    // Start polling immediately when screen opens
     _startSmartPolling();
   }
 
@@ -35,10 +35,10 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
   }
 
   void _startSmartPolling() {
-    // Basic polling loop: Checks every 30s.
-    // Logic inside checks if it needs to fetch based on status.
     _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      _pollMatches();
+      if (!_isPollingPaused) {
+        _pollMatches();
+      }
     });
   }
 
@@ -163,6 +163,17 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
       appBar: AppBar(
         title: const Text("Match Control (Auto-Poll Active)"),
         actions: [
+           IconButton(
+             icon: Icon(_isPollingPaused ? Icons.play_arrow : Icons.pause),
+             color: _isPollingPaused ? Colors.green : Colors.orange,
+             tooltip: _isPollingPaused ? "Resume Auto-Sync" : "Pause Auto-Sync",
+             onPressed: () {
+               setState(() => _isPollingPaused = !_isPollingPaused);
+               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                 content: Text(_isPollingPaused ? "Auto-Sync PAUSED" : "Auto-Sync RESUMED")
+               ));
+             },
+           ),
            IconButton(
              icon: const Icon(Icons.refresh), 
              onPressed: _pollMatches,

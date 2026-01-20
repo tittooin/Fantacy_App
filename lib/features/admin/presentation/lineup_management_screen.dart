@@ -232,7 +232,13 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
             TextField(
               controller: _controller,
               maxLines: 6,
-              decoration: const InputDecoration(border: OutlineInputBorder(), hintText: "e.g. Kohli, Rohit, Dhoni..."),
+              style: const TextStyle(color: Colors.black),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(), 
+                hintText: "e.g. Kohli, Rohit, Dhoni...",
+                filled: true,
+                fillColor: Colors.white,
+              ),
             ),
           ],
         ),
