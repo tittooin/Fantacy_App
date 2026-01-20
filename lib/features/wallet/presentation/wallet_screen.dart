@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
@@ -209,8 +210,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     // 3. Actions
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                        if (!kIsWeb)
-                            Row(
+                      child: !kIsWeb
+                          ? Row(
                               children: [
                                 Expanded(
                                   child: ElevatedButton.icon(
@@ -246,8 +247,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                 ),
                               ],
                             )
-                          else
-                            Container(
+                          : Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
@@ -283,7 +283,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                     style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.amber,
                                         foregroundColor: Colors.black),
-                                    child: const Text("DOWNLOAD ANDROID APP"),
+                                    child: const Text("DOWNLOAD AXEVORA11"),
                                   )
                                 ],
                               ),

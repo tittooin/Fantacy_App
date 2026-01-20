@@ -212,10 +212,12 @@ class _ScoringConsoleScreenState extends ConsumerState<ScoringConsoleScreen> {
                   // SAFETY BANNER
                   Container(
                     width: double.infinity,
-                    color: Colors.red.shade900.withOpacity(0.2),
                     padding: const EdgeInsets.all(12),
                     margin: const EdgeInsets.only(bottom: 24),
-                    border: Border.all(color: Colors.redAccent),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade900.withOpacity(0.2),
+                      border: Border.all(color: Colors.redAccent),
+                    ),
                     child: Row(
                       children: [
                         const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 30),

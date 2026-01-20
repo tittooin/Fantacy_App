@@ -107,31 +107,31 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
                   final match = CricketMatchModel.fromMap(data);
 
                   return Card(
-                    color: Colors.indigo.shade50,
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.indigo, width: 0.5)),
+                    color: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.grey, width: 0.5)),
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     child: ListTile(
                       onTap: () => context.go('/admin/matches/create-contest', extra: match),
                       leading: ClipOval(
                         child: Container(
-                          width: 40, height: 40, color: Colors.white,
+                          width: 40, height: 40, color: Colors.grey.shade100,
                           child: Image.network(
                             getTeamImage(match.team1Img), fit: BoxFit.cover,
-                            errorBuilder: (c, e, s) => const Icon(Icons.sports_cricket, color: Colors.indigo),
+                            errorBuilder: (c, e, s) => const Icon(Icons.sports_cricket, color: Colors.black),
                           ),
                         ),
                       ),
-                      title: Text("${match.team1ShortName} vs ${match.team2ShortName}", style: TextStyle(color: Colors.indigo.shade900, fontWeight: FontWeight.bold)),
-                      subtitle: Text("${match.seriesName} • ${match.status}", style: TextStyle(color: Colors.indigo.shade700)), // DEBUG: Show Status
+                      title: Text("${match.team1ShortName} vs ${match.team2ShortName}", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      subtitle: Text("${match.seriesName} • ${match.status}", style: const TextStyle(color: Colors.black87)), 
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.indigo, elevation: 0),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white, elevation: 0),
                             onPressed: () => context.go('/admin/matches/create-contest', extra: match),
                             icon: const Icon(Icons.add_circle, size: 16),
-                            label: const Text("Contest"),
+                            label: const Text("Create Contest"),
                           ),
                           const SizedBox(width: 8),
                           
@@ -273,6 +273,7 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
                     itemBuilder: (context, index) {
                       final match = _matches[index];
                       return Card(
+                        color: Colors.white,
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           leading: ClipOval(
@@ -284,7 +285,7 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
                                      ? "https://cricbuzz-cricket.p.rapidapi.com/img/v1/i1/c${match.team1Img}/i.jpg"
                                      : "https://via.placeholder.com/40", 
                                  fit: BoxFit.cover,
-                                 errorBuilder: (c,e,s) => const Icon(Icons.sports_cricket, color: Colors.indigo),
+                                 errorBuilder: (c,e,s) => const Icon(Icons.sports_cricket, color: Colors.black),
                                ),
                             ),
                           ),
