@@ -1,17 +1,18 @@
-import 'package:flutter_cashfree_pg_sdk/api/cfreasesion/cfree_session.dart';
-import 'package:flutter_cashfree_pg_sdk/api/cferror/cferror.dart';
-import 'package:flutter_cashfree_pg_sdk/utils/cfenums.dart';
-import 'package:flutter_cashfree_pg_sdk/utils/cfexceptions.dart';
-import 'package:flutter_cashfree_pg_sdk/api/cfpayment/cfwebcheckoutpayment.dart';
-import 'package:flutter_cashfree_pg_sdk/api/cfpaymentgateway/cfpaymentgatewayservice.dart';
+// import 'package:flutter_cashfree_pg_sdk/api/cfreasesion/cfree_session.dart';
+// import 'package:flutter_cashfree_pg_sdk/api/cferror/cferror.dart';
+// import 'package:flutter_cashfree_pg_sdk/utils/cfenums.dart';
+// import 'package:flutter_cashfree_pg_sdk/utils/cfexceptions.dart';
+// import 'package:flutter_cashfree_pg_sdk/api/cfpayment/cfwebcheckoutpayment.dart';
+// import 'package:flutter_cashfree_pg_sdk/api/cfpaymentgateway/cfpaymentgatewayservice.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:axevora11/features/user/domain/user_entity.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 class PaymentRepository {
   final Ref ref;
-  final CFPaymentGatewayService _cfPaymentGatewayService = CFPaymentGatewayService();
+  // final CFPaymentGatewayService _cfPaymentGatewayService = CFPaymentGatewayService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   PaymentRepository(this.ref);
@@ -29,6 +30,17 @@ class PaymentRepository {
     required Function(String) onFailure
   }) async {
     try {
+      debugPrint("Payment Stub: Deposit $amount for $orderId");
+      
+      // TEMPORARY STUB FOR WEB BUILD (Cashfree SDK causing issues)
+      await Future.delayed(const Duration(seconds: 1));
+      if (amount < 100000) {
+         onSuccess(orderId);
+      } else {
+         onFailure("Mock Payment Failed: Limit exceeded");
+      }
+
+      /*
       // 1. In a real app, call Backend to get 'payment_session_id' for this orderId + amount.
       // String sessionId = await _backend.createOrder(amount, orderId);
       
@@ -66,7 +78,7 @@ class PaymentRepository {
         },
         (error, orderId) => onFailure(error.getMessage() ?? "Payment Failed"),
       );
-
+      */
     } catch (e) {
       onFailure(e.toString());
     }
@@ -82,7 +94,9 @@ class PaymentRepository {
     required double amount,
     required String upiId,
   }) async {
-    final user = ref.read(userProvider);
+    final userAsync = ref.read(userEntityProvider);
+    final user = userAsync.value;
+    
     if (user == null) throw Exception("User not logged in");
     
     // SAFETY CHECK: KYC

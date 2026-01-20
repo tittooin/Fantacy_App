@@ -20,6 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
   String? _verificationId;
   bool _codeSent = false;
+  bool _termsAccepted = false;
 
   void _verifyPhone() async {
     final phone = _phoneController.text.trim();
@@ -189,23 +190,63 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _verifyPhone,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.primaryBackground,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: _isLoading 
-                  ? const SizedBox(
-                      height: 20, width: 20, 
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryBackground)
-                    ) 
-                  : const Text("GET OTP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
+             const SizedBox(height: 24),
+             
+             // Terms Checkbox
+             Row(
+               crossAxisAlignment: CrossAxisAlignment.start,
+               children: [
+                 SizedBox(
+                   width: 24, height: 24,
+                   child: Checkbox(
+                     value: _termsAccepted, 
+                     onChanged: (v) => setState(() => _termsAccepted = v ?? false),
+                     fillColor: MaterialStateProperty.all(Colors.white),
+                     checkColor: AppColors.primaryBackground,
+                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                   ),
+                 ),
+                 const SizedBox(width: 12),
+                 Expanded(
+                   child: Text.rich(
+                     TextSpan(
+                       text: "I agree to the ",
+                       style: const TextStyle(color: Colors.white70, fontSize: 12),
+                       children: [
+                         TextSpan(
+                           text: "Terms & Conditions",
+                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                           // TODO: Link to valid URL or Screen
+                         ),
+                         const TextSpan(text: " and confirm I am over 18 years old."),
+                       ],
+                     ),
+                   ),
+                 ),
+               ],
+             ),
+
+             const SizedBox(height: 24),
+             
+             ElevatedButton(
+               onPressed: (_isLoading || !_termsAccepted) ? null : _verifyPhone,
+               style: ElevatedButton.styleFrom(
+                 backgroundColor: Colors.white,
+                 foregroundColor: AppColors.primaryBackground,
+                 disabledBackgroundColor: Colors.white24,
+                 disabledForegroundColor: Colors.white38,
+                 padding: const EdgeInsets.symmetric(vertical: 18),
+                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+               ),
+               child: _isLoading 
+                   ? const SizedBox(
+                       height: 20, width: 20, 
+                       child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryBackground)
+                     ) 
+                   : const Text("GET OTP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+             ),
           ] else ...[
+             // ... OTP Section (Unchanged) ...
              Text(
               "Enter OTP sent to +91 ${_phoneController.text}",
               style: const TextStyle(color: Colors.white70, fontSize: 14),
@@ -258,7 +299,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
              ]),
              const SizedBox(height: 24),
              OutlinedButton(
-               onPressed: _isLoading ? null : () async {
+               onPressed: (_isLoading || !_termsAccepted) ? null : () async {
                   setState(() => _isLoading = true);
                   try {
                     await ref.read(authRepositoryProvider).signInWithGoogle();
@@ -274,6 +315,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                  side: const BorderSide(color: Colors.white24),
                  padding: const EdgeInsets.symmetric(vertical: 16),
                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                 disabledForegroundColor: Colors.white38,
                ),
                child: const Row(
                  mainAxisAlignment: MainAxisAlignment.center,
@@ -284,7 +326,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                  ],
                ),
              ),
-             const SizedBox(height: 16),
+             const SizedBox(height: 32),
+             
+             // DISCLAIMER FOOTER for Phase 1
+             Container(
+               padding: const EdgeInsets.all(12),
+               decoration: BoxDecoration(
+                 color: Colors.black26,
+                 borderRadius: BorderRadius.circular(8)
+               ),
+               child: const Text(
+                 "DISCLAIMER: This is a skill-based platform. Users must be 18+ to play. Financial risk Element involved. Please play responsibly. No Gambling allowed.",
+                 style: TextStyle(color: Colors.white54, fontSize: 10),
+                 textAlign: TextAlign.center,
+               ),
+             )
           ]
         ],
       ),

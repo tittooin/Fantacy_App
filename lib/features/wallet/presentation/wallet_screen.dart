@@ -183,13 +183,22 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     // 2. Breakdown
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
+                      child: Column(
                         children: [
-                          Expanded(child: _buildBalanceItem("Deposited", dynamicUser.walletBalance - dynamicUser.winningBalance - dynamicUser.bonusBalance, Icons.account_balance_wallet)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildBalanceItem("Winnings", dynamicUser.winningBalance, Icons.emoji_events, isHighlight: true)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildBalanceItem("Bonus", dynamicUser.bonusBalance, Icons.card_giftcard)),
+                          Row(
+                            children: [
+                              Expanded(child: _buildBalanceItem("Deposited", dynamicUser.walletBalance - dynamicUser.winningBalance - dynamicUser.bonusBalance, Icons.account_balance_wallet)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildBalanceItem("Winnings", dynamicUser.winningBalance, Icons.emoji_events, isHighlight: true)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildBalanceItem("Bonus", dynamicUser.bonusBalance, Icons.card_giftcard)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            "* Only 'Winnings' amount is withdrawable.",
+                            style: TextStyle(color: Colors.white54, fontSize: 11, fontStyle: FontStyle.italic),
+                          ),
                         ],
                       ),
                     ),
@@ -238,17 +247,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     const SizedBox(height: 24),
                     const Divider(color: Colors.white10),
                     
-                    // 4. Transactions Title (Placeholder)
+                    // 4. Transactions List
                     Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text("Recent Transactions", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                          TextButton(onPressed: (){}, child: const Text("View All"))
-                        ],
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+                      child: const Text("Recent Transactions", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
+                    _buildTransactionList(dynamicUser),
                   ],
                 ),
                 if (_isProcessing)
@@ -368,6 +372,48 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         ),
       )
     );
+  }
+
+  Widget _buildTransactionList(dynamic user) {
+     final List transactions = (user.transactions as List?) ?? [];
+     if (transactions.isEmpty) {
+       return const Padding(
+         padding: EdgeInsets.all(32.0),
+         child: Center(child: Text("No transactions yet.", style: TextStyle(color: Colors.white54))),
+       );
+     }
+     
+     // Show last 10
+     final reversed = transactions.reversed.take(10).toList();
+
+     return ListView.builder(
+       shrinkWrap: true,
+       physics: const NeverScrollableScrollPhysics(),
+       padding: EdgeInsets.zero,
+       itemCount: reversed.length,
+       itemBuilder: (context, index) {
+         final txn = reversed[index] as Map<String, dynamic>;
+         final isCredit = txn['type'] == 'DEPOSIT' || txn['type'] == 'WINNINGS';
+         final amount = txn['amount'] ?? 0;
+         final date = DateTime.tryParse(txn['timestamp'] ?? '') ?? DateTime.now();
+         
+         return ListTile(
+           leading: CircleAvatar(
+             backgroundColor: isCredit ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+             child: Icon(
+               isCredit ? Icons.arrow_downward : Icons.arrow_upward, 
+               color: isCredit ? Colors.green : Colors.red, size: 16
+             ),
+           ),
+           title: Text(txn['desc'] ?? 'Transaction', style: const TextStyle(color: Colors.white, fontSize: 14)),
+           subtitle: Text("${date.day}/${date.month} ${date.hour}:${date.minute}", style: const TextStyle(color: Colors.white54, fontSize: 12)),
+           trailing: Text(
+             "${isCredit ? '+' : '-'} ₹$amount",
+             style: TextStyle(color: isCredit ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
+           ),
+         );
+       },
+     );
   }
 
   Widget _quickAddChip(TextEditingController controller, String amount) {

@@ -104,7 +104,7 @@ class MatchScoreHeader extends ConsumerWidget {
                   Icon(Icons.circle, color: Colors.red, size: 8),
                   SizedBox(width: 8),
                   Text(
-                    "LIVE MATCH SCORE",
+                    "LIVE MATCH SCORE • Updates end of over",
                     style: TextStyle(
                       color: Colors.white54,
                       fontSize: 10,

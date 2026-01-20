@@ -335,81 +335,97 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
       return const Center(child: Text("Error: Match ID not found"));
     }
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('matches')
-          .doc(matchId)
-          .collection('contests')
-          .doc(contest.id)
-          .collection('entries')
-          .orderBy('points', descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-           return Center(child: Text("Error: ${snapshot.error}"));
-        }
-        if (snapshot.connectionState == ConnectionState.waiting) {
-           return const Center(child: CircularProgressIndicator());
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-           return RefreshIndicator(
-             onRefresh: _handleRefresh,
-             child: ListView(
-               physics: const AlwaysScrollableScrollPhysics(), 
-               children: const [
-                 SizedBox(height: 200),
-                 Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.people_outline, size: 48, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text("Be the first to join!", style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                 ),
-               ],
-             ),
-           );
-        }
-
-        return RefreshIndicator(
-          onRefresh: _handleRefresh,
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final rank = index + 1; // Or data['rank'] if calculated
-              final name = data['displayName'] ?? "User";
-              final team = data['teamName'] ?? "Team 1";
-              final points = data['points'] ?? 0;
-              final isCurrentUser = data['userId'] == FirebaseAuth.instance.currentUser?.uid;
-
-              return Container(
-                color: isCurrentUser ? Colors.indigo.withOpacity(0.05) : Colors.white,
-                child: ListTile(
-                  onTap: () {
-                     final userId = data['userId'] as String?;
-                     if (userId != null) {
-                       context.push('/profile/$userId');
-                     }
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          color: Colors.amber.withOpacity(0.1),
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+          child: const Text(
+            "Points & Ranks are updated at the end of each over.",
+            style: TextStyle(color: Colors.amber, fontSize: 10),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('matches')
+                .doc(matchId)
+                .collection('contests')
+                .doc(contest.id)
+                .collection('entries')
+                .orderBy('points', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                 return Center(child: Text("Error: ${snapshot.error}"));
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                 return const Center(child: CircularProgressIndicator());
+              }
+      
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isEmpty) {
+                 return RefreshIndicator(
+                   onRefresh: _handleRefresh,
+                   child: ListView(
+                     physics: const AlwaysScrollableScrollPhysics(), 
+                     children: const [
+                       SizedBox(height: 200),
+                       Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.people_outline, size: 48, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text("Be the first to join!", style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                       ),
+                     ],
+                   ),
+                 );
+              }
+      
+              return RefreshIndicator(
+                onRefresh: _handleRefresh,
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    final rank = index + 1; 
+                    final name = data['displayName'] ?? "User";
+                    final team = data['teamName'] ?? "Team 1";
+                    final points = data['points'] ?? 0;
+                    final isCurrentUser = data['userId'] == FirebaseAuth.instance.currentUser?.uid;
+      
+                    return Container(
+                      color: isCurrentUser ? Colors.indigo.withOpacity(0.05) : Colors.white,
+                      child: ListTile(
+                        onTap: () {
+                           final userId = data['userId'] as String?;
+                           if (userId != null) {
+                             context.push('/profile/$userId');
+                           }
+                        },
+                        leading: CircleAvatar(
+                          backgroundColor: isCurrentUser ? Colors.indigo : Colors.grey[300],
+                          child: Text("$rank", style: TextStyle(color: isCurrentUser ? Colors.white : Colors.black)),
+                        ),
+                        title: Text(name, style: TextStyle(fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal)),
+                        subtitle: Text(team, style: const TextStyle(fontSize: 12)),
+                        trailing: Text("$points pts", style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    );
                   },
-                  leading: CircleAvatar(
-                    backgroundColor: isCurrentUser ? Colors.indigo : Colors.grey[300],
-                    child: Text("$rank", style: TextStyle(color: isCurrentUser ? Colors.white : Colors.black)),
-                  ),
-                  title: Text(name, style: TextStyle(fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal)),
-                  subtitle: Text(team, style: const TextStyle(fontSize: 12)),
-                  trailing: Text("$points pts", style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               );
             },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 

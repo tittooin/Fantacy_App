@@ -93,8 +93,8 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
 
   // Safe Archive (Soft Delete)
   Future<void> _archiveMatch(String matchId, String currentStatus) async {
-    if (currentStatus == 'Live' || currentStatus == 'Completed') {
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cannot Archive Active/Completed Matches!"), backgroundColor: Colors.red));
+    if (currentStatus == 'Live') {
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cannot Archive Active/Live Matches!"), backgroundColor: Colors.red));
        return;
     }
 
@@ -189,6 +189,8 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
               final apiId = match.id.toString(); 
 
               return Card(
+                color: Colors.white,
+                elevation: 2,
                 margin: const EdgeInsets.all(8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: Padding(
@@ -200,7 +202,7 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
                         children: [
                           Expanded(
                             child: Text("${match.team1ShortName} vs ${match.team2ShortName}", 
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -213,7 +215,7 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text("ID: ${match.id} | ${match.seriesName}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text("ID: ${match.id} | ${match.seriesName}", style: const TextStyle(fontSize: 12, color: Colors.black54)),
                       if (match.status == 'Live')
                          Padding(
                            padding: const EdgeInsets.only(top: 4),
@@ -250,13 +252,20 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
                              _buildActionButton("Finish", Icons.stop, Colors.white, () => _updateMatchStatus(apiId, 'Completed'), isDark: true),
                           ],
 
-                          if (match.status == 'Completed')
+                          if (match.status == 'Completed') ...[
                              _buildActionButton("Re-Open", Icons.replay, Colors.teal, () => _updateMatchStatus(apiId, 'Live')),
+                             // Archive Button for Completed Matches
+                             OutlinedButton.icon(
+                               onPressed: _isLoading ? null : () => _archiveMatch(apiId, match.status),
+                               icon: const Icon(Icons.archive, size: 16, color: Colors.orange),
+                               label: const Text("Archive", style: TextStyle(color: Colors.orange, fontSize: 12)),
+                               style: OutlinedButton.styleFrom(
+                                 side: const BorderSide(color: Colors.orange),
+                               ),
+                             ),
+                          ],
 
-                          // ARCHIVE (Safe Delete)
-                          // Only allow if NOT Live/Completed, OR if it's explicitly completed and old (but user rule says No Live/Completed)
-                          // User Rule: "Agar match status = LIVE / COMPLETED -> DELETE / ARCHIVE NOT allowed"
-                          // So only Updated/Created allowed.
+                          // Archive for Upcoming/Created (Delete essentially)
                           if (match.status == 'Upcoming' || match.status == 'Created')
                             OutlinedButton.icon(
                               onPressed: _isLoading ? null : () => _archiveMatch(apiId, match.status),

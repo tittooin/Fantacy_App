@@ -211,6 +211,7 @@ class HomeScreen extends ConsumerWidget {
       },
     );
   }
+}
 
 class MatchCard extends StatelessWidget {
   final CricketMatchModel match;

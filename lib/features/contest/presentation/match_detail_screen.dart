@@ -90,19 +90,44 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(matchTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                  if (_effectiveMatch != null)
-                    Text(_effectiveMatch!.seriesName, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                  if (_effectiveMatch != null) ...[
+                     Text("${_effectiveMatch!.seriesName} • ${_effectiveMatch!.venue}", style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                     if (_effectiveMatch!.lineupStatus == 'Confirmed')
+                       Container(
+                         margin: const EdgeInsets.only(top: 2),
+                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                         decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                         child: const Text("Lineups Announced", style: TextStyle(fontSize: 10, color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                       )
+                  ]
                 ],
               ),
-              bottom: TabBar(
-                indicatorColor: Colors.white,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white60,
-                tabs: [
-                  const Tab(text: "Contests"),
-                  Tab(text: "My Contests (${myContests.length})"),
-                  Tab(text: "My Teams (${myTeams.length})"),
-                ],
+              bottom: PreferredSize(
+                 preferredSize: const Size.fromHeight(75),
+                 child: Column(
+                   children: [
+                     Container(
+                       width: double.infinity,
+                       color: Colors.black26,
+                       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                       child: const Text(
+                         "⚠ Only players in the Playing XI earn fantasy points.",
+                         style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                         textAlign: TextAlign.center,
+                       ),
+                     ),
+                     TabBar(
+                      indicatorColor: Colors.white,
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.white60,
+                      tabs: [
+                        const Tab(text: "Contests"),
+                        Tab(text: "My Contests (${myContests.length})"),
+                        Tab(text: "My Teams (${myTeams.length})"),
+                      ],
+                    ),
+                   ],
+                 ),
               ),
             ),
             body: TabBarView(
@@ -379,7 +404,15 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                      children: [
                        Text(team.teamName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                       const Icon(Icons.edit, size: 16, color: Colors.indigo), // Changed to indigo to indicate clickable
+                       Icon(
+                         (_effectiveMatch?.status == 'Live' || _effectiveMatch?.status == 'Completed') 
+                             ? Icons.visibility 
+                             : Icons.edit, 
+                         size: 16, 
+                         color: (_effectiveMatch?.status == 'Live' || _effectiveMatch?.status == 'Completed')
+                             ? Colors.grey
+                             : Colors.indigo
+                       ),
                      ],
                    ),
                    const Divider(),
@@ -641,7 +674,19 @@ class ContestCard extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Join Contest Confirmation"),
-        content: Text("Join '${contest.category}' with Team '${team.teamName}'?\nEntry: ₹${contest.entryFee}"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+             Text("Join '${contest.category}' with Team '${team.teamName}'?", style: const TextStyle(fontWeight: FontWeight.bold)),
+             const SizedBox(height: 8),
+             Text("Entry Fee: ₹${contest.entryFee}", style: const TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold)),
+             const Divider(height: 24),
+             const Text("• Entry fee is non-refundable.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+             const Text("• This is a skill-based contest.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+             const Text("• Platform decision is final.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(

@@ -107,58 +107,53 @@ class _MatchImportScreenState extends ConsumerState<MatchImportScreen> {
                   final match = CricketMatchModel.fromMap(data);
 
                   return Card(
-                    color: Colors.white, // Explicit White Background
-                    elevation: 2,
+                    color: Colors.indigo.shade50,
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.indigo, width: 0.5)),
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     child: ListTile(
-                      onTap: () {
-                        context.go('/admin/matches/create-contest', extra: match);
-                      },
+                      onTap: () => context.go('/admin/matches/create-contest', extra: match),
                       leading: ClipOval(
                         child: Container(
-                          width: 40,
-                          height: 40,
-                          color: Colors.grey.shade100, // Light Grey
+                          width: 40, height: 40, color: Colors.white,
                           child: Image.network(
-                            getTeamImage(match.team1Img),
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.sports_cricket, color: Colors.indigo);
-                            },
+                            getTeamImage(match.team1Img), fit: BoxFit.cover,
+                            errorBuilder: (c, e, s) => const Icon(Icons.sports_cricket, color: Colors.indigo),
                           ),
                         ),
                       ),
-                      title: Text("${match.team1ShortName} vs ${match.team2ShortName}", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                      subtitle: Text("${match.seriesName} • ${match.venue}", style: const TextStyle(color: Colors.black54)),
+                      title: Text("${match.team1ShortName} vs ${match.team2ShortName}", style: TextStyle(color: Colors.indigo.shade900, fontWeight: FontWeight.bold)),
+                      subtitle: Text("${match.seriesName} • ${match.status}", style: TextStyle(color: Colors.indigo.shade700)), // DEBUG: Show Status
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.indigo.shade50,
-                              foregroundColor: Colors.indigo,
-                              elevation: 0,
-                            ),
-                            onPressed: () {
-                              context.go('/admin/matches/create-contest', extra: match);
-                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.indigo, elevation: 0),
+                            onPressed: () => context.go('/admin/matches/create-contest', extra: match),
                             icon: const Icon(Icons.add_circle, size: 16),
                             label: const Text("Contest"),
                           ),
                           const SizedBox(width: 8),
-                          // Delete / Archive Actions
-                          if (match.status == 'Completed')
-                             IconButton(
-                               icon: const Icon(Icons.archive, color: Colors.orange),
-                               tooltip: "Archive Match",
-                               onPressed: () => _archiveMatch(match),
-                             )
-                          else if (match.status != 'Live')
-                             IconButton(
-                               icon: const Icon(Icons.delete_outline, color: Colors.red),
-                               tooltip: "Delete Match",
-                               onPressed: () => _deleteMatch(match),
-                             ),
+                          
+                          // ROBUST LOGIC
+                          Builder(builder: (context) {
+                             final s = match.status.trim().toLowerCase();
+                             if (s == 'completed') {
+                               return IconButton(
+                                 icon: const Icon(Icons.archive, color: Colors.orange),
+                                 tooltip: "Archive Match",
+                                 onPressed: () => _archiveMatch(match),
+                               );
+                             } else if (s != 'live') {
+                               return IconButton(
+                                 icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                 tooltip: "Delete Match",
+                                 onPressed: () => _deleteMatch(match),
+                               );
+                             }
+                             // Fallback for LIVE or Weird status
+                             return const SizedBox.shrink(); 
+                          }),
                         ],
                       ),
                     ),

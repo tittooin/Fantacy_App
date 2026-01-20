@@ -55,36 +55,85 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final nameController = TextEditingController(text: user.displayName);
     final bioController = TextEditingController(text: user.bio);
     final photoController = TextEditingController(text: user.photoUrl);
+    String? selectedState = user.selectedState;
+
+    final List<String> indianStates = [
+      "Andaman & Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", 
+      "Chandigarh", "Chhattisgarh", "Dadra & Nagar Haveli", "Daman & Diu", "Delhi", "Goa", 
+      "Gujarat", "Haryana", "Himachal Pradesh", "Jammu & Kashmir", "Jharkhand", "Karnataka", 
+      "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh", "Maharashtra", "Manipur", 
+      "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", "Rajasthan", 
+      "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
+    ];
+
+    // Restricted States Logic
+    final restrictedStates = {"Andhra Pradesh", "Assam", "Nagaland", "Odisha", "Sikkim", "Telangana"};
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Edit Profile"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-             TextField(controller: nameController, decoration: const InputDecoration(labelText: "Display Name")),
-             const SizedBox(height: 12),
-             TextField(controller: bioController, decoration: const InputDecoration(labelText: "Bio", hintText: "Tell us about yourself")),
-             const SizedBox(height: 12),
-             TextField(controller: photoController, decoration: const InputDecoration(labelText: "Photo URL", hintText: "https://example.com/me.jpg")),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref.read(userRepositoryProvider).updateProfile(
-                uid: _currentUid, 
-                displayName: nameController.text,
-                bio: bioController.text,
-                photoUrl: photoController.text,
-              );
-            },
-            child: const Text("Save"),
-          )
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Edit Profile"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                   TextField(controller: nameController, decoration: const InputDecoration(labelText: "Display Name")),
+                   const SizedBox(height: 12),
+                   TextField(controller: bioController, decoration: const InputDecoration(labelText: "Bio", hintText: "Tell us about yourself")),
+                   const SizedBox(height: 12),
+                   TextField(controller: photoController, decoration: const InputDecoration(labelText: "Photo URL", hintText: "https://example.com/me.jpg")),
+                   const SizedBox(height: 12),
+                   DropdownButtonFormField<String>(
+                     value: selectedState,
+                     decoration: const InputDecoration(labelText: "Select State (Required for Compliance)"),
+                     items: indianStates.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                     onChanged: (val) => setState(() => selectedState = val),
+                   ),
+                   if (selectedState != null && restrictedStates.contains(selectedState))
+                     Padding(
+                       padding: const EdgeInsets.only(top: 8.0),
+                       child: Text(
+                         "Note: Cash contests are not allowed in $selectedState.",
+                         style: const TextStyle(color: Colors.red, fontSize: 12),
+                       ),
+                     ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+              ElevatedButton(
+                onPressed: () async {
+                  if (selectedState == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a state")));
+                    return;
+                  }
+                  
+                  Navigator.pop(ctx);
+                  
+                  // Update Profile Info
+                  await ref.read(userRepositoryProvider).updateProfile(
+                    uid: _currentUid, 
+                    displayName: nameController.text,
+                    bio: bioController.text,
+                    photoUrl: photoController.text,
+                  );
+
+                  // Update State Compliance
+                  final isRestricted = restrictedStates.contains(selectedState);
+                  await ref.read(userRepositoryProvider).updateUserState(_currentUid, selectedState!, isRestricted);
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile Updated")));
+                  }
+                },
+                child: const Text("Save"),
+              )
+            ],
+          );
+        }
       )
     );
   }
@@ -97,6 +146,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         elevation: 0,
         backgroundColor: Colors.indigo,
         actions: [
+           IconButton(
+             icon: const Icon(Icons.help_outline),
+             tooltip: "Help & Support",
+             onPressed: () {
+               showDialog(
+                 context: context, 
+                 builder: (ctx) => AlertDialog(
+                   title: const Text("Contact Support"),
+                   content: Column(
+                     mainAxisSize: MainAxisSize.min,
+                     children: [
+                       ListTile(
+                         leading: const Icon(Icons.email, color: Colors.indigo),
+                         title: const Text("Email Us"),
+                         subtitle: const Text("support@axevora11.com"),
+                         onTap: () => Navigator.pop(ctx),
+                       ),
+                       ListTile(
+                         leading: const Icon(Icons.chat, color: Colors.green),
+                         title: const Text("WhatsApp"),
+                         subtitle: const Text("+91-9876543210"),
+                         onTap: () => Navigator.pop(ctx),
+                       )
+                     ],
+                   ),
+                   actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close"))]
+                 )
+               );
+             },
+           ),
            if (_isMe) IconButton(onPressed: () {}, icon: const Icon(Icons.settings))
         ],
       ),
