@@ -57,13 +57,14 @@ class AppTheme {
         ),
       ),
       
-      // Card Theme
+      /*
+      // Card Theme Removed to fix build error
       cardTheme: CardTheme(
         color: AppColors.cardColor,
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        surfaceTintColor: Colors.white, // Remove tint
       ),
+      */
       
       // AppBar Theme
       appBarTheme: AppBarTheme(

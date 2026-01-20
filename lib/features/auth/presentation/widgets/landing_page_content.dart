@@ -14,8 +14,8 @@ class LandingPageContent extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF2EA7FF), // Primary Sky Blue
-            Color(0xFF4FC3F7), // Lighter Sky Blue
+            Color(0xFF1565C0), // Blue 800 - Better contrast for white text
+            Color(0xFF0D47A1), // Blue 900
           ],
         ),
       ),

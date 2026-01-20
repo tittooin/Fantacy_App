@@ -45,7 +45,7 @@ class ContactUsScreen extends StatelessWidget {
             const Spacer(),
             const Text(
               "Axevora11 Support Team", 
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black45)
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white24)
             ),
           ],
         ),

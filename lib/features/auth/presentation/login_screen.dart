@@ -3,6 +3,7 @@ import 'package:axevora11/features/auth/presentation/widgets/landing_page_conten
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -34,14 +35,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final authRepo = ref.read(authRepositoryProvider);
       await authRepo.verifyPhoneNumber(
-        phoneNumber: '+91$phone',
+        phoneNumber: '+91\$phone',
         verificationCompleted: (credential) async {
            // Auto-resolution (Android only)
            await authRepo.signInWithCredential(credential);
         },
         verificationFailed: (e) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed: ${e.message}")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed: \${e.message}")));
         },
         codeSent: (verificationId, resendToken) {
           setState(() {
@@ -56,7 +57,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: \$e")));
     }
   }
 
@@ -216,7 +217,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                          TextSpan(
                            text: "Terms & Conditions",
                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
-                           // TODO: Link to valid URL or Screen
+                           recognizer: TapGestureRecognizer()..onTap = () {
+                              context.push("/terms");
+                           },
                          ),
                          const TextSpan(text: " and confirm I am over 18 years old."),
                        ],
@@ -246,9 +249,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                    : const Text("GET OTP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
              ),
           ] else ...[
-             // ... OTP Section (Unchanged) ...
+             // ... OTP Section
              Text(
-              "Enter OTP sent to +91 ${_phoneController.text}",
+              "Enter OTP sent to +91 \${_phoneController.text}",
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
             const SizedBox(height: 12),
@@ -305,7 +308,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     await ref.read(authRepositoryProvider).signInWithGoogle();
                   } catch (e) {
                      if (context.mounted) {
-                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Google Sign-In Failed: $e")));
+                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Google Sign-In Failed: \$e")));
                      }
                   } finally {
                     if(mounted) setState(() => _isLoading = false);
@@ -340,9 +343,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                  style: TextStyle(color: Colors.white54, fontSize: 10),
                  textAlign: TextAlign.center,
                ),
+             ),
+             const SizedBox(height: 16),
+             // Legal Footer Links
+             Wrap(
+               alignment: WrapAlignment.center,
+               spacing: 16,
+               runSpacing: 8,
+               children: [
+                  _buildFooterLink(context, "Privacy Policy", "/privacy"),
+                  _buildFooterLink(context, "Terms & Conditions", "/terms"),
+                  _buildFooterLink(context, "Fair Play", "/fair-play"),
+                  _buildFooterLink(context, "Contact Us", "/contact"),
+               ],
              )
           ]
         ],
+      ),
+    );
+  }
+
+  Widget _buildFooterLink(BuildContext context, String text, String route) {
+    return InkWell(
+      onTap: () => context.push(route),
+      child: Text(
+        text, 
+        style: const TextStyle(
+          color: Colors.white60, 
+          fontSize: 11, 
+          decoration: TextDecoration.underline
+        )
       ),
     );
   }
