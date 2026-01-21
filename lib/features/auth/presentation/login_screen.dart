@@ -24,9 +24,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _termsAccepted = false;
 
   void _verifyPhone() async {
-    final phone = _phoneController.text.trim();
-    if (phone.length < 10) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invalid Phone Number")));
+    // Sanitize Input: Remove all non-digits
+    String phone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
+
+    // Smart-Handle if user typed +91 or 0 manually
+    if (phone.length > 10) {
+      if (phone.startsWith('91') && phone.length == 12) {
+         phone = phone.substring(2);
+      } else if (phone.startsWith('0') && phone.length == 11) {
+         phone = phone.substring(1);
+      }
+    }
+
+    if (phone.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter valid 10-digit number")));
       return;
     }
 
@@ -42,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         },
         verificationFailed: (e) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Login Error: ${e.message}")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Auth Failed: ${e.message}")));
         },
         codeSent: (verificationId, resendToken) {
           setState(() {
