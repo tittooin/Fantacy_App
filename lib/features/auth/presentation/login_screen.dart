@@ -53,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         },
         verificationFailed: (e) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Auth Failed: ${e.message}")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Code: ${e.code}\nMsg: ${e.message}\nNum: +91$phone")));
         },
         codeSent: (verificationId, resendToken) {
           setState(() {
