@@ -14,7 +14,7 @@ class LegalPageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
+      backgroundColor: AppColors.secondaryBackground,
       appBar: AppBar(
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: AppColors.secondaryBackground,

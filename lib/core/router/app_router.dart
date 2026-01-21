@@ -76,9 +76,21 @@ final goRouterProvider = Provider<GoRouter>((ref) {
          return null; 
       }
 
-      // 1. Guest User: Allow only Login and Splash
+      // 1. Guest User: Allow Login, Splash, and Legal Pages
       if (user == null) {
-        if (path == '/login' || path == '/') return null; 
+        const allowedRoutes = [
+          '/', 
+          '/login', 
+          '/terms', 
+          '/privacy', 
+          '/refund-policy', 
+          '/fair-play', 
+          '/responsible-play', 
+          '/faq', 
+          '/contact'
+        ];
+        
+        if (allowedRoutes.contains(path)) return null; 
         return '/login';
       }
 

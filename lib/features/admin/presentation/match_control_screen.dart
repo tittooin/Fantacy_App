@@ -35,7 +35,7 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
   }
 
   void _startSmartPolling() {
-    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
       if (!_isPollingPaused) {
         _pollMatches();
       }
