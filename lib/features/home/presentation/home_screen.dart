@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:axevora11/core/widgets/loading_skeleton.dart';
 
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:axevora11/features/auth/data/auth_repository.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -73,17 +74,17 @@ class HomeScreen extends ConsumerWidget {
              ListTile(
                leading: const Icon(Icons.verified_user_outlined),
                title: const Text("Fair Play"),
-               onTap: () => context.push('/legal/fair-play'),
+               onTap: () => context.push('/fair-play'),
              ),
              ListTile(
                leading: const Icon(Icons.gavel),
                title: const Text("Terms & Conditions"),
-               onTap: () => context.push('/legal/terms'),
+               onTap: () => context.push('/terms'),
              ),
              ListTile(
                leading: const Icon(Icons.privacy_tip_outlined),
                title: const Text("Privacy Policy"),
-               onTap: () => context.push('/legal/privacy'),
+               onTap: () => context.push('/privacy'),
              ),
              ListTile(
                leading: const Icon(Icons.help_outline),
@@ -94,6 +95,41 @@ class HomeScreen extends ConsumerWidget {
                leading: const Icon(Icons.support_agent),
                title: const Text("Contact Us"),
                onTap: () => context.push('/contact'),
+             ),
+             const Divider(),
+             ListTile(
+               leading: const Icon(Icons.logout, color: Colors.redAccent),
+               title: const Text("Logout", style: TextStyle(color: Colors.redAccent)),
+               onTap: () async {
+                 // Confirm Logout
+                 final confirm = await showDialog<bool>(
+                   context: context, 
+                   builder: (ctx) => AlertDialog(
+                     title: const Text("Logout?"),
+                     content: const Text("Are you sure you want to logout?"),
+                     actions: [
+                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+                       ElevatedButton(
+                         onPressed: () => Navigator.pop(ctx, true), 
+                         style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                         child: const Text("Logout")
+                       )
+                     ],
+                   )
+                 );
+                 
+                 if (confirm == true) {
+                   // Close Drawer first
+                   if (context.mounted) Navigator.pop(context); 
+                   
+                   // Perform Logout
+                   await ref.read(authRepositoryProvider).signOut();
+                   
+                   if (context.mounted) {
+                      context.go('/login');
+                   }
+                 }
+               },
              ),
              const Divider(),
              Padding(

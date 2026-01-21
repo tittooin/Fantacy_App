@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:axevora11/features/user/domain/user_entity.dart';
 import 'package:axevora11/features/user/data/user_repository.dart';
+import 'package:axevora11/features/auth/data/auth_repository.dart';
+import 'package:go_router/go_router.dart';
 import 'package:axevora11/core/theme/app_theme.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -176,7 +178,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                );
              },
            ),
-           if (_isMe) IconButton(onPressed: () {}, icon: const Icon(Icons.settings))
+           if (_isMe) 
+             PopupMenuButton<String>(
+               icon: const Icon(Icons.settings),
+               onSelected: (value) async {
+                 if (value == 'logout') {
+                   final confirm = await showDialog<bool>(
+                     context: context, 
+                     builder: (ctx) => AlertDialog(
+                       title: const Text("Logout?"),
+                       content: const Text("Are you sure you want to logout?"),
+                       actions: [
+                         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+                         ElevatedButton(
+                           onPressed: () => Navigator.pop(ctx, true), 
+                           style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                           child: const Text("Logout")
+                         )
+                       ],
+                     )
+                   );
+
+                   if (confirm == true) {
+                      await ref.read(authRepositoryProvider).signOut();
+                      if (mounted) context.go('/login');
+                   }
+                 }
+               },
+               itemBuilder: (BuildContext context) {
+                 return [
+                   const PopupMenuItem<String>(
+                     value: 'logout',
+                     child: Row(
+                       children: [
+                         Icon(Icons.logout, color: Colors.redAccent, size: 20),
+                         SizedBox(width: 8),
+                         Text("Logout", style: TextStyle(color: Colors.redAccent)),
+                       ],
+                     ),
+                   ),
+                 ];
+               },
+             )
         ],
       ),
       body: StreamBuilder<DocumentSnapshot>(
