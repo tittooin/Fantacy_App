@@ -24,10 +24,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _termsAccepted = false;
 
   void _verifyPhone() async {
-    // Sanitize Input: Remove all non-digits
-    String phone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
+    // Aggressive Sanitization: Only allow 0-9
+    String phone = _phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
 
-    // Smart-Handle if user typed +91 or 0 manually
+    // Normalize 12 or 11 digit inputs to 10 digits
     if (phone.length > 10) {
       if (phone.startsWith('91') && phone.length == 12) {
          phone = phone.substring(2);
@@ -35,6 +35,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
          phone = phone.substring(1);
       }
     }
+
+    debugPrint("DEBUG PHONE: Raw='${_phoneController.text}', Clean='$phone', Final='+91$phone'");
 
     if (phone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter valid 10-digit number")));
