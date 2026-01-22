@@ -293,6 +293,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ]
       ),
       
+      GoRoute(
+        path: '/admin',
+        redirect: (context, state) => '/admin/dashboard',
+      ),
+      
       // Admin Shell Route
       ShellRoute(
         builder: (context, state, child) {

@@ -15,65 +15,61 @@ const parseXml = async (xml) => {
 };
 
 // Route: Get All Matches (Live + Upcoming) from Cricbuzz RSS or Fallback to RapidAPI
+// --- SIMPLE MEMORY CACHE ---
+const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 Minutes
+const cache = {
+    matches: { data: null, timestamp: 0 },
+    recent: { data: null, timestamp: 0 }
+};
+
+// Route: Get All Matches with Caching
 app.get('/matches', async (req, res) => {
+    // 1. Check Cache
+    const now = Date.now();
+    if (cache.matches.data && (now - cache.matches.timestamp < CACHE_DURATION_MS)) {
+        console.log("⚡ Serving Matches from Cache (Save API Hits)");
+        return res.json({ matches: cache.matches.data, cached: true });
+    }
+
     try {
         console.log("Fetching Matches from Cricbuzz RSS...");
-
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         };
 
-        // Fetch both feeds in parallel
+        // Fetch RSS
         const [upcomingRes, liveRes] = await Promise.allSettled([
             axios.get('https://www.cricbuzz.com/rss/match/upcoming', { headers }),
             axios.get('https://www.cricbuzz.com/rss/match/live', { headers })
         ]);
 
         let allMatches = [];
-
-        // Helper to process RSS result
-        const processFeed = async (response, statusTag) => {
+        const processFeed = async (response) => {
             if (response.status === 'fulfilled') {
                 try {
                     const result = await parseXml(response.value.data);
                     const items = result.rss && result.rss.channel ? result.rss.channel.item : [];
                     return Array.isArray(items) ? items : (items ? [items] : []);
-                } catch (e) {
-                    return [];
-                }
+                } catch (e) { return []; }
             }
             return [];
         };
 
-        const upcomingItems = await processFeed(upcomingRes, "Upcoming");
-        const liveItems = await processFeed(liveRes, "Live");
-
-        // Merge Results
+        const upcomingItems = await processFeed(upcomingRes);
+        const liveItems = await processFeed(liveRes);
         const rawItems = [...liveItems, ...upcomingItems];
 
         allMatches = rawItems.map((item, index) => {
-            // Title format: "Team A vs Team B, Match Description"
+            // ... [Existing Parsers] ...
             const titleParts = item.title ? item.title.split(',') : ["Unknown vs Unknown"];
             const matchDesc = titleParts.slice(1).join(',').trim();
-            const teamsPart = titleParts[0];
-            const teams = teamsPart.split(' vs ');
-
-            // Generate ID from Link
+            const teams = titleParts[0].split(' vs ');
             let matchId = 10000 + index;
             if (item.link) {
                 const parts = item.link.split('/');
-                for (const part of parts) {
-                    if (!isNaN(part) && part.length > 4) {
-                        matchId = parseInt(part);
-                        break;
-                    }
-                }
+                for (const part of parts) { if (!isNaN(part) && part.length > 4) { matchId = parseInt(part); break; } }
             }
-
             const startDate = new Date(item.pubDate).getTime();
-            const now = Date.now();
-            let status = startDate < now ? "Live" : "Upcoming";
-
             return {
                 id: matchId,
                 seriesName: item.description || "Cricket Series",
@@ -88,53 +84,32 @@ app.get('/matches', async (req, res) => {
                 startDate: startDate,
                 endDate: startDate + (4 * 60 * 60 * 1000),
                 venue: "See Cricbuzz",
-                status: status
+                status: startDate < now ? "Live" : "Upcoming"
             };
         });
 
-        const uniqueMatches = Array.from(new Map(allMatches.map(m => [m.id, m])).values());
+        // 2. RapidAPI Fallback
+        if (allMatches.length === 0) {
+            console.log("⚠️ RSS Empty. Trying RapidAPI...");
+            const apiKey = req.headers['x-rapidapi-key'];
+            const apiHost = req.headers['x-rapidapi-host'];
 
-        if (uniqueMatches.length > 0) {
-            console.log(`✅ Scraped ${uniqueMatches.length} unique matches from RSS`);
-            return res.json({ matches: uniqueMatches });
-        } else {
-            throw new Error("RSS returned 0 matches");
-        }
+            if (apiKey && apiHost) {
+                try {
+                    const apiRes = await axios.get(`https://${apiHost}/matches/v1/upcoming`, {
+                        headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': apiHost }
+                    });
 
-    } catch (error) {
-        console.error("⚠️ RSS Parsing Failed or Empty:", error.message);
-
-        // --- RapidAPI Fallback Logic ---
-        const apiKey = req.headers['x-rapidapi-key'];
-        const apiHost = req.headers['x-rapidapi-host'];
-
-        if (apiKey && apiHost) {
-            const fetchFromEndpoint = async (endpoint) => {
-                console.log(`🔄 Trying RapidAPI Fallback: ${endpoint}...`);
-                const res = await axios.get(`https://${apiHost}${endpoint}`, {
-                    headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': apiHost }
-                });
-                if (res.data && res.data.typeMatches) return res.data.typeMatches;
-                return null;
-            };
-
-            try {
-                // Try Endpoint 1: v1/upcoming
-                let types = await fetchFromEndpoint('/matches/v1/upcoming');
-
-                // Try Endpoint 2: list-upcoming (Likely broken but kept as legacy)
-                if (!types) types = await fetchFromEndpoint('/matches/list-upcoming');
-
-                if (types) {
-                    let rapidMatches = [];
-                    for (const type of types) {
-                        if (type.seriesMatches) {
-                            for (const series of type.seriesMatches) {
-                                if (series.matches) {
-                                    for (const m of series.matches) {
-                                        const mi = m.matchInfo;
-                                        if (mi) {
-                                            rapidMatches.push({
+                    if (apiRes.data && apiRes.data.typeMatches) {
+                        // Parse RapidAPI Data
+                        const types = apiRes.data.typeMatches;
+                        for (const type of types) {
+                            if (type.seriesMatches) {
+                                for (const series of type.seriesMatches) {
+                                    if (series.matches) {
+                                        for (const m of series.matches) {
+                                            const mi = m.matchInfo;
+                                            allMatches.push({
                                                 id: mi.matchId,
                                                 seriesName: series.seriesAdWrapper ? series.seriesAdWrapper.seriesName : "Series",
                                                 matchDesc: mi.matchDesc || "Match",
@@ -147,7 +122,7 @@ app.get('/matches', async (req, res) => {
                                                 team2Img: mi.team2.imageId,
                                                 startDate: parseInt(mi.startDate),
                                                 endDate: parseInt(mi.endDate),
-                                                venue: mi.venueInfo ? mi.venueInfo.ground : "Unknown",
+                                                venue: mi.venueInfo.ground,
                                                 status: "Upcoming"
                                             });
                                         }
@@ -156,60 +131,119 @@ app.get('/matches', async (req, res) => {
                             }
                         }
                     }
-                    if (rapidMatches.length > 0) {
-                        console.log(`✅ Fetched ${rapidMatches.length} matches from RapidAPI fallback`);
-                        return res.json({ matches: rapidMatches });
-                    } else {
-                        console.log("⚠️ RapidAPI returned 0 matches. Falling through to Static Mock.");
-                    }
-                }
-            } catch (rapidErr) {
-                console.error("❌ RapidAPI Fallback Chain Failed:", rapidErr.message);
+                } catch (e) { console.error("RapidAPI Fallback Failed:", e.message); }
             }
         }
 
-        console.log("⚠️ External APIs Failed. Returning Static Mock Data.");
+        // Remove Duplicates
+        const uniqueMatches = Array.from(new Map(allMatches.map(m => [m.id, m])).values());
 
-        // --- FINAL FALBACK: Static Mock Data (Guarantee Data) ---
-        const now = Date.now();
-        const mockMatches = [
-            {
-                id: 89571, // Real Cricbuzz ID for Scorecard Testing
-                seriesName: "IPL 2026 (Mock Scraper)",
-                matchDesc: "1st Match, Group A",
-                matchFormat: "T20",
-                team1Name: "Chennai Super Kings",
-                team1ShortName: "CSK",
-                team1Img: "5800",
-                team2Name: "Mumbai Indians",
-                team2ShortName: "MI",
-                team2Img: "5801",
-                startDate: now + 3600000,
-                endDate: now + 14400000,
-                venue: "Wankhede Stadium, Mumbai",
-                status: "Upcoming"
-            },
-            {
-                id: 91919,
-                seriesName: "T20 World Cup 2026",
-                matchDesc: "Final",
-                matchFormat: "T20",
-                team1Name: "India",
-                team1ShortName: "IND",
-                team1Img: "2",
-                team2Name: "Australia",
-                team2ShortName: "AUS",
-                team2Img: "3",
-                startDate: now + 86400000,
-                endDate: now + 100000000,
-                venue: "Eden Gardens, Kolkata",
-                status: "Upcoming"
-            }
-        ];
+        if (uniqueMatches.length > 0) {
+            // Update Cache
+            cache.matches = { data: uniqueMatches, timestamp: Date.now() };
+            console.log(`✅ Cache Updated: ${uniqueMatches.length} matches`);
+            return res.json({ matches: uniqueMatches });
+        } else {
+            // Mock Data Fallback (Only if EVERYTHING fails)
+            throw new Error("No data sources worked.");
+        }
 
-        res.json({ matches: mockMatches });
+    } catch (error) {
+        console.error("❌ Fetch Failed:", error.message);
+        // Serve Stale Cache if available
+        if (cache.matches.data) {
+            console.log("⚠️ Serving Stale Cache due to Error");
+            return res.json({ matches: cache.matches.data, cached: true, stale: true });
+        }
+        // Last Resort: Mock Data
+        return res.json({ matches: getMockMatches(), source: 'mock' });
     }
 });
+
+// Route: Get Recent Matches (New Endpoint)
+app.get('/matches/recent', async (req, res) => {
+    // Check Cache
+    const now = Date.now();
+    if (cache.recent.data && (now - cache.recent.timestamp < CACHE_DURATION_MS)) {
+        return res.json({ matches: cache.recent.data, cached: true });
+    }
+
+    try {
+        const apiKey = req.headers['x-rapidapi-key'];
+        const apiHost = req.headers['x-rapidapi-host'];
+
+        if (!apiKey) throw new Error("API Key Required for Recent Matches");
+
+        console.log("Fetching Recent Matches from RapidAPI...");
+        const response = await axios.get(`https://${apiHost}/matches/v1/recent`, {
+            headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': apiHost }
+        });
+
+        let recentMatches = [];
+        if (response.data && response.data.typeMatches) {
+            // ... Parsing Logic (Similar to Upcoming) ...
+            // Simplified for brevity
+            const types = response.data.typeMatches;
+            for (const type of types) {
+                if (type.seriesMatches) {
+                    for (const series of type.seriesMatches) {
+                        if (series.matches) {
+                            for (const m of series.matches) {
+                                const mi = m.matchInfo;
+                                recentMatches.push({
+                                    id: mi.matchId,
+                                    seriesName: series.seriesAdWrapper ? series.seriesAdWrapper.seriesName : "Series",
+                                    matchDesc: mi.matchDesc,
+                                    matchFormat: mi.matchFormat,
+                                    team1Name: mi.team1.teamName,
+                                    team1ShortName: mi.team1.teamSName,
+                                    team1Img: mi.team1.imageId,
+                                    team2Name: mi.team2.teamName,
+                                    team2ShortName: mi.team2.teamSName,
+                                    team2Img: mi.team2.imageId,
+                                    startDate: parseInt(mi.startDate),
+                                    endDate: parseInt(mi.endDate),
+                                    venue: mi.venueInfo ? mi.venueInfo.ground : "",
+                                    status: mi.status || "Completed"
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        cache.recent = { data: recentMatches, timestamp: Date.now() };
+        res.json({ matches: recentMatches });
+
+    } catch (e) {
+        console.error("Recent Fetch Error:", e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+function getMockMatches() {
+    // ... [Keep Existing Mock Data Logic] ...
+    const now = Date.now();
+    return [
+        {
+            id: 89571,
+            seriesName: "IPL 2026 (Mock SC)",
+            matchDesc: "1st Match, Group A",
+            matchFormat: "T20",
+            team1Name: "Chennai Super Kings",
+            team1ShortName: "CSK",
+            team1Img: "5800",
+            team2Name: "Mumbai Indians",
+            team2ShortName: "MI",
+            team2Img: "5801",
+            startDate: now + 3600000,
+            endDate: now + 14400000,
+            venue: "Wankhede Stadium, Mumbai",
+            status: "Upcoming"
+        }
+    ];
+}
 
 // Proxy Route for Scorecard
 app.get('/scorecard/:matchId', async (req, res) => {

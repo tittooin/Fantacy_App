@@ -107,6 +107,32 @@ class RapidApiCricketService implements CricketApiService {
     return [];
   }
 
+  @override
+  Future<List<CricketMatchModel>> fetchRecentMatches() async {
+     try {
+       // Only support Local Proxy/RapidAPI for Recent
+       debugPrint("Fetching Recent Matches from Local Proxy...");
+       final response = await _dio.get(
+        '$_localUrl/matches/recent',
+        options: Options(
+          receiveTimeout: const Duration(seconds: 8),
+        )
+       );
+       
+       if (response.statusCode == 200) {
+          final data = response.data;
+          if (data['matches'] is List) {
+             return (data['matches'] as List)
+              .map((m) => CricketMatchModel.fromMap(m))
+              .toList();
+          }
+       }
+     } catch (e) {
+       debugPrint("Recent Fetch Error: $e");
+     }
+     return [];
+  }
+
   List<CricketMatchModel> _parseRapidApiMatches(Map<String, dynamic> data) {
       List<CricketMatchModel> matches = [];
       try {

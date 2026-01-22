@@ -49,37 +49,64 @@ class _AdminScaffoldState extends State<AdminScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    // ONE SCAFFOLD RULE: This is the only Scaffold in the admin panel.
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
+      backgroundColor: Colors.black, // Dark theme base
       body: Row(
         children: [
-          // Sidebar (Navigation Rail)
-          NavigationRail(
-            backgroundColor: AppColors.secondaryBackground,
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: _onDestinationSelected,
-            labelType: NavigationRailLabelType.all,
-            leading: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0),
-              child: Image.asset('assets/images/logo_text.png', width: 40, errorBuilder: (c,e,s) => const Icon(Icons.shield, color: AppColors.accentGreen)),
+          // Sidebar (Fixed 250px)
+          Container(
+            width: 250,
+            color: const Color(0xFF1E1E1E), // Slightly lighter dark
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Logo Area
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.admin_panel_settings, color: Colors.blueAccent, size: 32),
+                      const SizedBox(width: 12),
+                      const Text("AXEVORA", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                    ],
+                  ),
+                ),
+                const Divider(color: Colors.white10),
+                
+                // Navigation Items
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _destinations.length,
+                    itemBuilder: (context, index) {
+                      final item = _destinations[index];
+                      final isSelected = _selectedIndex == index;
+                      return ListTile(
+                        leading: Icon(item['icon'], color: isSelected ? Colors.blueAccent : Colors.white54),
+                        title: Text(item['label'], style: TextStyle(color: isSelected ? Colors.blueAccent : Colors.white70)),
+                        selected: isSelected,
+                        selectedTileColor: Colors.blueAccent.withOpacity(0.1),
+                        onTap: () => _onDestinationSelected(index),
+                      );
+                    },
+                  ),
+                ),
+                
+                // Footer
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text("v1.0.3 Admin", style: TextStyle(color: Colors.white24, fontSize: 10)),
+                ),
+              ],
             ),
-            selectedIconTheme: const IconThemeData(color: AppColors.accentGreen),
-            unselectedIconTheme: const IconThemeData(color: AppColors.textGrey),
-            selectedLabelTextStyle: const TextStyle(color: AppColors.accentGreen, fontWeight: FontWeight.bold),
-            unselectedLabelTextStyle: const TextStyle(color: AppColors.textGrey),
-            destinations: _destinations.map((dest) {
-              return NavigationRailDestination(
-                icon: Icon(dest['icon']),
-                label: Text(dest['label']),
-              );
-            }).toList(),
           ),
           
-          const VerticalDivider(thickness: 1, width: 1, color: AppColors.cardBorder),
-          
-          // Main Content
+          // Main Content Area
           Expanded(
-            child: widget.child,
+            child: Container(
+              color: Colors.black, // Content background
+              child: widget.child
+            ),
           ),
         ],
       ),
