@@ -25,7 +25,7 @@ android {
         applicationId = "com.axevora.axevora11"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion // Required for Firebase
+        minSdk = flutter.minSdkVersion // flutter.minSdkVersion updated for Cashfree
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

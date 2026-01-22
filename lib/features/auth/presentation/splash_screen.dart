@@ -100,11 +100,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             left: 0,
             right: 0,
             child: Text(
-              "INDIA'S FASTEST FANTASY APP",
+              "India’s Skill-Based Fantasy Cricket Platform",
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: AppColors.textGrey,
-                letterSpacing: 2,
+                letterSpacing: 1.2,
+                fontSize: 12,
               ),
             ).animate().fade(delay: 500.ms).slideY(begin: 1, end: 0),
           )

@@ -207,7 +207,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
                     const SizedBox(height: 16),
                     
-                    // 3. Actions
+                    // 3. Actions (DISABLED FOR SOFT LAUNCH - SKILL MODE ONLY)
+                    /*
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: !kIsWeb
@@ -248,46 +249,36 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                               ],
                             )
                           : Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                  color: Colors.amber.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                      color: Colors.amber.withOpacity(0.3))),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.android,
-                                      color: Colors.amber, size: 32),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    "Payments are available on Android App only.",
-                                    style: TextStyle(
-                                        color: Colors.amber,
-                                        fontWeight: FontWeight.bold),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ElevatedButton(
-                                    onPressed: () async {
-                                      const url = "https://github.com/tittooin/Fantacy_App/releases/latest/download/app-release.apk";
-                                      if (await canLaunchUrl(Uri.parse(url))) {
-                                        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                                      } else {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text("Could not launch download link")));
-                                        }
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.amber,
-                                        foregroundColor: Colors.black),
-                                    child: const Text("DOWNLOAD AXEVORA11"),
-                                  )
-                                ],
-                              ),
+                              // Payment Web Warning
                             ),
+                    ),
+                    */
+                    
+                    // SOFT LAUNCH MESSAGE
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.all(16),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.amber.withOpacity(0.3))
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.amber),
+                          const SizedBox(height: 8),
+                          const Text(
+                            "Bonus Coins Only (No real money involved)",
+                            style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            "Deposit & Withdrawal: Coming Soon",
+                            style: TextStyle(color: Colors.amberAccent, fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 24),
