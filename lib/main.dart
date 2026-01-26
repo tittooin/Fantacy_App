@@ -18,14 +18,14 @@ void main() async {
     // Initialize Firebase
     if (kIsWeb) {
       await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: "AIzaSyDVoZoy6_Qz36Xz3P7CbkGSB75Vq0CsJhU",
-          authDomain: "axevora11.firebaseapp.com",
-          projectId: "axevora11",
-          storageBucket: "axevora11.firebasestorage.app",
-          messagingSenderId: "526953085440",
-          appId: "1:526953085440:web:e765e8884960196c36b6e5",
-          measurementId: "G-Z2F4G77KWE",
+        options: FirebaseOptions(
+          apiKey: const String.fromEnvironment('FIREBASE_API_KEY', defaultValue: 'AIzaSyDVoZoy6_Qz36Xz3P7CbkGSB75Vq0CsJhU'),
+          authDomain: const String.fromEnvironment('FIREBASE_AUTH_DOMAIN', defaultValue: 'axevora11.firebaseapp.com'),
+          projectId: const String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'axevora11'),
+          storageBucket: const String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'axevora11.firebasestorage.app'),
+          messagingSenderId: const String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '526953085440'),
+          appId: const String.fromEnvironment('FIREBASE_APP_ID', defaultValue: '1:526953085440:web:e765e8884960196c36b6e5'),
+          measurementId: const String.fromEnvironment('FIREBASE_MEASUREMENT_ID', defaultValue: 'G-Z2F4G77KWE'),
         ),
       );
     } else {
