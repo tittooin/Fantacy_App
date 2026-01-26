@@ -58,12 +58,13 @@ class AdminLogsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(data['action'] ?? 'Details'),
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: Text(data['action'] ?? 'Details', style: const TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
-          child: Text(data.toString(), style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+          child: Text(data.toString(), style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.white70)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close"))
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close", style: TextStyle(color: Colors.white54)))
         ],
       ),
     );

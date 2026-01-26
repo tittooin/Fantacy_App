@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
-import 'package:axevora11/features/cricket_api/data/cricket_api_service.dart';
+import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:axevora11/features/team/data/firestore_player_service.dart';
 
@@ -115,19 +115,13 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
   Future<void> _importSquadFromApi() async {
      setState(() => _isLoading = true);
      try {
-       final apiService = ref.read(cricketApiServiceProvider);
+       final apiService = ref.read(rapidApiServiceProvider);
        
-       final result = await apiService.fetchSquads(
-        widget.match.id, 
-        widget.match.seriesId,
-        widget.match.team1Id,
-        widget.match.team2Id,
-        widget.match.team1ShortName, 
-        widget.match.team2ShortName
-       );
+       final result = await apiService.fetchSquads(widget.match.id);
        
-       final rawPlayers = result['players'] as List<dynamic>;
-       final isXI = result['isXI'] as bool;
+       final rawPlayers = result['matchInfo']?['team1']?['playerDetails'] ?? []; // Adjust based on scov2
+       // Simplified: Assuming we need to parse team1 and team2
+       final isXI = result['source'] == 'playing_xi';
 
        if (rawPlayers.isEmpty) {
           throw "No squad data found via API.";
@@ -223,7 +217,8 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Paste Playing XI Names"),
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text("Paste Playing XI Names", style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -232,18 +227,20 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
             TextField(
               controller: _controller,
               maxLines: 6,
-              style: const TextStyle(color: Colors.black),
+              style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 border: OutlineInputBorder(), 
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
                 hintText: "e.g. Kohli, Rohit, Dhoni...",
+                hintStyle: TextStyle(color: Colors.white30),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Colors.black26,
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white54))),
           ElevatedButton(
             onPressed: () {
                _processPastedText(_controller.text);

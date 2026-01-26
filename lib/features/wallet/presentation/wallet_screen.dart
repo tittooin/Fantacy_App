@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:axevora11/features/wallet/data/wallet_repository.dart';
-import 'package:axevora11/features/wallet/data/payment_repository.dart'; // Added
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -15,7 +13,6 @@ class WalletScreen extends ConsumerStatefulWidget {
 }
 
 class _WalletScreenState extends ConsumerState<WalletScreen> {
-  final WalletRepository _walletRepo = WalletRepository();
   bool _isProcessing = false;
 
   Future<void> _initiateAddCash(String amountStr, dynamic user) async {
@@ -28,130 +25,38 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     setState(() => _isProcessing = true);
     Navigator.pop(context); // Close BottomSheet
     
-    final orderId = "ORDER_${DateTime.now().millisecondsSinceEpoch}";
+    final userId = (user as dynamic).uid;
+    if (userId == null) return;
 
-    // CALL CASHFREE REPOSITORY
-    await ref.read(paymentRepositoryProvider).depositCash(
-      amount: amount,
-      orderId: orderId,
-      onSuccess: (id) => _handleSuccess(amount), 
-      onFailure: (msg) {
-        if(mounted) {
-           setState(() => _isProcessing = false);
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Payment Failed: $msg"), backgroundColor: Colors.red));
+    // CALL BACKEND WORKER
+    final result = await ref.read(walletRepositoryProvider).createDepositOrder(userId, amount);
+    
+    if (result['success'] == true && result['paymentLink'] != null) {
+        final url = result['paymentLink'];
+        if (await canLaunchUrl(Uri.parse(url))) {
+           await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+           if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text("Payment Page Opened. Balance will update automatically."), backgroundColor: Colors.blue)
+             );
+           }
+        } else {
+           if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Could not launch payment link"), backgroundColor: Colors.red));
         }
-      }
-    );
+    } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed: ${result['error']}"), backgroundColor: Colors.red));
+    }
+    
+    if (mounted) setState(() => _isProcessing = false);
   }
   
   void _showWithdrawModal(BuildContext context) {
-    final TextEditingController amountController = TextEditingController();
-    final TextEditingController upiController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context, 
-      backgroundColor: Colors.grey[900],
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Withdraw Winnings", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: "Amount",
-                labelStyle: TextStyle(color: Colors.white54),
-                prefixText: "₹ ",
-                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
-                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.green)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: upiController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: "UPI ID (e.g. 9876543210@upi)",
-                labelStyle: TextStyle(color: Colors.white54),
-                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
-                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.green)),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final amount = double.tryParse(amountController.text) ?? 0;
-                  final upi = upiController.text;
-                  
-                  if(amount < 100) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Minimum withdrawal is ₹100")));
-                    return;
-                  }
-                  if(upi.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Enter Valid UPI ID")));
-                    return;
-                  }
-                  
-                  Navigator.pop(context);
-                  setState(() => _isProcessing = true);
-                  
-                  try {
-                    await ref.read(paymentRepositoryProvider).requestWithdrawal(amount: amount, upiId: upi);
-                    if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Withdrawal Requested! Processing..."), backgroundColor: Colors.green));
-                  } catch (e) {
-                    if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
-                  } finally {
-                    if(mounted) setState(() => _isProcessing = false);
-                  }
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: const Text("REQUEST WITHDRAWAL", style: TextStyle(color: Colors.white)),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      )
-    );
-  }
-
-  Future<void> _handleSuccess(double amount) async {
-    final user = ref.read(userEntityProvider).value;
-    if (user != null) {
-       // Dynamic access to avoid type issues
-       final currentBalance = (user as dynamic).walletBalance as double;
-       final uid = (user as dynamic).uid as String;
-       
-       final newBalance = currentBalance + amount;
-       
-       await FirebaseFirestore.instance.collection('users').doc(uid).update({
-         'walletBalance': newBalance,
-         'transactions': FieldValue.arrayUnion([{
-            'type': 'DEPOSIT',
-            'amount': amount,
-            'timestamp': DateTime.now().toIso8601String(),
-            'desc': 'Cash Added via Cashfree'
-         }])
-       });
-
-       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Success! Added ₹$amount to wallet.")));
-       }
-    }
-    if (mounted) setState(() => _isProcessing = false);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Withdrawal via Voucher coming soon!")));
   }
 
   @override
   Widget build(BuildContext context) {
+    // We listen to the User Stream here. If Webhook updates DB, this Stream should trigger rebuild.
     final userAsync = ref.watch(userEntityProvider);
 
     return Scaffold(
@@ -173,6 +78,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           data: (user) {
             if (user == null) return const Center(child: Text("User not found"));
             final dynamicUser = user as dynamic;
+            
+            // Safe Access to Fields
+            final double balance = (dynamicUser.walletBalance is num) ? (dynamicUser.walletBalance as num).toDouble() : 0.0;
+            // Unused variables removed for build stability
 
             return Stack(
               children: [
@@ -180,107 +89,63 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   children: [
                     const SizedBox(height: kToolbarHeight + 20),
                     // 1. Total Balance Card
-                    _buildTotalBalanceCard(context, dynamicUser.walletBalance),
+                    _buildTotalBalanceCard(context, balance),
 
-                    // 2. Breakdown
+                    // 2. Breakdown (Optional, if we have these fields)
+                    /*
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(child: _buildBalanceItem("Deposited", dynamicUser.walletBalance - dynamicUser.winningBalance - dynamicUser.bonusBalance, Icons.account_balance_wallet)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildBalanceItem("Winnings", dynamicUser.winningBalance, Icons.emoji_events, isHighlight: true)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildBalanceItem("Bonus", dynamicUser.bonusBalance, Icons.card_giftcard)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            "* Only 'Winnings' amount is withdrawable.",
-                            style: TextStyle(color: Colors.white54, fontSize: 11, fontStyle: FontStyle.italic),
-                          ),
-                        ],
+                      child: Row(
+                         children: [
+                            Expanded(child: _buildBalanceItem("Coins", balance, Icons.monetization_on, isHighlight: true)),
+                         ],
                       ),
                     ),
+                    */
 
                     const SizedBox(height: 16),
                     
-                    // 3. Actions (DISABLED FOR SOFT LAUNCH - SKILL MODE ONLY)
-                    /*
+                    // 3. Actions
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: !kIsWeb
-                          ? Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      _showAddCashModal(context, dynamicUser);
-                                    },
-                                    icon: const Icon(Icons.add),
-                                    label: const Text("ADD CASH"),
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 16),
-                                        textStyle: const TextStyle(
-                                            fontWeight: FontWeight.bold)),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      _showWithdrawModal(context);
-                                    },
-                                    icon: const Icon(Icons.download),
-                                    label: const Text("WITHDRAW"),
-                                    style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 16),
-                                        side: const BorderSide(
-                                            color: Colors.white54)),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Container(
-                              // Payment Web Warning
+                      child: Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  _showAddCashModal(context, dynamicUser);
+                                },
+                                icon: const Icon(Icons.add),
+                                label: const Text("ADD COINS"),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16),
+                                    textStyle: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
+                              ),
                             ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  _showWithdrawModal(context);
+                                },
+                                icon: const Icon(Icons.redeem),
+                                label: const Text("WITHDRAW"),
+                                style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16),
+                                    side: const BorderSide(
+                                        color: Colors.white54)),
+                              ),
+                            ),
+                          ],
+                        ),
                     ),
-                    */
                     
-                    // SOFT LAUNCH MESSAGE
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      padding: const EdgeInsets.all(16),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.amber.withOpacity(0.3))
-                      ),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.info_outline, color: Colors.amber),
-                          const SizedBox(height: 8),
-                          const Text(
-                            "Bonus Coins Only (No real money involved)",
-                            style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            "Deposit & Withdrawal: Coming Soon",
-                            style: TextStyle(color: Colors.amberAccent, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-
                     const SizedBox(height: 24),
                     const Divider(color: Colors.white10),
                     
@@ -289,7 +154,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
                       child: const Text("Recent Transactions", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
-                    _buildTransactionList(dynamicUser),
+                    Expanded(child: _buildLiveTransactionList(dynamicUser.uid)),
                   ],
                 ),
                 if (_isProcessing)
@@ -319,29 +184,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       ),
       child: Column(
         children: [
-          const Text("TOTAL BALANCE", style: TextStyle(color: Colors.white70, letterSpacing: 1.2, fontSize: 12)),
+          const Text("TOTAL COINS", style: TextStyle(color: Colors.white70, letterSpacing: 1.2, fontSize: 12)),
           const SizedBox(height: 8),
-          Text("₹${totalBalance.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBalanceItem(String label, double amount, IconData icon, {bool isHighlight = false}) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: isHighlight ? Border.all(color: Colors.amber.withOpacity(0.5)) : null
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 20, color: isHighlight ? Colors.amber : Colors.white70),
-          const SizedBox(height: 8),
-          Text("₹${amount.toStringAsFixed(0)}", style: TextStyle(color: isHighlight ? Colors.amber : Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+          Text("${totalBalance.toStringAsFixed(0)}", style: const TextStyle(color: Colors.amber, fontSize: 40, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+          const Text("1 Coin = ₹1", style: TextStyle(color: Colors.white30, fontSize: 10)),
         ],
       ),
     );
@@ -363,7 +210,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Add Cash", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text("Buy Coins", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
               TextField(
                 controller: amountController,
@@ -401,7 +248,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text("PROCEED TO PAY")
+                  child: const Text("PAY & GET COINS")
                 ),
               )
             ],
@@ -411,53 +258,52 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     );
   }
 
-  Widget _buildTransactionList(dynamic user) {
-     final List transactions = (user.transactions as List?) ?? [];
-     if (transactions.isEmpty) {
-       return const Padding(
-         padding: EdgeInsets.all(32.0),
-         child: Center(child: Text("No transactions yet.", style: TextStyle(color: Colors.white54))),
-       );
-     }
-     
-     // Show last 10
-     final reversed = transactions.reversed.take(10).toList();
+  // New Transaction List using Stream from Repository
+  Widget _buildLiveTransactionList(String userId) {
+      return StreamBuilder<QuerySnapshot>(
+          stream: ref.read(walletRepositoryProvider).listenToTransactions(userId),
+          builder: (context, snapshot) {
+              if (snapshot.hasError) return const Center(child: Text("Error loading transactions"));
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              
+              final docs = snapshot.data!.docs;
+              if (docs.isEmpty) return const Center(child: Text("No transactions yet", style: TextStyle(color: Colors.white54)));
 
-     return ListView.builder(
-       shrinkWrap: true,
-       physics: const NeverScrollableScrollPhysics(),
-       padding: EdgeInsets.zero,
-       itemCount: reversed.length,
-       itemBuilder: (context, index) {
-         final txn = reversed[index] as Map<String, dynamic>;
-         final isCredit = txn['type'] == 'DEPOSIT' || txn['type'] == 'WINNINGS';
-         final amount = txn['amount'] ?? 0;
-         final date = DateTime.tryParse(txn['timestamp'] ?? '') ?? DateTime.now();
-         
-         return ListTile(
-           leading: CircleAvatar(
-             backgroundColor: isCredit ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
-             child: Icon(
-               isCredit ? Icons.arrow_downward : Icons.arrow_upward, 
-               color: isCredit ? Colors.green : Colors.red, size: 16
-             ),
-           ),
-           title: Text(txn['desc'] ?? 'Transaction', style: const TextStyle(color: Colors.white, fontSize: 14)),
-           subtitle: Text("${date.day}/${date.month} ${date.hour}:${date.minute}", style: const TextStyle(color: Colors.white54, fontSize: 12)),
-           trailing: Text(
-             "${isCredit ? '+' : '-'} ₹$amount",
-             style: TextStyle(color: isCredit ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
-           ),
-         );
-       },
-     );
+              return ListView.builder(
+                  itemCount: docs.length,
+                  padding: EdgeInsets.zero,
+                  itemBuilder: (context, index) {
+                      final data = docs[index].data() as Map<String, dynamic>;
+                      final type = data['type'] ?? 'unknown';
+                      final amount = data['amount'] ?? 0;
+                      final isCredit = type == 'deposit' || type == 'winnings'; // Adjust keys as per worker
+                      
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isCredit ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                          child: Icon(
+                            isCredit ? Icons.arrow_downward : Icons.arrow_upward, 
+                            color: isCredit ? Colors.green : Colors.red, size: 16
+                          ),
+                        ),
+                        title: Text(type.toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 14)),
+                        subtitle: Text(data['status']?.toString().toUpperCase() ?? 'PENDING', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                        trailing: Text(
+                          "${isCredit ? '+' : '-'} ${amount.toString()}",
+                          style: TextStyle(color: isCredit ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      );
+                  }
+              );
+          }
+      );
   }
 
   Widget _quickAddChip(TextEditingController controller, String amount) {
     return ActionChip(
       label: Text("₹$amount"),
-      backgroundColor: Colors.white10,
-      labelStyle: const TextStyle(color: Colors.white),
+      backgroundColor: Colors.white,
+      labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
       onPressed: () {
         controller.text = amount;
       },

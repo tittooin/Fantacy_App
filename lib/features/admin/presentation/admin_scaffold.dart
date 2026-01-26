@@ -1,7 +1,6 @@
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:axevora11/features/admin/data/match_scheduler_service.dart'; // Added
 
 
 class AdminScaffold extends StatefulWidget {
@@ -20,14 +19,10 @@ class _AdminScaffoldState extends State<AdminScaffold> {
   @override
   void initState() {
     super.initState();
-    // Start Background Scheduler
-    MatchSchedulerService().startService();
   }
 
   @override
   void dispose() {
-    // Stop Background Scheduler
-    MatchSchedulerService().stopService();
     super.dispose();
   }
 

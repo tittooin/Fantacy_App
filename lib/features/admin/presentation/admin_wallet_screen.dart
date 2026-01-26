@@ -143,19 +143,22 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Reject Withdrawal"),
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text("Reject Withdrawal", style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: reasonController,
-          style: const TextStyle(color: Colors.black),
+          style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
             labelText: "Reason for Rejection",
+            labelStyle: TextStyle(color: Colors.white70),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Colors.black26,
             border: OutlineInputBorder(),
+            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white54))),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);

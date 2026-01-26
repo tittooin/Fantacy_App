@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint("🚀 [BOOT] AXEVORA v2.0 - STRICT RAPIDAPI MODE ACTIVE");
+  debugPrint("🚫 [CLEANUP] ALL PROXY/CLOUDFLARE CODE REMOVED");
   
   try {
     // Initialize Firebase

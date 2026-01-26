@@ -584,6 +584,11 @@ class ContestCard extends ConsumerWidget {
          .map((uc) => uc.teamId)
          .toSet();
 
+     if (joinedTeamIds.length >= 20) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Max 20 teams allowed per contest.")));
+        return;
+     }
+
      // Always show selection dialog
      showModalBottomSheet(
        context: context,

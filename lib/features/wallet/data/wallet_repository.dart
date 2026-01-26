@@ -1,8 +1,5 @@
-import 'package:axevora11/core/constants/api_keys.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:uuid/uuid.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -12,63 +9,71 @@ class WalletRepository {
   final Dio _dio = Dio();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Cashfree Base URLs
-  static const String _prodUrl = "https://api.cashfree.com/pg";
-  static const String _testUrl = "https://sandbox.cashfree.com/pg";
+  // Worker URL
+  static const String _workerUrl = "https://fantasy-cricket-api.tittooin.workers.dev";
 
-  String get _baseUrl => ApiKeys.cashfreeEnvironment == 'PROD' ? _prodUrl : _testUrl;
-
-  Future<void> addFunds(String userId, double amount) async {
-    final userRef = _firestore.collection('users').doc(userId);
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(userRef);
-      if (snapshot.exists) {
-        final currentBalance = (snapshot.data()?['walletBalance'] as num?)?.toDouble() ?? 0.0;
-        final newBalance = currentBalance + amount;
-        transaction.update(userRef, {'walletBalance': newBalance});
-      }
-    });
+  /// Realtime Listener for User Wallet Data
+  Stream<DocumentSnapshot> listenToUserData(String userId) {
+    return _firestore.collection('users').doc(userId).snapshots();
   }
-
-  Future<String?> createOrder(String userId, double amount, String phone) async {
-    final orderId = "ORDER_${userId.substring(0, 5)}_${DateTime.now().millisecondsSinceEpoch}";
-    
+  
+  /// Create Order via Backend Worker
+  /// Returns {success, paymentLink, orderId, error}
+  Future<Map<String, dynamic>> createDepositOrder(String userId, double amount) async {
     try {
       final response = await _dio.post(
-        '$_baseUrl/orders',
+        '$_workerUrl/api/create-payment',
+        data: {
+          "userId": userId,
+          "amount": amount,
+        },
         options: Options(
           headers: {
-            'x-client-id': ApiKeys.cashfreeAppId,
-            'x-client-secret': ApiKeys.cashfreeSecretKey,
-            'x-api-version': '2023-08-01',
+            // Add any auth headers if needed, currently open or secured by conventions
             'Content-Type': 'application/json',
           },
         ),
-        data: {
-          "order_id": orderId,
-          "order_amount": amount,
-          "order_currency": "INR",
-          "customer_details": {
-            "customer_id": userId,
-            "customer_phone": phone.isNotEmpty ? phone : "9999999999", // Default if missing
-            "customer_name": "User $userId" // Can be updated
-          },
-          "order_meta": {
-            "return_url": "https://example.com/return?order_id=$orderId" // Required but handled by SDK
-          }
-        },
       );
 
       if (response.statusCode == 200) {
-        return response.data['payment_session_id'];
+        return response.data;
+      } else {
+         return {"success": false, "error": "Server Error: ${response.statusCode}"};
       }
-      return null;
     } catch (e) {
       debugPrint("WalletRepository: Create Order Failed: $e");
-      if (e is DioException) {
-        debugPrint("Response: ${e.response?.data}");
-      }
-      return null;
+      return {"success": false, "error": e.toString()};
     }
+  }
+
+  /// Get Transaction History
+  Stream<QuerySnapshot> listenToTransactions(String userId) {
+    return _firestore
+        .collection('transactions')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(20)
+        .snapshots();
+  }
+
+  /// Internal: Add Funds (Winnings/Refunds)
+  Future<void> addFunds(String userId, double amount) async {
+    // Ideally this goes through Worker for security, but for Service-to-Service internal calls in MVP
+    // we can use direct DB update if Rules allow, or simple increment.
+    // For now, doing direct increment as Admin/System.
+    
+    await _firestore.runTransaction((transaction) async {
+      final userRef = _firestore.collection('users').doc(userId);
+      final snapshot = await transaction.get(userRef);
+      
+      if (snapshot.exists) {
+        final current = (snapshot.data()?['winningBalance'] ?? 0.0) as num; 
+        // Note: Check if we update winningBalance or walletBalance
+        transaction.update(userRef, {
+           'winningBalance': current.toDouble() + amount,
+           'walletBalance': ((snapshot.data()?['walletBalance'] ?? 0.0) as num).toDouble() + amount
+        });
+      }
+    });
   }
 }

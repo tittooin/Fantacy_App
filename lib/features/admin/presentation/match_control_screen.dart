@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:axevora11/features/cricket_api/data/cricket_api_service.dart';
+import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
 import 'package:axevora11/features/cricket_api/data/scoring_service.dart';
 import 'package:axevora11/features/cricket_api/data/result_service.dart';
 import 'package:axevora11/features/admin/presentation/scoring_console_screen.dart';
@@ -101,10 +101,11 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Archive Match?"),
-        content: const Text("This involves Soft Delete. It will be hidden from users but kept for audit."),
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text("Archive Match?", style: TextStyle(color: Colors.white)),
+        content: const Text("This involves Soft Delete. It will be hidden from users but kept for audit.", style: TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel", style: TextStyle(color: Colors.white54))),
           ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Archive")),
         ],
       )
@@ -130,7 +131,7 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
     
     try {
       // 1. Fetch from API
-      final scorecard = await ref.read(cricketApiServiceProvider).fetchScorecard(cricbuzzId);
+      final scorecard = await ref.read(rapidApiServiceProvider).fetchScorecard(cricbuzzId);
       
       // 2. Save Snapshot (Audit)
       await auditProvider.saveApiSnapshot(matchId: matchId, rawData: scorecard);
@@ -154,6 +155,30 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
       }
     } finally {
       if (!isBackground && mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _importSquad(String matchId, CricketMatchModel match) async {
+    setState(() => _isLoading = true);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fetching Squad from API...")));
+    
+    try {
+      // 1. Fetch Squad
+      // We assume rapidApiServiceProvider has a method fetchAndSaveSquad. 
+      // If not, we use fetchSquad and save manually here or via repository.
+      // Checking existing service... looks like we need to call the repo/service.
+      
+      // Using RapidApiService to fetch and save directly
+      await ref.read(rapidApiServiceProvider).fetchAndSaveSquad(matchId, matchId); // matchId, cricbuzzId
+
+      if(mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Squad Imported Successfully!"), backgroundColor: Colors.green));
+         await auditProvider.logAction(action: 'IMPORT_SQUAD', matchId: matchId);
+      }
+    } catch (e) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Import Failed: $e"), backgroundColor: Colors.red));
+    } finally {
+      if(mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -197,13 +222,28 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
               final match = CricketMatchModel.fromMap(data);
+              
+              // FILTER GHOST MATCHES (Client-Side Fix for Bad Data)
+              // Aggressive check for common bad data patterns
+              final t1 = match.team1Name.trim();
+              final t2 = match.team2Name.trim();
+              
+              if (t1.isEmpty || t2.isEmpty || 
+                  t1 == 'Team 1' || t2 == 'Team 2' || 
+                  t1 == '0' || t2 == '0' ||
+                  t1.toLowerCase() == 'unknown' || t2.toLowerCase() == 'unknown') {
+                 return const SizedBox.shrink();
+              }
+
               final apiId = match.id.toString(); 
 
-              return Card(
-                color: Colors.white,
-                elevation: 2,
+              return Container(
                 margin: const EdgeInsets.all(8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
@@ -213,12 +253,12 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
                         children: [
                           Expanded(
                             child: Text("${match.team1ShortName} vs ${match.team2ShortName}", 
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _getStatusColor(match.status),
+                              color: _getStatusColor(match.status).withOpacity(0.8),
                               borderRadius: BorderRadius.circular(4)
                             ),
                             child: Text(match.status, style: const TextStyle(color: Colors.white, fontSize: 12)),
@@ -226,15 +266,15 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text("ID: ${match.id} | ${match.seriesName}", style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text("ID: ${match.id} | ${match.seriesName}", style: const TextStyle(fontSize: 12, color: Colors.white54)),
                       if (match.status == 'Live')
                          Padding(
                            padding: const EdgeInsets.only(top: 4),
                            child: Row(
                              children: [
-                               const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                               const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.greenAccent)),
                                const SizedBox(width: 8),
-                               Text("Auto-Polling Active", style: TextStyle(fontSize: 10, color: Colors.green.shade700, fontStyle: FontStyle.italic)),
+                               Text("Auto-Polling Active", style: TextStyle(fontSize: 10, color: Colors.greenAccent, fontStyle: FontStyle.italic)),
                              ],
                            ),
                          ),
@@ -246,6 +286,11 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
                         runSpacing: 8,
                         children: [
                           // Manage Lineups (Always needed)
+                          _buildActionButton(
+                            "Import Squad", Icons.download, Colors.green, 
+                            () => _importSquad(apiId, match)
+                          ),
+
                           _buildActionButton(
                             "Lineups", Icons.group, Colors.purple, 
                             () => Navigator.push(context, MaterialPageRoute(builder: (_) => LineupManagementScreen(matchId: apiId, match: match)))

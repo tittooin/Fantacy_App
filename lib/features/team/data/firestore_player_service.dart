@@ -9,7 +9,7 @@ class FirestorePlayerService {
       final snapshot = await _firestore
           .collection('matches')
           .doc(matchId)
-          .collection('squad')
+          .collection('players')
           .get();
 
       if (snapshot.docs.isEmpty) {
@@ -26,7 +26,7 @@ class FirestorePlayerService {
   // Helper to seed players (if needed via API)
   Future<void> saveSquad(String matchId, List<PlayerModel> players) async {
     final batch = _firestore.batch();
-    final squadRef = _firestore.collection('matches').doc(matchId).collection('squad');
+    final squadRef = _firestore.collection('matches').doc(matchId).collection('players');
 
     for (var player in players) {
       final docRef = squadRef.doc(player.id);

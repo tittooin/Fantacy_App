@@ -147,11 +147,13 @@ class _ScoringConsoleScreenState extends ConsumerState<ScoringConsoleScreen> {
      try {
        await ref.read(manualScoringServiceProvider).rollbackLastOver(widget.matchId);
        setState(() => _currentOver--);
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Rolled back last over!")));
+       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Rolled back last over!")));
      } catch (e) {
-       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Rollback Error: $e")));
+       // Graceful error handling
+       debugPrint("Rollback Failed: $e");
+       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Undo failed: Ensure Manual Mode is active.")));
      } finally {
-       setState(() => _isSubmitting = false);
+       if (mounted) setState(() => _isSubmitting = false);
      }
   }
 

@@ -7,11 +7,15 @@ import 'package:axevora11/features/admin/presentation/admin_scaffold.dart';
 import 'package:axevora11/features/cricket_api/presentation/contest_creator_screen.dart';
 import 'package:axevora11/features/admin/presentation/match_control_screen.dart';
 import 'package:axevora11/features/admin/presentation/league_management_screen.dart'; // Added
+import 'package:axevora11/features/admin/presentation/admin_users_screen.dart';
+import 'package:axevora11/features/admin/presentation/admin_match_contests_screen.dart';
+import 'package:axevora11/features/admin/presentation/admin_players_screen.dart';
 import 'package:axevora11/features/legal/presentation/contact_us_screen.dart';
 import 'package:axevora11/features/legal/presentation/faq_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/presentation/match_import_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/contest/presentation/create_private_contest_screen.dart';
 import 'package:axevora11/features/location/presentation/state_selection_screen.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -292,6 +296,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
         ]
       ),
+      GoRoute(
+        path: '/match/:matchId/create-private-contest',
+        builder: (context, state) {
+           final match = state.extra as CricketMatchModel;
+           return CreatePrivateContestScreen(match: match);
+        },
+      ),
       
       GoRoute(
         path: '/admin',
@@ -314,11 +325,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/contests',
-            builder: (context, state) => const PlaceholderScreen(title: "Admin Contests"),
+            builder: (context, state) => const PlaceholderScreen(title: "Global Contests (Future)"),
           ),
           GoRoute(
             path: '/admin/users',
-            builder: (context, state) => const PlaceholderScreen(title: "User Management"),
+            builder: (context, state) => const AdminUsersScreen(),
           ),
           GoRoute(
             path: '/admin/wallet',
@@ -332,6 +343,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                  return const Center(child: Text("Error: No Match Selected. Please go back and select a match."));
               }
               return ContestCreatorScreen(match: match);
+            },
+          ),
+          GoRoute(
+            path: '/admin/matches/:matchId/contests',
+            builder: (context, state) {
+               final matchId = state.pathParameters['matchId']!;
+               final match = state.extra as CricketMatchModel?;
+               return AdminMatchContestsScreen(matchId: matchId, match: match);
+            },
+          ),
+          GoRoute(
+            path: '/admin/matches/:matchId/players',
+            builder: (context, state) {
+               final matchId = state.pathParameters['matchId']!;
+               final match = state.extra as CricketMatchModel?;
+               // We try to use the ID from path if match object is null (deep link case handling placeholder)
+               return AdminPlayersScreen(match: match ?? CricketMatchModel.empty()); 
+               // Note: If match is null, this uses ID 0, which won't load players. 
+               // Ideally AdminPlayersScreen should accept matchId or we fetch match here.
             },
           ),
           GoRoute(
