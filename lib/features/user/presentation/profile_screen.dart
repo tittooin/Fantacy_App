@@ -320,7 +320,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                    child: const Text("Chat"),
                  )
                ],
-             )
+             ),
+             const SizedBox(height: 16),
+             Builder(
+              builder: (context) {
+                final dynamicUser = user as dynamic;
+                String kycStatus = 'unverified';
+                try { kycStatus = dynamicUser.kycStatus ?? 'unverified'; } catch (_) {}
+                
+                if (kycStatus == 'verified') {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.green)),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.verified, color: Colors.green, size: 16),
+                        SizedBox(width: 6),
+                        Text("KYC Verified", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
+                      ],
+                    ),
+                  );
+                } else if (kycStatus == 'pending') {
+                   return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.orange)),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.hourglass_top, color: Colors.orange, size: 16),
+                        SizedBox(width: 6),
+                        Text("KYC Pending", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))
+                      ],
+                    ),
+                  );
+                } else {
+                   if (!_isMe) return const SizedBox.shrink();
+                   return TextButton.icon(
+                     onPressed: () => context.push('/kyc'),
+                     icon: const Icon(Icons.shield, color: Colors.white70, size: 16),
+                     label: Text(kycStatus == 'rejected' ? "KYC Rejected (Retry)" : "Verify Identity", style: const TextStyle(color: Colors.white, decoration: TextDecoration.underline)),
+                   );
+                }
+              }
+            )
         ],
       ),
     );
