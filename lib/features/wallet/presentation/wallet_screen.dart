@@ -50,8 +50,124 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     if (mounted) setState(() => _isProcessing = false);
   }
   
-  void _showWithdrawModal(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Withdrawal via Voucher coming soon!")));
+  void _showWithdrawModal(BuildContext context, dynamic user) {
+    final TextEditingController amountController = TextEditingController();
+    final TextEditingController detailsController = TextEditingController();
+    String selectedMethod = 'UPI';
+    final List<String> methods = ['UPI', 'Bank Transfer', 'Amazon Voucher', 'Google Play Code'];
+
+    showModalBottomSheet(
+      context: context, 
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Withdraw Funds", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text("Manual Payout (Processed within 24 Hours)", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                const SizedBox(height: 20),
+                
+                // Amount Field
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: "Amount (Min ₹100)",
+                    labelStyle: TextStyle(color: Colors.white70),
+                    prefixText: "₹ ",
+                    prefixStyle: TextStyle(color: Colors.white),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Method Dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedMethod,
+                  dropdownColor: Colors.grey[800],
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: "Payout Method",
+                    labelStyle: TextStyle(color: Colors.white70),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
+                  ),
+                  items: methods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                  onChanged: (val) => setModalState(() => selectedMethod = val!),
+                ),
+                const SizedBox(height: 16),
+
+                // Details Field
+                TextField(
+                  controller: detailsController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: selectedMethod == 'UPI' ? "Enter UPI ID" : 
+                               selectedMethod == 'Bank Transfer' ? "Acc No, IFSC, Name" : "Enter Email Address",
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
+                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
+                    hintText: selectedMethod == 'UPI' ? "e.g. 9876543210@upi" : "e.g. user@gmail.com",
+                    hintStyle: const TextStyle(color: Colors.white30),
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                       final double? amount = double.tryParse(amountController.text);
+                       if (amount == null || amount < 100) {
+                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Min withdrawal is ₹100")));
+                         return;
+                       }
+                       if (detailsController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter details")));
+                          return;
+                       }
+
+                       Navigator.pop(context);
+                       
+                       try {
+                         // Call Repository
+                         await ref.read(walletRepositoryProvider).requestWithdrawal(
+                           userId: user.uid,
+                           amount: amount,
+                           method: selectedMethod,
+                           details: detailsController.text,
+                           currentBalance: (user.walletBalance as num).toDouble(),
+                         );
+                         
+                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Withdrawal Request Submitted!"), backgroundColor: Colors.green));
+                       } catch (e) {
+                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed: $e"), backgroundColor: Colors.red));
+                       }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text("REQUEST WITHDRAWAL")
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+      )
+    );
   }
 
   @override
@@ -128,9 +244,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: OutlinedButton.icon(
+                                child: OutlinedButton.icon(
                                 onPressed: () {
-                                  _showWithdrawModal(context);
+                                  _showWithdrawModal(context, dynamicUser);
                                 },
                                 icon: const Icon(Icons.redeem),
                                 label: const Text("WITHDRAW"),

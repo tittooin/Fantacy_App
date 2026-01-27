@@ -24,135 +24,81 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Timer? _timer;
   bool _isSyncing = false;
 
+  int _userCount = 0;
+  int _pendingWithdrawals = 0;
+
   @override
   void initState() {
     super.initState();
-    // Initialize time without setState
     _currentTime = DateFormat('hh:mm:ss a').format(DateTime.now());
-    // Start timer for subsequent updates
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) => _updateTime());
 
-    // START POLLING SERVICE
-    // This ensures only the Admin Panel triggers API calls
     WidgetsBinding.instance.addPostFrameCallback((_) {
        ref.read(pollingServiceProvider).startPolling();
+       _fetchDashboardStats();
+       _fetchMatches();
     });
   }
 
-  @override
-  void dispose() {
-    // STOP POLLING SERVICE
-    // Stops API calls when Admin closes this screen
-    ref.read(pollingServiceProvider).stopPolling();
-    
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  // Removed _startClock as it's redundant now
-
-  void _updateTime() {
-    if(!mounted) return;
-    setState(() {
-      _currentTime = DateFormat('hh:mm:ss a').format(DateTime.now());
-    });
-  }
-
-  DateTime? _lastSyncTime;
-
-  Future<void> _syncSchedule() async {
-    // 1. Debounce (60s cooldown) to save Quota
-    if (_lastSyncTime != null) {
-      final diff = DateTime.now().difference(_lastSyncTime!);
-      if (diff.inSeconds < 60) {
-        if(mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-             content: Text("Wait ${60 - diff.inSeconds}s before refreshing again."),
-             backgroundColor: Colors.orange,
-           ));
-        }
-        return;
-      }
-    }
-
-    setState(() => _isSyncing = true);
+  Future<void> _fetchDashboardStats() async {
     try {
-      // Worker handles fetching & saving to Firestore
-      await ref.read(rapidApiServiceProvider).fetchFixtures();
-      
-      _lastSyncTime = DateTime.now(); // Update timestamp
+      final userSnap = await FirebaseFirestore.instance.collection('users').count().get();
+      final withdrawSnap = await FirebaseFirestore.instance.collection('withdrawals').where('status', isEqualTo: 'pending').count().get();
       
       if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Success: Sync Triggered! matches will appear shortly."),
-            backgroundColor: Colors.green,
-          )
-        );
+        setState(() {
+          _userCount = userSnap.count ?? 0;
+          _pendingWithdrawals = withdrawSnap.count ?? 0;
+        });
       }
-
     } catch (e) {
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Sync Failed: $e"),
-            backgroundColor: Colors.red,
-          )
-        );
-      }
-    } finally {
-      if(mounted) setState(() => _isSyncing = false);
+      debugPrint("Stats Error: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final liveMatches = _matches.where((m) => m.status.toLowerCase() == 'live').length;
+
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.admin_panel_settings, color: Colors.grey, size: 28),
-                    SizedBox(width: 12),
-                    Text("ADMIN", style: TextStyle(color: Colors.black87, fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _TabButton(label: "Refresh", onTap: _isSyncing ? null : _syncSchedule, isActive: false),
-                    const SizedBox(width: 8),
-                    _TabButton(label: "Live", onTap: () {}, isActive: true), // Placeholder Logic
-                    _TabButton(label: "Upcoming", onTap: () {}, isActive: false),
-                    _TabButton(label: "Completed", onTap: () {}, isActive: false),
-                    const SizedBox(width: 8),
-                    _TabButton(label: "Users", onTap: () => context.push('/admin/users'), isActive: false),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () {}, 
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade300, foregroundColor: Colors.black),
-                      child: const Text("Create Match"),
-                    )
-                  ],
-                )
-              ],
-            ),
+          // 1. Header & Metrics
+          Row(
+            children: [
+               _MetricCard(label: "Total Users", value: "$_userCount", icon: Icons.people, color: Colors.blue),
+               const SizedBox(width: 16),
+               _MetricCard(label: "Pending Withdrawals", value: "$_pendingWithdrawals", icon: Icons.account_balance_wallet, color: Colors.orange, onTap: () => context.push('/admin/wallet')),
+               const SizedBox(width: 16),
+               _MetricCard(label: "Live Matches", value: "$liveMatches", icon: Icons.sports_cricket, color: Colors.red),
+               const Spacer(),
+               // Quick Actions
+               _AdminActionButton(
+                 label: "Refresh Data", 
+                 icon: Icons.refresh, 
+                 onTap: _isSyncing ? () {} : () { _syncSchedule(); _fetchDashboardStats(); },
+                 isLoading: _isSyncing
+               ),
+            ],
           ),
           
-          const SizedBox(height: 24),
-          const Text("Match List", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
+          const SizedBox(height: 32),
+          
+          // 2. Active Matches
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Active Matches", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              ElevatedButton.icon(
+                onPressed: () {}, // Implementation for Create Match
+                icon: const Icon(Icons.add),
+                label: const Text("Create Match"),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+              )
+            ],
+          ),
           const SizedBox(height: 16),
           
           Expanded(
@@ -281,23 +227,44 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 }
 
-class _TabButton extends StatelessWidget {
+class _MetricCard extends StatelessWidget {
   final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
   final VoidCallback? onTap;
-  final bool isActive;
-  const _TabButton({required this.label, required this.onTap, required this.isActive});
+
+  const _MetricCard({required this.label, required this.value, required this.icon, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        width: 200,
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isActive ? Colors.grey.shade200 : Colors.transparent,
-          border: Border(bottom: BorderSide(color: isActive ? Colors.black : Colors.transparent, width: 2))
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white10),
+          boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))]
         ),
-        child: Text(label, style: TextStyle(color: isActive ? Colors.black : Colors.grey, fontWeight: FontWeight.bold)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, color: color, size: 28),
+                if (onTap != null) const Icon(Icons.arrow_forward, color: Colors.white24, size: 16)
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(fontSize: 14, color: Colors.white54)),
+          ],
+        ),
       ),
     );
   }
@@ -307,19 +274,24 @@ class _AdminActionButton extends StatelessWidget {
   final String label;
   final IconData? icon;
   final VoidCallback onTap;
-  const _AdminActionButton({required this.label, this.icon, required this.onTap});
+  final bool isLoading;
+
+  const _AdminActionButton({required this.label, this.icon, required this.onTap, this.isLoading = false});
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton.icon(
-      onPressed: onTap,
-      icon: icon != null ? Icon(icon, size: 16) : const SizedBox.shrink(),
-      label: Text(label),
+      onPressed: isLoading ? null : onTap,
+      icon: isLoading 
+        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+        : (icon != null ? Icon(icon, size: 18) : const SizedBox.shrink()),
+      label: Text(isLoading ? "Syncing..." : label),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.grey.shade200,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: Colors.grey.shade400))
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
       ),
     );
   }
