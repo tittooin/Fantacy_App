@@ -18,40 +18,24 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<CricketMatchModel> _upcomingMatches = [];
-  List<CricketMatchModel> _completedMatches = [];
-  bool _isLoading = false;
-
   @override
   void initState() {
     super.initState();
-    _fetchMatches();
+    // Fetch only if needed (handled by provider logic)
+    // Delay slightly to avoid provider unavailable in initState
+    Future.microtask(() => ref.read(matchesProvider.notifier).fetchMatches());
   }
 
   Future<void> _fetchMatches() async {
-    setState(() => _isLoading = true);
-    try {
-      final qs = await FirebaseFirestore.instance.collection('matches')
-          .orderBy('startDate', descending: true)
-          .limit(50)
-          .get();
-      
-      final all = qs.docs.map((d) => CricketMatchModel.fromMap(d.data())).toList();
-      
-      if(mounted) {
-        setState(() {
-          _upcomingMatches = all.where((m) => m.status == 'Upcoming' || m.status == 'Live').toList();
-          _completedMatches = all.where((m) => m.status == 'Completed').toList();
-        });
-      }
-    } catch (e) {
-      debugPrint("Matches Fetch Error: $e");
-    } finally {
-      if(mounted) setState(() => _isLoading = false);
-    }
+    // Force Refresh on Pull
+    await ref.read(matchesProvider.notifier).fetchMatches(forceRefresh: true);
   }
 
   void _showMatchSelectionDialog() {
-    if (_upcomingMatches.isEmpty) {
+    final matchesState = ref.read(matchesProvider);
+    final upcomingMatches = matchesState.upcoming;
+
+    if (upcomingMatches.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No upcoming matches available.")));
       return;
     }
@@ -64,10 +48,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           width: double.maxFinite,
           child: ListView.separated(
              shrinkWrap: true,
-             itemCount: _upcomingMatches.length,
+             itemCount: upcomingMatches.length,
              separatorBuilder: (_, __) => const Divider(),
              itemBuilder: (ctx, i) {
-               final m = _upcomingMatches[i];
+               final m = upcomingMatches[i];
                return ListTile(
                  leading: CircleAvatar(
                    backgroundImage: m.team1Img.isNotEmpty ? NetworkImage(m.team1Img) : null,
@@ -90,20 +74,144 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final matchDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+
+    if (matchDate == today) {
+      return "Today, ${DateFormat('h:mm a').format(dateTime)}";
+    } else if (matchDate == tomorrow) {
+      return "Tomorrow, ${DateFormat('h:mm a').format(dateTime)}";
+    } else {
+      return DateFormat('MMM d, h:mm a').format(dateTime);
+    }
+  }
+
   Widget _buildMatchTab({required List<CricketMatchModel> matches, required String emptyMsg}) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    final state = ref.watch(matchesProvider);
+
+    if (state.isLoading && matches.isEmpty) return const Center(child: CircularProgressIndicator());
     
     return RefreshIndicator(
       onRefresh: _fetchMatches,
       child: matches.isEmpty 
         ? ListView(children: [Center(child: Padding(padding: const EdgeInsets.all(50), child: Text(emptyMsg, style: const TextStyle(color: Colors.grey))))])
         : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: matches.length,
-            itemBuilder: (context, index) => MatchCard(match: matches[index], onPrivateContest: () {
-               context.push('/match/${matches[index].id}/create-private-contest', extra: matches[index]);
-            }),
-          ),
+              itemCount: matches.length,
+              itemBuilder: (context, index) {
+                final match = matches[index];
+                final isLive = match.status == 'Live';
+                final isLineupOut = match.lineupStatus == 'Confirmed';
+                
+                return GestureDetector(
+                  onTap: () {
+                    if (match.status == 'Upcoming') {
+                      context.push('/contest/create/${match.id}', extra: match);
+                    } else {
+                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Only Upcoming matches are playable.")));
+                    }
+                  }, 
+                  child: Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        gradient: LinearGradient(
+                           colors: [Colors.white, Colors.blue.shade50.withOpacity(0.5)],
+                           begin: Alignment.topLeft,
+                           end: Alignment.bottomRight
+                        )
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(match.seriesName, style: TextStyle(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                              if (isLineupOut)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(4)),
+                                  child: const Text("LINEUPS OUT", style: TextStyle(fontSize: 8, color: Colors.green, fontWeight: FontWeight.bold)),
+                                )
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Team 1
+                              Column(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: Colors.indigo.shade50,
+                                    backgroundImage: match.team1Img.isNotEmpty ? NetworkImage(match.team1Img) : null,
+                                    child: match.team1Img.isEmpty ? Text(match.team1ShortName[0]) : null,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(match.team1ShortName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              
+                              // VS/Status
+                              Column(
+                                children: [
+                                  if (isLive) 
+                                    const Text("LIVE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12))
+                                  else
+                                    Text(_formatTime(match.startDate), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  
+                                  const SizedBox(height: 4),
+                                  const Text("vs", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                ],
+                              ),
+
+                              // Team 2
+                              Column(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: Colors.indigo.shade50,
+                                    backgroundImage: match.team2Img.isNotEmpty ? NetworkImage(match.team2Img) : null,
+                                    child: match.team2Img.isEmpty ? Text(match.team2ShortName[0]) : null,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(match.team2ShortName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          
+                          // Mega Contest Badge (Static for now)
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8)
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Mega Contest", style: TextStyle(fontSize: 10, color: Colors.black54)),
+                                Text("₹1 Crore", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87)),
+                              ],
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 
@@ -111,7 +219,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final userAsync = ref.watch(userEntityProvider);
     final walletBalance = userAsync.value?.walletBalance ?? 0.0;
-    
+    final matchesState = ref.watch(matchesProvider);
+
     final mobileContent = Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
@@ -202,8 +311,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildMatchTab(matches: _upcomingMatches, emptyMsg: "No Upcoming Matches.\nPull to Refresh."),
-                  _buildMatchTab(matches: _completedMatches, emptyMsg: "No Completed Matches."),
+                  _buildMatchTab(matches: matchesState.upcoming, emptyMsg: "No Upcoming Matches.\nPull to Refresh."),
+                  _buildMatchTab(matches: matchesState.completed, emptyMsg: "No Completed Matches."),
                 ],
               ),
             ),
@@ -221,7 +330,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     );
   }
-}
 
 class MatchCard extends StatelessWidget {
   final CricketMatchModel match;

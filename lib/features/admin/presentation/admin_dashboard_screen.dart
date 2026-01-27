@@ -58,11 +58,29 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     });
   }
 
+  DateTime? _lastSyncTime;
+
   Future<void> _syncSchedule() async {
+    // 1. Debounce (60s cooldown) to save Quota
+    if (_lastSyncTime != null) {
+      final diff = DateTime.now().difference(_lastSyncTime!);
+      if (diff.inSeconds < 60) {
+        if(mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+             content: Text("Wait ${60 - diff.inSeconds}s before refreshing again."),
+             backgroundColor: Colors.orange,
+           ));
+        }
+        return;
+      }
+    }
+
     setState(() => _isSyncing = true);
     try {
       // Worker handles fetching & saving to Firestore
       await ref.read(rapidApiServiceProvider).fetchFixtures();
+      
+      _lastSyncTime = DateTime.now(); // Update timestamp
       
       if(mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

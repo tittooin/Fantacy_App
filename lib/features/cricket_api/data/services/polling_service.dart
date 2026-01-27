@@ -12,7 +12,7 @@ class PollingService {
   bool _isRunning = false;
   
   // Smart Polling State
-  int _currentInterval = 120; // Default 120s (2 mins) to save Quota
+  int _currentInterval = 300; // Default 300s (5 mins) to save Quota
   bool _lastBallWasWicket = false;
   int _wicketBurstCount = 0;
 
@@ -56,14 +56,12 @@ class PollingService {
       bool anyLive = matches.any((m) => m.status.toLowerCase() == 'live');
       
       if (anyLive) {
-         debugPrint("🏏 Live Matches Found! Continuing Polling every 120s.");
-         _currentInterval = 120; // Ensure 120s minimum
+         debugPrint("🏏 Live Matches Found! Polling every 120s.");
+         _currentInterval = 120; // 2 mins for Live
          _cache.saveMatches(matches, 'live');
       } else {
-         debugPrint("zzz No Live Matches. Pausing Polling to save Quota.");
-         // We stop polling. Admin can Manual Refresh to restart if needed.
-         stopPolling();
-         return; 
+         debugPrint("zzz No Live Matches. Polling slowed to 300s.");
+         _currentInterval = 300; // 5 mins for Idle
       }
 
     } catch (e) {
