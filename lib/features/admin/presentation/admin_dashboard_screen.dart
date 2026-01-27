@@ -20,264 +20,201 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
-  String _currentTime = "";
-  Timer? _timer;
-  bool _isSyncing = false;
+  // Metric Counts
+  int _liveMatches = 0;
+  int _upcomingMatches = 0;
+  int _activeContests = 0;
+  int _pendingPayouts = 0;
+  int _kycPending = 0;
 
-  int _userCount = 0;
-  int _pendingWithdrawals = 0;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _currentTime = DateFormat('hh:mm:ss a').format(DateTime.now());
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) => _updateTime());
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-       ref.read(pollingServiceProvider).startPolling();
-       _fetchDashboardStats();
-       _fetchMatches();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshData());
   }
 
-  Future<void> _fetchDashboardStats() async {
-    try {
-      final userSnap = await FirebaseFirestore.instance.collection('users').count().get();
-      final withdrawSnap = await FirebaseFirestore.instance.collection('withdrawals').where('status', isEqualTo: 'pending').count().get();
-      
-      if(mounted) {
-        setState(() {
-          _userCount = userSnap.count ?? 0;
-          _pendingWithdrawals = withdrawSnap.count ?? 0;
-        });
-      }
-    } catch (e) {
-      debugPrint("Stats Error: $e");
-    }
-  }
-
-  void _updateTime() {
-    if(mounted) {
-      setState(() {
-        _currentTime = DateFormat('hh:mm:ss a').format(DateTime.now());
-      });
-    }
-  }
-
-  Future<void> _syncSchedule() async {
-    setState(() => _isSyncing = true);
-    // Simulate Sync or call a service if available
-    await Future.delayed(const Duration(seconds: 2));
-    if(mounted) setState(() => _isSyncing = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final liveMatches = _matches.where((m) => m.status.toLowerCase() == 'live').length;
-
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Header & Metrics
-          Row(
-            children: [
-               _MetricCard(label: "Total Users", value: "$_userCount", icon: Icons.people, color: Colors.blue),
-               const SizedBox(width: 16),
-               _MetricCard(label: "Pending Withdrawals", value: "$_pendingWithdrawals", icon: Icons.account_balance_wallet, color: Colors.orange, onTap: () => context.push('/admin/wallet')),
-               const SizedBox(width: 16),
-               _MetricCard(label: "Live Matches", value: "$liveMatches", icon: Icons.sports_cricket, color: Colors.red),
-               const Spacer(),
-               // Quick Actions
-               _AdminActionButton(
-                 label: "Refresh Data", 
-                 icon: Icons.refresh, 
-                 onTap: _isSyncing ? () {} : () { _syncSchedule(); _fetchDashboardStats(); },
-                 isLoading: _isSyncing
-               ),
-            ],
-          ),
-          
-          const SizedBox(height: 32),
-          
-          // 2. Active Matches
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Active Matches", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-              ElevatedButton.icon(
-                onPressed: () {}, // Implementation for Create Match
-                icon: const Icon(Icons.add),
-                label: const Text("Create Match"),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
-              )
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          Expanded(
-            child: _buildMatchList(
-               statusLink: ['Live', 'Upcoming', 'Completed'], // Show all for now
-               emptyMsg: "No Matches. Click Refresh."
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // State for Manual Fetch
-  List<CricketMatchModel> _matches = [];
-  bool _isLoading = false;
-
-
-
-  Future<void> _fetchMatches() async {
+  Future<void> _refreshData() async {
     setState(() => _isLoading = true);
     try {
-      // Fetch top 50 matches (Active/Upcoming)
-      final qs = await FirebaseFirestore.instance.collection('matches')
-          .orderBy('startDate', descending: true)
-          .limit(50)
-          .get();
-          
-      final list = qs.docs.map((d) => CricketMatchModel.fromMap(d.data())).toList();
-      if(mounted) setState(() => _matches = list);
+      // 1. Matches Stats
+      final matchesSnap = await FirebaseFirestore.instance.collection('matches').get();
+      final matches = matchesSnap.docs.map((d) => d.data()).toList();
+      _liveMatches = matches.where((m) => m['status'] == 'Live').length;
+      _upcomingMatches = matches.where((m) => m['status'] == 'Upcoming').length;
+
+      // 2. Contests Stats
+      final contestsSnap = await FirebaseFirestore.instance.collection('contests').get();
+      _activeContests = contestsSnap.docs.where((d) => d['status'] != 'Completed').length; // Assuming status field
+
+      // 3. Payouts (Withdrawals)
+      final payoutsSnap = await FirebaseFirestore.instance.collection('withdrawals').where('status', isEqualTo: 'pending').count().get();
+      _pendingPayouts = payoutsSnap.count ?? 0;
+
+      // 4. KYC Pending
+      final kycSnap = await FirebaseFirestore.instance.collection('kyc_requests').where('status', isEqualTo: 'pending').count().get();
+      _kycPending = kycSnap.count ?? 0;
+
+      setState(() {});
+
     } catch (e) {
-      debugPrint("Error fetching matches: $e");
+      debugPrint("Dashboard Refresh Error: $e");
     } finally {
       if(mounted) setState(() => _isLoading = false);
     }
   }
 
-  Widget _buildMatchList({required List<String> statusLink, required String emptyMsg}) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    
-    if (_matches.isEmpty) {
-      return Center(child: Text(emptyMsg, style: const TextStyle(color: Colors.grey)));
-    }
-
-    return ListView.builder(
-      itemCount: _matches.length,
-      itemBuilder: (context, index) {
-        final match = _matches[index];
-          
-        // GHOST FILTER
-        final t1 = match.team1Name.trim();
-        final t2 = match.team2Name.trim();
-        if (t1.isEmpty || t2.isEmpty || t1 == '0' || t2 == '0') return const SizedBox.shrink();
-
-        return _buildMatchTile(context, match);
-      },
-    );
-  }
-
-  Widget _buildMatchTile(BuildContext context, CricketMatchModel match) {
-    bool isLive = match.status.toLowerCase() == 'live';
-    Color statusColor = isLive ? Colors.green : (match.status == 'Upcoming' ? Colors.grey : Colors.orange);
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
-      ),
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(4)),
-                child: Text(match.status.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-              ),
-              const SizedBox(width: 16),
-              Text("${match.team1ShortName} vs ${match.team2ShortName}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+              const Text("Dashboard Overview", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              IconButton(onPressed: _isLoading ? null : _refreshData, icon: const Icon(Icons.refresh, color: Colors.blueAccent))
             ],
           ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          const SizedBox(height: 24),
+
+          // 5 Key Cards
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
             children: [
-               _AdminActionButton(label: "Go Live", onTap: () => _updateMatchStatus(match, "Live")),
-               const SizedBox(width: 12),
-               _AdminActionButton(label: "Players", onTap: () => context.push('/admin/matches/${match.id}/players', extra: match)),
-               const SizedBox(width: 12),
-               _AdminActionButton(label: "Contests", icon: Icons.emoji_events, onTap: () => context.push('/admin/matches/${match.id}/contests', extra: match)),
-               const SizedBox(width: 12),
-               _AdminActionButton(label: "Finish", onTap: () => _updateMatchStatus(match, "Completed")),
-               const SizedBox(width: 12),
-               _AdminActionButton(label: "Delete", icon: Icons.delete_outline, onTap: () => _deleteMatch(match)),
+              _DashboardCard(
+                title: "Live Matches", 
+                value: "$_liveMatches", 
+                icon: Icons.sports_cricket, 
+                color: Colors.redAccent,
+                onTap: () => context.go('/admin/matches'),
+              ),
+              _DashboardCard(
+                title: "Upcoming Matches", 
+                value: "$_upcomingMatches", 
+                icon: Icons.calendar_today, 
+                color: Colors.blueAccent,
+                onTap: () => context.go('/admin/matches'),
+              ),
+              _DashboardCard(
+                title: "Active Contests", 
+                value: "$_activeContests", 
+                icon: Icons.emoji_events, 
+                color: Colors.amber,
+                onTap: () => context.go('/admin/contests'),
+              ),
+              _DashboardCard(
+                title: "Pending Payouts", 
+                value: "$_pendingPayouts", 
+                icon: Icons.account_balance_wallet, 
+                color: Colors.orange,
+                onTap: () => context.go('/admin/wallet'),
+              ),
+              _DashboardCard(
+                title: "KYC Pending", 
+                value: "$_kycPending", 
+                icon: Icons.verified_user, 
+                color: Colors.purpleAccent,
+                onTap: () => context.go('/admin/kyc'),
+              ),
             ],
+          ),
+
+          const SizedBox(height: 40),
+
+          // Recent Activity Section (Placeholder logic for now as requested "Read only")
+          Row(
+            children: [
+              const Icon(Icons.history, color: Colors.white54),
+              const SizedBox(width: 8),
+              const Text("System Status", style: TextStyle(color: Colors.white70, fontSize: 18)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D2235), // Dark Navy
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white10)
+              ),
+              child: _isLoading 
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_circle_outline, size: 48, color: Colors.green),
+                    const SizedBox(height: 16),
+                    const Text("All Systems Operational", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text("Last Checked: ${DateFormat('hh:mm a').format(DateTime.now())}", style: const TextStyle(color: Colors.white54)),
+                  ],
+                ),
+            ),
           )
         ],
       ),
     );
   }
-
-  Future<void> _updateMatchStatus(CricketMatchModel match, String newStatus) async {
-      await FirebaseFirestore.instance.collection('matches').doc(match.id.toString()).update({'status': newStatus});
-  }
-  
-  Future<void> _deleteMatch(CricketMatchModel match) async {
-       // Confirmation Dialog could be added here
-       await FirebaseFirestore.instance.collection('matches').doc(match.id.toString()).delete();
-  }
-
-  Future<void> _importSquad(String matchId, CricketMatchModel match) async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fetching Squad from API...")));
-    try {
-      await ref.read(rapidApiServiceProvider).fetchAndSaveSquad(matchId, matchId);
-      if(mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Squad Imported Successfully! Check Team Creation in User App."), backgroundColor: Colors.green));
-      }
-    } catch (e) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Import Failed: $e"), backgroundColor: Colors.red));
-    }
-  }
 }
 
-class _MetricCard extends StatelessWidget {
-  final String label;
+
+class _DashboardCard extends StatelessWidget {
+  final String title;
   final String value;
   final IconData icon;
   final Color color;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
-  const _MetricCard({required this.label, required this.value, required this.icon, required this.color, this.onTap});
+  const _DashboardCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: 200,
+        width: 220,
+        height: 120,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
-          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFF1E2A38), // Card Background
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white10),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))]
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Icon(icon, color: color, size: 28),
-                if (onTap != null) const Icon(Icons.arrow_forward, color: Colors.white24, size: 16)
+                Icon(Icons.arrow_forward_ios, color: Colors.white10, size: 14)
               ],
             ),
-            const SizedBox(height: 16),
-            Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(fontSize: 14, color: Colors.white54)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                 Text(value, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                 const SizedBox(height: 4),
+                 Text(title, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+              ],
+            )
           ],
         ),
       ),

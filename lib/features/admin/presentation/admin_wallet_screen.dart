@@ -17,25 +17,125 @@ class AdminWalletScreen extends ConsumerStatefulWidget {
 class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
   bool _isLoading = false;
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent, // Inherits
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Payout Requests", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text("Approve or Reject withdrawal requests.", style: TextStyle(color: Colors.white54)),
+            const SizedBox(height: 24),
+
+            // Header Row
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              child: const Row(
+                children: [
+                  Expanded(flex: 2, child: Text("USER ID", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                  Expanded(flex: 2, child: Text("AMOUNT", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                  Expanded(flex: 3, child: Text("DETAILS", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                  Expanded(flex: 3, child: Text("ACTIONS", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, textAlign: TextAlign.end))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // List
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: ref.read(walletRepositoryProvider).getPendingWithdrawals(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                  final docs = snapshot.data!.docs;
+                  if (docs.isEmpty) return const Center(child: Text("No Pending Payouts", style: TextStyle(color: Colors.white54)));
+
+                  return ListView.separated(
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final data = docs[index].data() as Map<String, dynamic>;
+                      final docId = docs[index].id;
+                      final amount = (data['amount'] ?? 0).toDouble();
+                      final userId = data['userId'] ?? 'Unknown';
+                      final method = data['method'] ?? 'Unknown';
+                      final details = data['details'] ?? '--';
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E2A38),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white10)
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(flex: 2, child: Text(userId, style: const TextStyle(color: Colors.white70, fontFamily: 'monospace'))),
+                            Expanded(flex: 2, child: Text("₹ $amount", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold))),
+                            Expanded(flex: 3, child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(method.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                Text(details, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                              ],
+                            )),
+                            Expanded(flex: 3, child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.redAccent),
+                                  tooltip: "Reject",
+                                  onPressed: _isLoading ? null : () => _showRejectDialog(context, docId, userId, amount),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton.icon(
+                                  onPressed: _isLoading ? null : () => _approveWrapper(docId, userId),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12)),
+                                  icon: const Icon(Icons.check, size: 16),
+                                  label: const Text("Approve"),
+                                )
+                              ],
+                            )),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _approveWrapper(String docId, String userId) async {
     final noteController = TextEditingController();
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text("Approve & Pay", style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF2C3E50),
+        title: const Text("Approve Payout", style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Enter Transaction ID / Voucher Code:", style: TextStyle(color: Colors.white70)),
-            const SizedBox(height: 10),
+            const Text("Enter Transaction Ref / Voucher Code:", style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 12),
             TextField(
               controller: noteController,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 filled: true,
                 fillColor: Colors.black26,
-                hintText: "e.g. UPI-1234567890",
+                hintText: "Ref ID (Optional)",
                 hintStyle: TextStyle(color: Colors.white24),
                 border: OutlineInputBorder(),
               ),
@@ -47,11 +147,10 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             onPressed: () {
-               if (noteController.text.isEmpty) return;
                Navigator.pop(ctx);
-               _executeAction(docId, userId, true, note: noteController.text);
+               _executeAction(docId, userId, true, note: noteController.text.isEmpty ? "Approved" : noteController.text);
             }, 
-            child: const Text("Confirm Payment")
+            child: const Text("Mark as Paid")
           )
         ],
       )
@@ -68,98 +167,12 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
       } else {
         await repo.rejectWithdrawal(docId, userId, refreshAmount ?? 0.0, note ?? 'Rejected');
       }
-      
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? "Approved & Paid" : "Rejected & Refunded")));
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? "Processed: Paid" : "Processed: Rejected")));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
     } finally {
       if(mounted) setState(() => _isLoading = false);
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text("Withdrawal Requests", style: TextStyle(color: Colors.white)), 
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: ref.read(walletRepositoryProvider).getPendingWithdrawals(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
-          final docs = snapshot.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text("No Pending Requests", style: TextStyle(color: Colors.white54)));
-
-          return ListView.builder(
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final docId = docs[index].id;
-              
-              final amount = (data['amount'] ?? 0).toDouble();
-              final userId = data['userId'] ?? '';
-              final method = data['method'] ?? 'Unknown';
-              final details = data['details'] ?? 'No details';
-              final date = data['requestDate'] != null 
-                  ? DateFormat('dd MMM, hh:mm a').format((data['requestDate'] as Timestamp).toDate()) 
-                  : 'Just now';
-
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white10)
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                     Row(
-                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                       children: [
-                         Text(method.toUpperCase(), style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
-                         Text("₹ $amount", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
-                       ],
-                     ),
-                     const SizedBox(height: 8),
-                     Text("To: $details", style: const TextStyle(color: Colors.white, fontSize: 16)),
-                     Text("User ID: $userId", style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                     const SizedBox(height: 4),
-                     Text("Date: $date", style: const TextStyle(color: Colors.white30, fontSize: 12)),
-                     
-                     const Divider(color: Colors.white10, height: 24),
-                     
-                     Row(
-                       mainAxisAlignment: MainAxisAlignment.end,
-                       children: [
-                         TextButton(
-                           onPressed: _isLoading ? null : () => _showRejectDialog(context, docId, userId, amount),
-                           style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-                           child: const Text("REJECT"),
-                         ),
-                         const SizedBox(width: 12),
-                         ElevatedButton.icon(
-                           onPressed: _isLoading ? null : () => _approveWrapper(docId, userId),
-                           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                           icon: const Icon(Icons.check, size: 16),
-                           label: const Text("PAY NOW"),
-                         ),
-                       ],
-                     )
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
   }
 
   void _showRejectDialog(BuildContext context, String docId, String userId, double amount) {
@@ -167,8 +180,8 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text("Reject Withdrawal", style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF2C3E50),
+        title: const Text("Reject Payout", style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: reasonController,
           style: const TextStyle(color: Colors.white),
@@ -188,7 +201,7 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
               _executeAction(docId, userId, false, note: reasonController.text, refreshAmount: amount);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text("Confirm Reject"),
+            child: const Text("Reject & Refund"),
           )
         ],
       )
