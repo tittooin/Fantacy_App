@@ -246,7 +246,39 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             Expanded(
                                 child: OutlinedButton.icon(
                                 onPressed: () {
-                                  _showWithdrawModal(context, dynamicUser);
+                                  // KYC CHECK
+                                  String kycStatus = 'unverified';
+                                  try { kycStatus = dynamicUser.kycStatus ?? 'unverified'; } catch (_) {}
+                                  
+                                  if (kycStatus == 'verified') {
+                                     _showWithdrawModal(context, dynamicUser);
+                                  } else {
+                                     showDialog(
+                                       context: context, 
+                                       builder: (ctx) => AlertDialog(
+                                         backgroundColor: Colors.grey[900],
+                                         title: Text(kycStatus == 'pending' ? "Verification Pending" : "Identity Verification Required", style: const TextStyle(color: Colors.white)),
+                                         content: Text(
+                                           kycStatus == 'pending' 
+                                            ? "Your KYC documents are under review. You can withdraw once approved."
+                                            : "To ensure safety, please verify your identity to withdraw funds.",
+                                           style: const TextStyle(color: Colors.white70)
+                                         ),
+                                         actions: [
+                                           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+                                           if (kycStatus != 'pending')
+                                              ElevatedButton(
+                                                onPressed: () {
+                                                  Navigator.pop(ctx);
+                                                  context.push('/kyc');
+                                                },
+                                                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                                                child: const Text("VERIFY NOW")
+                                              )
+                                         ],
+                                       )
+                                     );
+                                  }
                                 },
                                 icon: const Icon(Icons.redeem),
                                 label: const Text("WITHDRAW"),

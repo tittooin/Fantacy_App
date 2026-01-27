@@ -37,6 +37,9 @@ import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:axevora11/features/wallet/presentation/wallet_screen.dart';
 import 'package:axevora11/features/user/presentation/profile_screen.dart';
 import 'package:axevora11/features/legal/presentation/legal_pages.dart';
+import 'package:axevora11/features/kyc/presentation/kyc_screen.dart';
+import 'package:axevora11/features/admin/presentation/kyc/admin_kyc_screen.dart';
+import 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -173,12 +176,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ContactUsScreen(),
       ),
 
+      GoRoute(
+        path: '/kyc',
+        builder: (context, state) => const KYCScreen(),
+      ),
+
       // User Shell Route (Bottom Nav Persist)
       ShellRoute(
         builder: (context, state, child) {
           return UserMainLayout(child: child);
         },
         routes: [
+// ... (Lines 182-202 implicitly unchanged, but replace context requires contiguous block. I will target ShellRoute start for /kyc insertion before it)
+
           GoRoute(
             path: '/home',
             builder: (context, state) => const HomeScreen(),
@@ -333,7 +343,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/wallet',
-            builder: (context, state) => const PlaceholderScreen(title: "Wallet Requests"),
+            builder: (context, state) => const AdminWalletScreen(),
+          ),
+          GoRoute(
+            path: '/admin/kyc',
+            builder: (context, state) => const AdminKYCScreen(),
           ),
           GoRoute(
             path: '/admin/matches/create-contest',
