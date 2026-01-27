@@ -9,8 +9,11 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter_web_plugins/url_strategy.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  usePathUrlStrategy();
   debugPrint("🚀 [BOOT] AXEVORA v2.0 - STRICT RAPIDAPI MODE ACTIVE");
   debugPrint("🚫 [CLEANUP] ALL PROXY/CLOUDFLARE CODE REMOVED");
   

@@ -85,10 +85,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         const allowedRoutes = [
           '/', 
           '/login', 
-          '/terms', 
-          '/privacy', 
+          '/terms-and-conditions', 
+          '/privacy-policy', 
           '/refund-policy', 
-          '/fair-play', 
+          '/fair-play-points', 
           '/responsible-play', 
           '/faq', 
           '/contact'
@@ -145,11 +145,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const StateSelectionScreen(),
       ),
       GoRoute(
-        path: '/terms',
+        path: '/terms-and-conditions',
         builder: (context, state) => const TermsConditionsScreen(),
       ),
       GoRoute(
-        path: '/privacy',
+        path: '/privacy-policy',
         builder: (context, state) => const PrivacyPolicyScreen(),
       ),
       GoRoute(
@@ -157,7 +157,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RefundPolicyScreen(),
       ),
       GoRoute(
-        path: '/fair-play',
+        path: '/fair-play-points',
         builder: (context, state) => const FairPlayScreen(),
       ),
       GoRoute(
