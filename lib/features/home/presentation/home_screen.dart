@@ -330,6 +330,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     );
   }
+}
 
 class MatchCard extends StatelessWidget {
   final CricketMatchModel match;
