@@ -54,7 +54,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     final TextEditingController amountController = TextEditingController();
     final TextEditingController detailsController = TextEditingController();
     String selectedMethod = 'UPI';
-    final List<String> methods = ['UPI', 'Bank Transfer', 'Amazon Voucher', 'Google Play Code'];
+    final List<String> methods = ['UPI', 'Bank Transfer', 'Amazon Pay Gift Card', 'Flipkart Gift Card', 'Google Play Code'];
 
     showModalBottomSheet(
       context: context, 
@@ -113,7 +113,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: selectedMethod == 'UPI' ? "Enter UPI ID" : 
-                               selectedMethod == 'Bank Transfer' ? "Acc No, IFSC, Name" : "Enter Email Address",
+                               selectedMethod == 'Bank Transfer' ? "Acc No, IFSC, Name" : "Enter Email Address for Voucher",
                     labelStyle: const TextStyle(color: Colors.white70),
                     enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
                     focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
