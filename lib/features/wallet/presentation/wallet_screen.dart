@@ -4,6 +4,7 @@ import 'package:axevora11/features/user/presentation/providers/user_provider.dar
 import 'package:axevora11/features/wallet/data/wallet_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});

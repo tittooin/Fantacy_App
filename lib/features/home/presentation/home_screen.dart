@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:axevora11/core/widgets/loading_skeleton.dart';
 
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:axevora11/features/home/presentation/providers/matches_provider.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -165,7 +166,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   if (isLive) 
                                     const Text("LIVE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12))
                                   else
-                                    Text(_formatTime(match.startDate), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    Text(_formatTime(DateTime.fromMillisecondsSinceEpoch(match.startDate)), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                                   
                                   const SizedBox(height: 4),
                                   const Text("vs", style: TextStyle(fontSize: 12, color: Colors.grey)),

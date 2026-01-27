@@ -56,6 +56,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
   }
 
+  void _updateTime() {
+    if(mounted) {
+      setState(() {
+        _currentTime = DateFormat('hh:mm:ss a').format(DateTime.now());
+      });
+    }
+  }
+
+  Future<void> _syncSchedule() async {
+    setState(() => _isSyncing = true);
+    // Simulate Sync or call a service if available
+    await Future.delayed(const Duration(seconds: 2));
+    if(mounted) setState(() => _isSyncing = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final liveMatches = _matches.where((m) => m.status.toLowerCase() == 'live').length;
