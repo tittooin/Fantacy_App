@@ -127,25 +127,30 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Auto-Generate Payouts"),
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text("Auto-Generate Payouts", style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Select percentage of users who will win:"),
+            const Text("Select percentage of users who will win:", style: TextStyle(color: Colors.white70)),
             const SizedBox(height: 16),
             TextField(
               controller: percentController,
               keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
-                labelText: "Winning %", 
+                labelText: "Winning %",
+                labelStyle: TextStyle(color: Colors.white70),
                 suffixText: "%",
+                suffixStyle: TextStyle(color: Colors.white70),
                 border: OutlineInputBorder(),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white54))),
           ElevatedButton(
             onPressed: () {
               double p = double.tryParse(percentController.text) ?? 50;

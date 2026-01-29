@@ -123,14 +123,14 @@ class TeamPreviewScreen extends StatelessWidget {
                  shape: BoxShape.circle,
                  color: Colors.white,
                  border: Border.all(color: isTeam1 ? Colors.white : Colors.black, width: 2),
+                 image: (player.imageUrl.isNotEmpty) 
+                    ? DecorationImage(image: NetworkImage(player.imageUrl), fit: BoxFit.cover)
+                    : null,
                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))]
                ),
-               child: Center(
-                 child: Text(
-                   player.teamShortName[0], 
-                   style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)
-                 )
-               ),
+               child: player.imageUrl.isEmpty 
+                  ? Center(child: Text(player.teamShortName[0], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)))
+                  : null,
              ),
              // Role Badge
              Positioned(

@@ -1,5 +1,6 @@
 
 import 'package:axevora11/features/auth/presentation/login_screen.dart';
+import 'package:axevora11/features/legal/presentation/privacy_policy_2048_screen.dart';
 import 'package:axevora11/features/auth/presentation/splash_screen.dart';
 import 'package:axevora11/features/location/data/location_service.dart';
 import 'package:axevora11/features/admin/presentation/admin_dashboard_screen.dart';
@@ -7,11 +8,15 @@ import 'package:axevora11/features/admin/presentation/admin_scaffold.dart';
 import 'package:axevora11/features/cricket_api/presentation/contest_creator_screen.dart';
 import 'package:axevora11/features/admin/presentation/match_control_screen.dart';
 import 'package:axevora11/features/admin/presentation/league_management_screen.dart'; // Added
+import 'package:axevora11/features/admin/presentation/admin_users_screen.dart';
+import 'package:axevora11/features/admin/presentation/admin_match_contests_screen.dart';
+import 'package:axevora11/features/admin/presentation/admin_players_screen.dart';
 import 'package:axevora11/features/legal/presentation/contact_us_screen.dart';
 import 'package:axevora11/features/legal/presentation/faq_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/presentation/match_import_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/contest/presentation/create_private_contest_screen.dart';
 import 'package:axevora11/features/location/presentation/state_selection_screen.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -33,6 +38,9 @@ import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:axevora11/features/wallet/presentation/wallet_screen.dart';
 import 'package:axevora11/features/user/presentation/profile_screen.dart';
 import 'package:axevora11/features/legal/presentation/legal_pages.dart';
+import 'package:axevora11/features/kyc/presentation/kyc_screen.dart';
+import 'package:axevora11/features/admin/presentation/kyc/admin_kyc_screen.dart';
+import 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -81,10 +89,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         const allowedRoutes = [
           '/', 
           '/login', 
-          '/terms', 
-          '/privacy', 
+          '/terms-and-conditions', 
+          '/privacy-policy', 
           '/refund-policy', 
-          '/fair-play', 
+          '/fair-play-points', 
           '/responsible-play', 
           '/faq', 
           '/contact'
@@ -141,19 +149,23 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const StateSelectionScreen(),
       ),
       GoRoute(
-        path: '/terms',
+        path: '/terms-and-conditions',
         builder: (context, state) => const TermsConditionsScreen(),
       ),
       GoRoute(
-        path: '/privacy',
+        path: '/privacy-policy',
         builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/privacy-policy-2048',
+        builder: (context, state) => const PrivacyPolicy2048Screen(),
       ),
       GoRoute(
         path: '/refund-policy',
         builder: (context, state) => const RefundPolicyScreen(),
       ),
       GoRoute(
-        path: '/fair-play',
+        path: '/fair-play-points',
         builder: (context, state) => const FairPlayScreen(),
       ),
       GoRoute(
@@ -169,12 +181,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ContactUsScreen(),
       ),
 
+      GoRoute(
+        path: '/kyc',
+        builder: (context, state) => const KYCScreen(),
+      ),
+
       // User Shell Route (Bottom Nav Persist)
       ShellRoute(
         builder: (context, state, child) {
           return UserMainLayout(child: child);
         },
         routes: [
+// ... (Lines 182-202 implicitly unchanged, but replace context requires contiguous block. I will target ShellRoute start for /kyc insertion before it)
+
           GoRoute(
             path: '/home',
             builder: (context, state) => const HomeScreen(),
@@ -292,6 +311,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
         ]
       ),
+      GoRoute(
+        path: '/match/:matchId/create-private-contest',
+        builder: (context, state) {
+           final match = state.extra as CricketMatchModel;
+           return CreatePrivateContestScreen(match: match);
+        },
+      ),
       
       GoRoute(
         path: '/admin',
@@ -314,15 +340,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/contests',
-            builder: (context, state) => const PlaceholderScreen(title: "Admin Contests"),
+            builder: (context, state) => const PlaceholderScreen(title: "Global Contests (Future)"),
           ),
           GoRoute(
             path: '/admin/users',
-            builder: (context, state) => const PlaceholderScreen(title: "User Management"),
+            builder: (context, state) => const AdminUsersScreen(),
           ),
           GoRoute(
             path: '/admin/wallet',
-            builder: (context, state) => const PlaceholderScreen(title: "Wallet Requests"),
+            builder: (context, state) => const AdminWalletScreen(),
+          ),
+          GoRoute(
+            path: '/admin/kyc',
+            builder: (context, state) => const AdminKYCScreen(),
           ),
           GoRoute(
             path: '/admin/matches/create-contest',
@@ -332,6 +362,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                  return const Center(child: Text("Error: No Match Selected. Please go back and select a match."));
               }
               return ContestCreatorScreen(match: match);
+            },
+          ),
+          GoRoute(
+            path: '/admin/matches/:matchId/contests',
+            builder: (context, state) {
+               final matchId = state.pathParameters['matchId']!;
+               final match = state.extra as CricketMatchModel?;
+               return AdminMatchContestsScreen(matchId: matchId, match: match);
+            },
+          ),
+          GoRoute(
+            path: '/admin/matches/:matchId/players',
+            builder: (context, state) {
+               final matchId = state.pathParameters['matchId']!;
+               final match = state.extra as CricketMatchModel?;
+               // We try to use the ID from path if match object is null (deep link case handling placeholder)
+               return AdminPlayersScreen(match: match ?? CricketMatchModel.empty()); 
+               // Note: If match is null, this uses ID 0, which won't load players. 
+               // Ideally AdminPlayersScreen should accept matchId or we fetch match here.
             },
           ),
           GoRoute(

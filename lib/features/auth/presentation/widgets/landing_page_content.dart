@@ -48,7 +48,7 @@ class LandingPageContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  "Play Skill-Based Fantasy Contests.\nCompete using Cricket Knowledge.\nWithdraw Winnings to Your Bank Account.",
+                  "Play Skill-Based Fantasy Contests.\nCompete using Cricket Knowledge.\n100% Secure Payments & Fair Play Certified.",
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,

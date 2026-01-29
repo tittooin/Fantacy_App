@@ -54,7 +54,7 @@ class CricketMatchModel {
     final venueInfo = matchInfo['venueInfo'] as Map<String, dynamic>? ?? {};
 
     return CricketMatchModel(
-      id: matchInfo['matchId'] as int? ?? 0,
+      id: int.tryParse(matchInfo['matchId']?.toString() ?? '0') ?? 0,
       seriesName: matchInfo['seriesName'] as String? ?? '',
       matchDesc: matchInfo['matchDesc'] as String? ?? '',
       matchFormat: matchInfo['matchFormat'] as String? ?? '',
@@ -71,7 +71,7 @@ class CricketMatchModel {
       lineupStatus: 'Pending',
       playingXI: const [],
       leagueId: json['leagueId'] as String?,
-      seriesId: matchInfo['seriesId'] as int? ?? 0,
+      seriesId: int.tryParse(matchInfo['seriesId']?.toString() ?? '0') ?? 0,
       team1Id: team1['teamId'] as int? ?? 0,
       team2Id: team2['teamId'] as int? ?? 0,
       score: null, // API response doesn't have score in this structure usually
@@ -81,7 +81,7 @@ class CricketMatchModel {
 
   factory CricketMatchModel.fromMap(Map<String, dynamic> map) {
     return CricketMatchModel(
-      id: map['id'] as int? ?? 0,
+      id: map['id'] is int ? map['id'] : int.tryParse(map['id']?.toString() ?? '0') ?? 0,
       seriesName: map['seriesName'] as String? ?? '',
       matchDesc: map['matchDesc'] as String? ?? '',
       matchFormat: map['matchFormat'] as String? ?? '',
@@ -98,9 +98,9 @@ class CricketMatchModel {
       lineupStatus: map['lineupStatus'] as String? ?? 'Pending',
       playingXI: (map['playingXI'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       leagueId: map['leagueId'] as String?,
-      seriesId: map['seriesId'] as int? ?? 0,
-      team1Id: map['team1Id'] as int? ?? 0,
-      team2Id: map['team2Id'] as int? ?? 0,
+      seriesId: map['seriesId'] is int ? map['seriesId'] : int.tryParse(map['seriesId']?.toString() ?? '0') ?? 0,
+      team1Id: map['team1Id'] is int ? map['team1Id'] : int.tryParse(map['team1Id']?.toString() ?? '0') ?? 0,
+      team2Id: map['team2Id'] is int ? map['team2Id'] : int.tryParse(map['team2Id']?.toString() ?? '0') ?? 0,
       score: map['score'] as Map<String, dynamic>?,
       isArchived: map['isArchived'] as bool? ?? false,
     );
@@ -131,5 +131,24 @@ class CricketMatchModel {
       'score': score,
       'isArchived': isArchived,
     };
+  }
+
+  factory CricketMatchModel.empty() {
+    return const CricketMatchModel(
+      id: 0,
+      seriesName: '',
+      matchDesc: '',
+      matchFormat: '',
+      team1Name: '',
+      team1ShortName: '',
+      team1Img: '',
+      team2Name: '',
+      team2ShortName: '',
+      team2Img: '',
+      startDate: 0,
+      endDate: 0,
+      venue: '',
+      status: 'Upcoming',
+    );
   }
 }

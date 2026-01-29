@@ -19,6 +19,7 @@ abstract class UserEntity with _$UserEntity {
     @Default(false) bool isPhoneVerified,
     @Default(false) bool isEmailVerified,
     @Default(false) bool isKYCVerified, // Added for Payment Security
+    @Default('unverified') String kycStatus, // unverified, pending, verified, rejected
     @Default(0) double walletBalance,
     @Default(0) double bonusBalance,
     @Default(0) double winningBalance,

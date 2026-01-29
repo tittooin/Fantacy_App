@@ -116,18 +116,19 @@ class _LeagueManagementScreenState extends State<LeagueManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Add New League"),
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text("Add New League", style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: idCtrl, decoration: const InputDecoration(labelText: "ID (e.g. bbl_2026)")),
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Name (e.g. Big Bash)")),
-            TextField(controller: typeCtrl, decoration: const InputDecoration(labelText: "Type (T20/ODI)")),
-            TextField(controller: priorityCtrl, decoration: const InputDecoration(labelText: "Priority"), keyboardType: TextInputType.number),
+            TextField(controller: idCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: "ID (e.g. bbl_2026)", labelStyle: TextStyle(color: Colors.white70), enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)))),
+            TextField(controller: nameCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: "Name (e.g. Big Bash)", labelStyle: TextStyle(color: Colors.white70), enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)))),
+            TextField(controller: typeCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: "Type (T20/ODI)", labelStyle: TextStyle(color: Colors.white70), enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)))),
+            TextField(controller: priorityCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: "Priority", labelStyle: TextStyle(color: Colors.white70), enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24))), keyboardType: TextInputType.number),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white54))),
           ElevatedButton(
             onPressed: () async {
               if (idCtrl.text.isEmpty || nameCtrl.text.isEmpty) return;

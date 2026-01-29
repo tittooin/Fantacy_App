@@ -1,0 +1,30 @@
+{
+    "response": [
+        {
+            "matchId": "12345",
+            "batsman": [
+                {
+                    "id": "101",
+                    "name": "Virat Kohli",
+                    "team": "Team India",
+                    "runs": "55",
+                    "balls": "32",
+                    "fours": "5",
+                    "sixes": "2",
+                    "dismissal": "caught"
+                }
+            ],
+            "bowler": [
+                {
+                    "id": "201",
+                    "name": "Pat Cummins",
+                    "team": "Australia",
+                    "wickets": "2",
+                    "overs": "4.0",
+                    "maidens": "0",
+                    "runs": "28"
+                }
+            ]
+        }
+    ]
+}

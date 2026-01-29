@@ -27,9 +27,17 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
   CricketMatchModel? _fetchedMatch;
   bool _isLoadingMatch = false;
 
+  late Stream<QuerySnapshot> _contestsStream;
+
   @override
   void initState() {
     super.initState();
+    _contestsStream = FirebaseFirestore.instance
+        .collection('matches')
+        .doc(widget.matchId)
+        .collection('contests')
+        .snapshots();
+
     if (widget.match == null) {
       _fetchMatchData();
     } else {
@@ -162,74 +170,87 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     );
   }
 
+  Future<List<ContestModel>> _fetchContests() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('matches')
+          .doc(widget.matchId)
+          .collection('contests')
+          .get();
+      
+      return snapshot.docs.map((doc) => ContestModel.fromJson(doc.data())).toList();
+    } catch (e) {
+      debugPrint("Error fetching contests: $e");
+      return [];
+    }
+  }
+
   Widget _buildContestsTab() {
     final showScore = _effectiveMatch?.status == 'Live' || _effectiveMatch?.status == 'Completed';
     
-    return Column(
-      children: [
-        if (showScore) MatchScoreHeader(matchId: widget.matchId),
-        // Filter Bar
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          color: Colors.white,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip("All", true),
-                const SizedBox(width: 8),
-                _buildFilterChip("Mega", false),
-                const SizedBox(width: 8),
-                _buildFilterChip("Hot", false),
-                const SizedBox(width: 8),
-                _buildFilterChip("Head 2 Head", false),
-              ],
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() {}); // Triggers FutureBuilder
+        await _fetchContests();
+      },
+      child: Column(
+        children: [
+          if (showScore) MatchScoreHeader(matchId: widget.matchId),
+          // Filter Bar
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            color: Colors.white,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterChip("All", true),
+                  const SizedBox(width: 8),
+                  _buildFilterChip("Mega", false),
+                  const SizedBox(width: 8),
+                  _buildFilterChip("Hot", false),
+                  const SizedBox(width: 8),
+                  _buildFilterChip("Head 2 Head", false),
+                ],
+              ),
             ),
           ),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('matches')
-                .doc(widget.matchId)
-                .collection('contests')
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-
-              final docs = snapshot.data?.docs ?? [];
-              if (docs.isEmpty) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.emoji_events_outlined, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text("No Contests Active", style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
+          const Divider(height: 1),
+          Expanded(
+            child: FutureBuilder<List<ContestModel>>(
+              future: _fetchContests(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
+  
+                final contests = snapshot.data ?? [];
+                if (contests.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.emoji_events_outlined, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text("No Contests Active", style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  );
+                }
+  
+                return ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 80), // Space for FAB if needed
+                  // Ensure scrollable for RefreshIndicator
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: contests.length,
+                  itemBuilder: (context, index) {
+                    return ContestCard(contest: contests[index], match: _effectiveMatch, matchId: widget.matchId);
+                  },
                 );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.only(bottom: 80), // Space for FAB if needed
-                itemCount: docs.length,
-                itemBuilder: (context, index) {
-                  final data = docs[index].data() as Map<String, dynamic>;
-                  try {
-                    final contest = ContestModel.fromJson(data);
-                    return ContestCard(contest: contest, match: _effectiveMatch, matchId: widget.matchId);
-                  } catch (e) {
-                    return const SizedBox.shrink();
-                  }
-                },
-              );
-            },
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -583,6 +604,11 @@ class ContestCard extends ConsumerWidget {
          .where((uc) => uc.contestId == contest.id)
          .map((uc) => uc.teamId)
          .toSet();
+
+     if (joinedTeamIds.length >= 20) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Max 20 teams allowed per contest.")));
+        return;
+     }
 
      // Always show selection dialog
      showModalBottomSheet(

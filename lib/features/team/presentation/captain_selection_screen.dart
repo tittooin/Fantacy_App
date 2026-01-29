@@ -97,7 +97,8 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
                   children: [
                     CircleAvatar(
                       backgroundColor: Colors.grey.shade800,
-                      child: Text(player.teamShortName[0], style: const TextStyle(color: Colors.white)),
+                      backgroundImage: (player.imageUrl.isNotEmpty) ? NetworkImage(player.imageUrl) : null,
+                      child: player.imageUrl.isEmpty ? Text(player.teamShortName[0], style: const TextStyle(color: Colors.white)) : null,
                     ),
                     Positioned(
                       bottom: 0, right: 0,

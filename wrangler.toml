@@ -1,0 +1,22 @@
+name = "fantasy-cricket-api"
+main = "workers/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+RAPID_API_KEY = "70a8792460msh629f8e0af8cc36bp17accbjsn7c270b8814ee"
+RAPID_API_HOST = "free-cricbuzz-cricket-api.p.rapidapi.com"
+
+# Firestore configuration
+# Firestore configuration
+FIREBASE_PROJECT_ID = "axevora11"
+FIREBASE_API_KEY = "AIzaSyDVoZoy6_Qz36Xz3P7CbkGSB75Vq0CsJhU"
+
+# Cashfree Configuration (Backend Only)
+# Cashfree Configuration (Backend Only)
+CASHFREE_APP_ID = "REPLACE_WITH_YOUR_CASHFREE_APP_ID"
+CASHFREE_SECRET_KEY = "REPLACE_WITH_YOUR_CASHFREE_SECRET_KEY"
+CASHFREE_IS_SANDBOX = "false"
+WORKER_URL = "https://fantasy-cricket-api.moremagical4.workers.dev"
+
+[triggers]
+crons = ["*/2 * * * *"]

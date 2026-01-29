@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/features/admin/data/audit_service.dart';
 import 'package:intl/intl.dart';
+import 'package:axevora11/features/wallet/data/wallet_repository.dart';
 
 class AdminWalletScreen extends ConsumerStatefulWidget {
   const AdminWalletScreen({super.key});
@@ -11,158 +12,209 @@ class AdminWalletScreen extends ConsumerStatefulWidget {
   ConsumerState<AdminWalletScreen> createState() => _AdminWalletScreenState();
 }
 
+
+
 class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
   bool _isLoading = false;
 
-  // STRICT: Only handle withdrawals. No credits.
-  // Payout mechanism should ideally call a Cloud Function or Backend API.
-  // For now, we simulate the approval which would trigger the payout logic.
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent, // Inherits
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Payout Requests", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text("Approve or Reject withdrawal requests.", style: TextStyle(color: Colors.white54)),
+            const SizedBox(height: 24),
 
-  Future<void> _processWithdrawal(String txnId, String userId, double amount, bool approve, {String? reason}) async {
+            // Header Row
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              child: const Row(
+                children: [
+                  Expanded(flex: 2, child: Text("USER ID", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                  Expanded(flex: 2, child: Text("AMOUNT", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                  Expanded(flex: 3, child: Text("DETAILS", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                  Expanded(flex: 3, child: Text("ACTIONS", textAlign: TextAlign.end, style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // List
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: ref.read(walletRepositoryProvider).getPendingWithdrawals(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                  final docs = snapshot.data!.docs;
+                  if (docs.isEmpty) return const Center(child: Text("No Pending Payouts", style: TextStyle(color: Colors.white54)));
+
+                  return ListView.separated(
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final data = docs[index].data() as Map<String, dynamic>;
+                      final docId = docs[index].id;
+                      final amount = (data['amount'] ?? 0).toDouble();
+                      final userId = data['userId'] ?? 'Unknown';
+                      final method = data['method'] ?? 'Unknown';
+                      final details = data['details'] ?? '--';
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E2A38),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white10)
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(flex: 2, child: Text(userId, style: const TextStyle(color: Colors.white70, fontFamily: 'monospace'))),
+                            Expanded(flex: 2, child: Text("₹ $amount", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold))),
+                            Expanded(flex: 3, child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(method.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                Text(details, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                              ],
+                            )),
+                            Expanded(flex: 3, child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.redAccent),
+                                  tooltip: "Reject",
+                                  onPressed: _isLoading ? null : () => _showRejectDialog(context, docId, userId, amount),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton.icon(
+                                  onPressed: _isLoading ? null : () => _approveWrapper(docId, userId),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12)),
+                                  icon: const Icon(Icons.check, size: 16),
+                                  label: const Text("Approve"),
+                                )
+                              ],
+                            )),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _approveWrapper(String docId, String userId) async {
+    final noteController = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C3E50),
+        title: const Text("Approve Payout", style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Enter Transaction Ref / Voucher Code:", style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                filled: true,
+                fillColor: Colors.black26,
+                hintText: "Ref ID (Optional)",
+                hintStyle: TextStyle(color: Colors.white24),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            onPressed: () {
+               Navigator.pop(ctx);
+               _executeAction(docId, userId, true, note: noteController.text.isEmpty ? "Approved" : noteController.text);
+            }, 
+            child: const Text("Mark as Paid")
+          )
+        ],
+      )
+    );
+  }
+
+  Future<void> _executeAction(String docId, String userId, bool approve, {String? note, double? refreshAmount}) async {
     setState(() => _isLoading = true);
-    
     try {
-      final action = approve ? 'APPROVE_WITHDRAWAL' : 'REJECT_WITHDRAWAL';
+      final repo = ref.read(walletRepositoryProvider);
       
-      // 1. Audit Log (Crucial)
-      await auditProvider.logAction(
-        action: action, 
-        matchId: 'WALLET_OPS', 
-        details: {'userId': userId, 'amount': amount, 'txnId': txnId, 'reason': reason ?? ''}
-      );
-
-      // 2. Update Transaction Status in Firestore
-      // Note: In a real Cashfree setup, APPROVE would call Payout API.
-      // Here we update status, and a Cloud Function would listen to 'APPROVED' to trigger payout.
-      
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'transactions': FieldValue.arrayRemove([
-           // We'd need the exact object to remove, or better, we manage a separate 'withdrawals' collection.
-           // Assuming 'withdrawals' collection for admin safety as per strict rules.
-        ])
-      });
-      
-      // Simulating update on a dedicated 'withdrawals' collection which is safer availabilitywise
-      // But given existing structure, let's assume we update a 'withdrawal_requests' collection
-      await FirebaseFirestore.instance.collection('withdrawal_requests').doc(txnId).update({
-        'status': approve ? 'APPROVED' : 'REJECTED',
-        'processedAt': DateTime.now().toIso8601String(),
-        'adminNote': reason ?? (approve ? 'Processed via Admin' : 'Rejected'),
-      });
-
-      if (!approve) {
-        // If rejected, Refund the amount to user wallet
-        await FirebaseFirestore.instance.collection('users').doc(userId).update({
-          'winningBalance': FieldValue.increment(amount), // Refund to winnings? Or deposit? usually winnings.
-        });
+      if (approve) {
+        await repo.approveWithdrawal(docId, userId, note ?? 'Approved');
+      } else {
+        await repo.rejectWithdrawal(docId, userId, refreshAmount ?? 0.0, note ?? 'Rejected');
       }
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Withdrawal ${approve ? 'Approved' : 'Rejected'}")));
-
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? "Processed: Paid" : "Processed: Rejected")));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
     } finally {
       if(mounted) setState(() => _isLoading = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Wallet & Payouts")),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('withdrawal_requests')
-            .where('status', isEqualTo: 'PENDING') // Only show pending
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
-          final docs = snapshot.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text("No Pending Withdrawals"));
-
-          return ListView.builder(
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final txnId = docs[index].id;
-              final amount = (data['amount'] ?? 0).toDouble();
-              final userId = data['userId'] ?? '';
-              final method = data['method'] ?? 'Bank'; // UPI/Bank
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                       Row(
-                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                         children: [
-                           Text("₹ $amount", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
-                           Chip(label: Text(method), backgroundColor: Colors.blue.shade50)
-                         ],
-                       ),
-                       const SizedBox(height: 8),
-                       Text("User ID: $userId", style: const TextStyle(color: Colors.grey)),
-                       Text("Requested: ${data['timestamp'] ?? 'Unknown'}", style: const TextStyle(fontSize: 12)),
-                       
-                       const Divider(height: 24),
-                       
-                       Row(
-                         mainAxisAlignment: MainAxisAlignment.end,
-                         children: [
-                           OutlinedButton(
-                             onPressed: _isLoading ? null : () => _showRejectDialog(context, txnId, userId, amount),
-                             style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                             child: const Text("Reject"),
-                           ),
-                           const SizedBox(width: 12),
-                           ElevatedButton(
-                             onPressed: _isLoading ? null : () => _processWithdrawal(txnId, userId, amount, true),
-                             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                             child: const Text("Approve & Pay"),
-                           ),
-                         ],
-                       )
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  void _showRejectDialog(BuildContext context, String txnId, String userId, double amount) {
+  void _showRejectDialog(BuildContext context, String docId, String userId, double amount) {
     final reasonController = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Reject Withdrawal"),
+<<<<<<< HEAD
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text("Reject Withdrawal", style: TextStyle(color: Colors.white)),
+=======
+        backgroundColor: const Color(0xFF2C3E50),
+        title: const Text("Reject Payout", style: TextStyle(color: Colors.white)),
+>>>>>>> dev-update
         content: TextField(
           controller: reasonController,
-          style: const TextStyle(color: Colors.black),
+          style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
+<<<<<<< HEAD
             labelText: "Reason for Rejection",
+            labelStyle: TextStyle(color: Colors.white70),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Colors.black26,
             border: OutlineInputBorder(),
+=======
+            labelText: "Reason",
+            labelStyle: TextStyle(color: Colors.white70),
+            filled: true,
+            fillColor: Colors.black26,
+>>>>>>> dev-update
+            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white54))),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _processWithdrawal(txnId, userId, amount, false, reason: reasonController.text);
+              _executeAction(docId, userId, false, note: reasonController.text, refreshAmount: amount);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text("Confirm Reject"),
+            child: const Text("Reject & Refund"),
           )
         ],
       )
