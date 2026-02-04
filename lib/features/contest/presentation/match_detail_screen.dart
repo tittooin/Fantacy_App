@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
+import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart'; // Added
 import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
 import 'package:axevora11/features/team/domain/team_entity.dart';
 import 'package:axevora11/features/team/presentation/providers/team_provider.dart';
@@ -24,48 +25,38 @@ class MatchDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
-  CricketMatchModel? _fetchedMatch;
-  bool _isLoadingMatch = false;
-
-  late Stream<QuerySnapshot> _contestsStream;
-
+  // Removed local Firestore state
+  
   @override
   void initState() {
     super.initState();
-    _contestsStream = FirebaseFirestore.instance
-        .collection('matches')
-        .doc(widget.matchId)
-        .collection('contests')
-        .snapshots();
-
-    if (widget.match == null) {
-      _fetchMatchData();
-    } else {
-      _fetchedMatch = widget.match;
-    }
   }
 
-  Future<void> _fetchMatchData() async {
-    setState(() => _isLoadingMatch = true);
+  CricketMatchModel? get _effectiveMatch {
+    if (widget.match != null) return widget.match;
+    // Use read(matchListProvider) because build() watches it.
+    // This allows helper methods to access the current match state without passing it around.
+    final matchesAsync = ref.read(matchListProvider);
+    final allMatches = matchesAsync.value;
+    if (allMatches == null) return null;
+    
     try {
-      final doc = await FirebaseFirestore.instance.collection('matches').doc(widget.matchId).get();
-      if (doc.exists && doc.data() != null) {
-        setState(() {
-          _fetchedMatch = CricketMatchModel.fromMap(doc.data()!);
-        });
+      final matchMap = allMatches.firstWhere((m) => m['id'] == widget.matchId, orElse: () => {});
+      if (matchMap.isNotEmpty) {
+        return CricketMatchModel.fromMap(matchMap);
       }
     } catch (e) {
-      debugPrint("Error fetching match: $e");
-    } finally {
-      if (mounted) setState(() => _isLoadingMatch = false);
+      // Handle error
     }
+    return null;
   }
-
-  CricketMatchModel? get _effectiveMatch => widget.match ?? _fetchedMatch;
 
   @override
   Widget build(BuildContext context) {
-    // If match is passed, use it. If not, we might need to fetch it (skipping fetch logic for now, assuming passed from Home)
+    // Ensure we WATCH the provider so build re-runs on updates
+    ref.watch(matchListProvider);
+
+    // If match is passed, use it. Match retrieval is handled by getter.
     final displayMatch = _effectiveMatch;
     
     final matchTitle = displayMatch != null 
@@ -80,6 +71,9 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
 
     final allJoined = ref.watch(userContestProvider);
     final myContests = allJoined.where((c) => c.matchId == widget.matchId).toList();
+    
+    // Watch User Provider to ensure Balance is up-to-date
+    ref.watch(userEntityProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -172,15 +166,25 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
 
   Future<List<ContestModel>> _fetchContests() async {
     try {
+      // Convert String matchId to int for Firestore query
+      final int matchIdInt = int.parse(widget.matchId);
+      debugPrint("🔍 Fetching contests for matchId: $matchIdInt (converted from String '${widget.matchId}')");
+      
       final snapshot = await FirebaseFirestore.instance
-          .collection('matches')
-          .doc(widget.matchId)
           .collection('contests')
+          .where('matchId', isEqualTo: matchIdInt)
           .get();
       
-      return snapshot.docs.map((doc) => ContestModel.fromJson(doc.data())).toList();
+      debugPrint("🔍 Found ${snapshot.docs.length} contests");
+      
+      final contests = snapshot.docs.map((doc) {
+        debugPrint("🔍 Contest doc: ${doc.id}, data: ${doc.data()}");
+        return ContestModel.fromJson(doc.data());
+      }).toList();
+      
+      return contests;
     } catch (e) {
-      debugPrint("Error fetching contests: $e");
+      debugPrint("❌ Error fetching contests: $e");
       return [];
     }
   }
@@ -648,9 +652,12 @@ class ContestCard extends ConsumerWidget {
                      final team = myTeams[index];
                      final isJoined = joinedTeamIds.contains(team.id);
 
+                     final cPlayer = team.players.firstWhere((p) => p.id == team.captainId, orElse: () => team.players.first);
+                     final vcPlayer = team.players.firstWhere((p) => p.id == team.viceCaptainId, orElse: () => team.players.last);
+
                      return ListTile(
                        title: Text(team.teamName),
-                       subtitle: Text("C: ${team.captainId} | VC: ${team.viceCaptainId}"),
+                       subtitle: Text("C: ${cPlayer.name} | VC: ${vcPlayer.name}"),
                        trailing: ElevatedButton(
                          onPressed: isJoined 
                            ? null 

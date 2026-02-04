@@ -30,12 +30,12 @@ export async function createCashfreeOrder(userId, amount, env) {
             order_currency: 'INR',
             customer_details: {
                 customer_id: userId,
-                customer_phone: '9999999999', // Required by CF, can be dummy if not collected
+                customer_phone: '9999999999',
                 customer_name: `User ${userId.substring(0, 5)}`
             },
             order_meta: {
-                return_url: `https://fantacy-app.pages.dev/#/wallet?order_id={order_id}`, // Redirect back to app
-                notify_url: `${env.WORKER_URL}/api/payment-webhook` // IMPORTANT: Webhook URL
+                return_url: `https://fantacy-app.pages.dev/#/wallet?order_id={order_id}`,
+                notify_url: `${env.WORKER_URL}/api/payment-webhook`
             }
         };
 
@@ -53,17 +53,18 @@ export async function createCashfreeOrder(userId, amount, env) {
         const data = await response.json();
 
         if (response.status === 200 || response.status === 201) {
-            // Prepare Pending Transaction (saving delegated to index.js)
+            // Prepare Pending Transaction
             const transactionData = await savePendingTransaction(userId, orderId, amount, env);
+
+            // Construct Wrapper Link using our own Worker
+            const sessionId = data.payment_session_id;
+            const wrapperLink = `${env.WORKER_URL}/pay?session_id=${sessionId}&env=${useSandbox ? 'sandbox' : 'prod'}`;
 
             return {
                 success: true,
                 orderId: orderId,
-                transactionData: transactionData, // Pass to controller to save
-                paymentLink: data.payment_link ? data.payment_link : (data.payment_session_id ? `https://payments-test.cashfree.com/forms/${data.order_id}` : null),
-                // Note: Production link structure might differ. API v2023-08-01 returns `payment_link` in response usually.
-                // If not, we might need to rely on the return_url strategy completely, but User App expects a link to open.
-                // Let's ensure we grab the link.
+                transactionData: transactionData,
+                paymentLink: wrapperLink, // Return our Wrapper Link
                 raw: data
             };
         } else {

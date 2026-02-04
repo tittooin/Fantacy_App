@@ -9,7 +9,7 @@ part of 'player_model.dart';
 _PlayerModel _$PlayerModelFromJson(Map<String, dynamic> json) => _PlayerModel(
   id: json['id'] as String,
   name: json['name'] as String,
-  teamShortName: json['teamShortName'] as String,
+  teamShortName: json['teamShortName'] as String?,
   role: json['role'] as String,
   credits: (json['credits'] as num).toDouble(),
   imageUrl: json['imageUrl'] as String,

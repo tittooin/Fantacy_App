@@ -109,6 +109,13 @@ class TeamPreviewScreen extends StatelessWidget {
     );
   }
 
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
   Widget _buildPlayerIcon(PlayerModel player) {
     final isTeam1 = player.teamShortName == team1Name;
     return Column(
@@ -129,7 +136,7 @@ class TeamPreviewScreen extends StatelessWidget {
                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))]
                ),
                child: player.imageUrl.isEmpty 
-                  ? Center(child: Text(player.teamShortName[0], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)))
+                  ? Center(child: Text(_getInitials(player.name), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 16)))
                   : null,
              ),
              // Role Badge

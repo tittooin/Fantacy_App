@@ -11,6 +11,7 @@ import 'package:axevora11/features/admin/presentation/league_management_screen.d
 import 'package:axevora11/features/admin/presentation/admin_users_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_match_contests_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_players_screen.dart';
+import 'package:axevora11/features/admin/presentation/admin_manage_squad_screen.dart'; // Added
 import 'package:axevora11/features/legal/presentation/contact_us_screen.dart';
 import 'package:axevora11/features/legal/presentation/faq_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
@@ -372,7 +373,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                return AdminMatchContestsScreen(matchId: matchId, match: match);
             },
           ),
-          GoRoute(
+           GoRoute(
             path: '/admin/matches/:matchId/players',
             builder: (context, state) {
                final matchId = state.pathParameters['matchId']!;
@@ -381,6 +382,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                return AdminPlayersScreen(match: match ?? CricketMatchModel.empty()); 
                // Note: If match is null, this uses ID 0, which won't load players. 
                // Ideally AdminPlayersScreen should accept matchId or we fetch match here.
+            },
+          ),
+          GoRoute(
+            path: '/admin/matches/:matchId/manage-squad',
+            builder: (context, state) {
+               final matchId = state.pathParameters['matchId']!;
+               final match = state.extra as CricketMatchModel;
+               return AdminManageSquadScreen(
+                 matchId: matchId, 
+                 team1ShortName: match.team1ShortName, 
+                 team2ShortName: match.team2ShortName
+               );
             },
           ),
           GoRoute(

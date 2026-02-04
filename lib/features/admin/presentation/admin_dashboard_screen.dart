@@ -7,10 +7,11 @@ import 'package:axevora11/features/admin/presentation/admin_logs_screen.dart';
 import 'package:axevora11/features/admin/presentation/scoring_console_screen.dart';
 import 'package:axevora11/features/cricket_api/presentation/contest_creator_screen.dart';
 import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
-import 'package:axevora11/features/cricket_api/data/services/polling_service.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:axevora11/scripts/fix_team_short_names.dart';
+import 'package:axevora11/features/admin/data/admin_repository.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -28,434 +29,575 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   int _kycPending = 0;
 
   bool _isLoading = false;
+  List<CricketMatchModel> _matches = [];
 
   @override
   void initState() {
     super.initState();
-<<<<<<< HEAD
-    // Initialize time without setState
-    _currentTime = DateFormat('hh:mm:ss a').format(DateTime.now());
-    // Start timer for subsequent updates
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) => _updateTime());
-
-    // START POLLING SERVICE
-    // This ensures only the Admin Panel triggers API calls
+    // Fetch initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
-       ref.read(pollingServiceProvider).startPolling();
+       _refreshData();
+       _fetchMatches();
     });
-  }
-
-  @override
-  void dispose() {
-    // STOP POLLING SERVICE
-    // Stops API calls when Admin closes this screen
-    ref.read(pollingServiceProvider).stopPolling();
-    
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  // Removed _startClock as it's redundant now
-
-  void _updateTime() {
-    if(!mounted) return;
-    setState(() {
-      _currentTime = DateFormat('hh:mm:ss a').format(DateTime.now());
-    });
-  }
-
-  Future<void> _syncSchedule() async {
-    setState(() => _isSyncing = true);
-    try {
-      // Worker handles fetching & saving to Firestore
-      await ref.read(rapidApiServiceProvider).fetchFixtures();
-      
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Success: Sync Triggered! matches will appear shortly."),
-            backgroundColor: Colors.green,
-          )
-        );
-      }
-
-    } catch (e) {
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Sync Failed: $e"),
-            backgroundColor: Colors.red,
-          )
-        );
-      }
-=======
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshData());
   }
 
   Future<void> _refreshData() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Matches Stats (Optimized with Count aggregations)
-      final liveSnap = await FirebaseFirestore.instance
-          .collection('matches')
-          .where('status', isEqualTo: 'Live')
-          .count()
-          .get();
-      _liveMatches = liveSnap.count ?? 0;
+      // 1. Fetch Aggregated Stats from D1 (Zero Firestore Reads)
+      final stats = await ref.read(rapidApiServiceProvider).fetchAdminStats();
 
-      final upcomingSnap = await FirebaseFirestore.instance
-          .collection('matches')
-          .where('status', isEqualTo: 'Upcoming')
-          .count()
-          .get();
-      _upcomingMatches = upcomingSnap.count ?? 0;
-
-      // 2. Contests Stats (Optimized)
-      // Note: checking 'status' != 'Completed' is tricky with simple indices, 
-      // but for now we can just count 'Open' or 'Live' to be safe and cheap.
-      final activeContestsSnap = await FirebaseFirestore.instance
-          .collection('contests')
-          .where('status', whereIn: ['Open', 'Live', 'Upcoming']) 
-          .count()
-          .get();
-      _activeContests = activeContestsSnap.count ?? 0;
-
-      // 3. Payouts (Withdrawals)
-      final payoutsSnap = await FirebaseFirestore.instance
-          .collection('withdrawals')
-          .where('status', isEqualTo: 'pending')
-          .count()
-          .get();
-      _pendingPayouts = payoutsSnap.count ?? 0;
-
-      // 4. KYC Pending
-      final kycSnap = await FirebaseFirestore.instance
-          .collection('kyc_requests')
-          .where('status', isEqualTo: 'pending')
-          .count()
-          .get();
-      _kycPending = kycSnap.count ?? 0;
-
-      setState(() {});
+      // 2. Assign Values (Defaults to 0 if API fails or returns null)
+      _liveMatches = int.tryParse(stats['liveMatches']?.toString() ?? '0') ?? 0;
+      _upcomingMatches = int.tryParse(stats['upcomingMatches']?.toString() ?? '0') ?? 0;
+      _activeContests = int.tryParse(stats['activeContests']?.toString() ?? '0') ?? 0;
+      
+      // Note: User count from D1 might be 0 until we sync users. 
+      // But this satisfies the "No Firestore Read" requirement.
+      // _kycPending/_pendingPayouts are currently 0 from API. 
+      // If we need real values for these financial items, we might need a separate light query,
+      // but for now we stick to strict quota rules.
+      _pendingPayouts = int.tryParse(stats['pendingPayouts']?.toString() ?? '0') ?? 0; 
+      _kycPending = int.tryParse(stats['kycPending']?.toString() ?? '0') ?? 0;
 
     } catch (e) {
-      debugPrint("Dashboard Refresh Error: $e");
->>>>>>> dev-update
+      debugPrint("Dashboard Stats Error: $e");
     } finally {
       if(mounted) setState(() => _isLoading = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-<<<<<<< HEAD
-    return Padding(
-=======
-    return SingleChildScrollView(
->>>>>>> dev-update
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-<<<<<<< HEAD
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.admin_panel_settings, color: Colors.grey, size: 28),
-                    SizedBox(width: 12),
-                    Text("ADMIN", style: TextStyle(color: Colors.black87, fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _TabButton(label: "Refresh", onTap: _isSyncing ? null : _syncSchedule, isActive: false),
-                    const SizedBox(width: 8),
-                    _TabButton(label: "Live", onTap: () {}, isActive: true), // Placeholder Logic
-                    _TabButton(label: "Upcoming", onTap: () {}, isActive: false),
-                    _TabButton(label: "Completed", onTap: () {}, isActive: false),
-                    const SizedBox(width: 8),
-                    _TabButton(label: "Users", onTap: () => context.push('/admin/users'), isActive: false),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () {}, 
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade300, foregroundColor: Colors.black),
-                      child: const Text("Create Match"),
-                    )
-                  ],
-                )
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          const Text("Match List", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
-          const SizedBox(height: 16),
-          
-          Expanded(
-            child: _buildMatchList(
-               statusLink: ['Live', 'Upcoming', 'Completed'], // Show all for now
-               emptyMsg: "No Matches. Click Refresh."
-            ),
+  Future<void> _fetchMatches() async {
+    setState(() { _isLoading = true; _matches = []; }); // clear old data to show loading/empty
+    try {
+      Query query = FirebaseFirestore.instance.collection('matches');
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+
+      if (_selectedTab == 0) {
+         // Live: Matches status is Live or In Progress
+         query = query.where('status', whereIn: ['Live', 'In Progress', 'Live ']); // Added 'Live ' just in case of whitespace
+      } else if (_selectedTab == 1) {
+         // Upcoming: status is Upcoming AND startDate >= now. 
+         // ORDER BY startDate ASC (Nearest first)
+         query = query.where('status', isEqualTo: 'Upcoming')
+                      .where('startDate', isGreaterThan: now)
+                      .orderBy('startDate', descending: false);
+      } else if (_selectedTab == 2) {
+         // Completed: status in [Completed, Finished] AND recent
+         // ORDER BY startDate DESC (Most recent first)
+         query = query.where('status', whereIn: ['Completed', 'Finished', 'Abandoned'])
+                      .where('startDate', isGreaterThan: sevenDaysAgo)
+                      .orderBy('startDate', descending: true);
+      } else {
+         // Archive: status is ARCHIVED Or very old
+         // Just fetch 'ARCHIVED' explicitly for now to be safe
+         query = query.where('status', isEqualTo: 'ARCHIVED')
+                      .limit(20);
+      }
+      
+      final qs = await query.limit(50).get();
+      final list = qs.docs.map((d) => CricketMatchModel.fromMap(d.data() as Map<String, dynamic>)).toList();
+      
+      if(mounted) setState(() => _matches = list);
+    } catch (e) {
+      debugPrint("Error fetching matches: $e");
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      if(mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ... (Update methods to refresh list)
+
+  void _onTabChanged(int index) {
+      setState(() => _selectedTab = index);
+      _fetchMatches();
+  }
+
+  // Helper for Status Update
+  Future<void> _updateMatchStatus(CricketMatchModel match, String newStatus) async {
+      await FirebaseFirestore.instance.collection('matches').doc(match.id.toString()).update({'status': newStatus});
+      _fetchMatches(); // Refresh list to remove it from current tab if needed
+  }
+
+  Future<void> _deleteMatch(CricketMatchModel match) async {
+       await FirebaseFirestore.instance.collection('matches').doc(match.id.toString()).delete();
+       _fetchMatches();
+  }
+
+  Future<void> _confirmAndDistribute(BuildContext context, CricketMatchModel match) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Confirm Payout"),
+        content: Text("Are you sure you want to distribute prizes for ${match.team1ShortName} vs ${match.team2ShortName}?\n\nThis will credit wallets and cannot be undone."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text("DISTRIBUTE")
           ),
         ],
       ),
     );
+
+    if (confirm == true) {
+       setState(() => _isLoading = true);
+       try {
+         final result = await ref.read(rapidApiServiceProvider).distributePrizes(match.id.toString());
+         if (result['success'] == true) {
+            if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✅ Payout Process Initiated! Check Logs.")));
+         } else {
+            if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("❌ Failed: ${result['error']}")));
+         }
+       } catch (e) {
+          if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
+       } finally {
+          if(mounted) setState(() => _isLoading = false);
+       }
+    }
   }
 
-  // State for Manual Fetch
-  List<CricketMatchModel> _matches = [];
-  bool _isLoading = false;
+   Future<void> _publishSquad(BuildContext context, CricketMatchModel match) async {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text("Publishing Squad to User App..."), duration: Duration(seconds: 2))
+     );
+     
+     setState(() => _isLoading = true);
+  try {
+    // Use AdminRepository to publish manual squad
+    await ref.read(adminRepositoryProvider).publishManualSquad(match.id.toString());
+    
+    if(mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Squad Published Successfully!"), backgroundColor: Colors.green)
+      );
+    }
+  } catch (e) {
+       if(mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text("❌ Publish Failed: $e"), backgroundColor: Colors.red)
+         );
+       }
+     } finally {
+       if(mounted) setState(() => _isLoading = false);
+     }
+   }
 
-
-
-  Future<void> _fetchMatches() async {
+  Future<void> _fixTeamShortNames() async {
     setState(() => _isLoading = true);
     try {
-      // Fetch top 50 matches (Active/Upcoming)
-      final qs = await FirebaseFirestore.instance.collection('matches')
-          .orderBy('startDate', descending: true)
-          .limit(50)
-          .get();
-          
-      final list = qs.docs.map((d) => CricketMatchModel.fromMap(d.data())).toList();
-      if(mounted) setState(() => _matches = list);
+      await fixTeamShortNames();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Team short names fixed for all matches!"), backgroundColor: Colors.green)
+        );
+        _fetchMatches(); // Refresh matches
+      }
     } catch (e) {
-      debugPrint("Error fetching matches: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Error: $e"), backgroundColor: Colors.red)
+        );
+      }
     } finally {
-      if(mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Widget _buildMatchList({required List<String> statusLink, required String emptyMsg}) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    
-    if (_matches.isEmpty) {
-      return Center(child: Text(emptyMsg, style: const TextStyle(color: Colors.grey)));
-    }
+  int _selectedTab = 1; // 0=Live, 1=Upcoming, 2=Completed, 3=Archive (Default to Upcoming usually, or Active logic)
 
-    return ListView.builder(
-      itemCount: _matches.length,
-      itemBuilder: (context, index) {
-        final match = _matches[index];
-          
-        // GHOST FILTER
-        final t1 = match.team1Name.trim();
-        final t2 = match.team2Name.trim();
-        if (t1.isEmpty || t2.isEmpty || t1 == '0' || t2 == '0') return const SizedBox.shrink();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Admin Dashboard"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.build),
+            tooltip: "Fix Team Short Names",
+            onPressed: _fixTeamShortNames,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh), 
+            onPressed: () { _refreshData(); _fetchMatches(); }
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- Section 1: Overview Cards ---
+            const Text("Overview", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _DashboardCard(
+                  title: "Live Matches", 
+                  value: "$_liveMatches", 
+                  icon: Icons.sports_cricket, 
+                  color: Colors.redAccent, 
+                  onTap: () => setState(() => _selectedTab = 0) // Switch to Live Tab
+                ),
+                _DashboardCard(
+                  title: "Upcoming", 
+                  value: "$_upcomingMatches", 
+                  icon: Icons.calendar_today, 
+                  color: Colors.blueAccent, 
+                  onTap: () => setState(() => _selectedTab = 1) // Switch to Upcoming Tab
+                ),
+                _DashboardCard(title: "Contests", value: "$_activeContests", icon: Icons.emoji_events, color: Colors.amber, onTap: () => context.push('/admin/contests')),
+                _DashboardCard(title: "Pending Payouts", value: "$_pendingPayouts", icon: Icons.account_balance_wallet, color: Colors.orange, onTap: () => context.push('/admin/wallet')),
+                _DashboardCard(title: "KYC Requests", value: "$_kycPending", icon: Icons.verified_user, color: Colors.purpleAccent, onTap: () => context.push('/admin/kyc')),
+              ],
+            ),
 
-        return _buildMatchTile(context, match);
-      },
+            const SizedBox(height: 32),
+            
+            // --- Section 2: Match Management ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Match Management", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                ElevatedButton.icon(
+                  onPressed: () => context.push('/admin/matches'), // Match Import Screen
+                  icon: const Icon(Icons.add),
+                  label: const Text("Import Match"),
+                )
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Tabs / Filters
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                     _buildTabBtn("Live", 0, color: Colors.red),
+                     _buildTabBtn("Upcoming", 1, color: Colors.blue),
+                     _buildTabBtn("Completed (7d)", 2, color: Colors.green),
+                     _buildTabBtn("Archive", 3, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (_matches.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Center(child: Text("No matches loaded. Refresh.")),
+              )
+            else
+              _buildFilteredList(),
+              
+             const SizedBox(height: 50),
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _buildTabBtn(String label, int index, {Color? color}) {
+     final bool isSelected = _selectedTab == index;
+     return GestureDetector(
+       onTap: () => setState(() => _selectedTab = index),
+       child: Container(
+         width: 120, // Fixed width for consistent look
+         padding: const EdgeInsets.symmetric(vertical: 10),
+         margin: const EdgeInsets.symmetric(horizontal: 2),
+         decoration: BoxDecoration(
+           color: isSelected ? Colors.white : Colors.transparent,
+           borderRadius: BorderRadius.circular(6),
+           border: isSelected && color != null ? Border.all(color: color.withOpacity(0.5), width: 1) : null,
+           boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : [],
+         ),
+         child: Text(
+            label, 
+            textAlign: TextAlign.center, 
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, 
+              color: isSelected ? (color ?? Colors.black) : Colors.grey[600]
+            )
+          ),
+       ),
+     );
+  }
+
+  Widget _buildFilteredList() {
+      // Logic: Filter client-side based on the 'Strict Rules'
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+
+      final filtered = _matches.where((m) {
+          final isLive = m.status == 'Live' || m.status == 'In Progress';
+          final isFinished = m.status == 'Completed' || m.status == 'Finished' || m.status == 'Abandoned';
+          final isFuture = m.startDate > now;
+
+          // 0. Live
+          if (_selectedTab == 0) {
+             return !m.isArchived && isLive;
+          }
+          // 1. Upcoming
+          if (_selectedTab == 1) {
+             return !m.isArchived && m.status == 'Upcoming' && isFuture;
+          }
+          // 2. Completed (Recent)
+          if (_selectedTab == 2) {
+             final isRecent = m.startDate > sevenDaysAgo && m.startDate <= now;
+             return !m.isArchived && isFinished && isRecent;
+          }
+          // 3. Archive
+          if (_selectedTab == 3) {
+             if (m.isArchived) return true;
+             final isOld = m.startDate <= sevenDaysAgo;
+             final isStaleUpcoming = m.status == 'Upcoming' && m.startDate <= now;
+             return isOld || isStaleUpcoming;
+          }
+          return false;
+      }).toList();
+
+      if (filtered.isEmpty) {
+         String msg = "No matches found";
+         if (_selectedTab == 0) msg = "No Live Matches";
+         if (_selectedTab == 1) msg = "No Upcoming Matches";
+         if (_selectedTab == 2) msg = "No Recent Completed Matches";
+         if (_selectedTab == 3) msg = "No Archived Matches";
+         
+         return Container(
+           padding: const EdgeInsets.all(32),
+           alignment: Alignment.center,
+           child: Text(msg, style: const TextStyle(color: Colors.grey))
+         );
+      }
+
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: filtered.length,
+        itemBuilder: (context, index) {
+          final match = filtered[index];
+          // Hide ghosts
+          if (match.team1Name == '0' || match.team2Name == '0') return const SizedBox.shrink();
+
+          return _buildMatchTile(context, match);
+        },
+      );
   }
 
   Widget _buildMatchTile(BuildContext context, CricketMatchModel match) {
     bool isLive = match.status.toLowerCase() == 'live';
-    Color statusColor = isLive ? Colors.green : (match.status == 'Upcoming' ? Colors.grey : Colors.orange);
+    Color statusColor = isLive ? Colors.green : (match.status == 'Upcoming' ? Colors.blue : Colors.grey);
     
+    // Auto-Archive Visual Indicator if in Archive Tab
+    bool isArchiveTab = _selectedTab == 3;
+    
+    final formattedDate = DateFormat('dd MMM yyyy').format(DateTime.fromMillisecondsSinceEpoch(match.startDate));
+    final formattedTime = DateFormat('hh:mm a').format(DateTime.fromMillisecondsSinceEpoch(match.startDate));
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: isArchiveTab ? Colors.grey : statusColor, borderRadius: BorderRadius.circular(4)),
+                  child: Text(match.status.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "${match.team1ShortName} vs ${match.team2ShortName}", 
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                      ),
+                      const SizedBox(height: 4),
+                       // Date & Time Display
+                       Row(
+                         children: [
+                           Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
+                           const SizedBox(width: 4),
+                           Text("$formattedDate  •  $formattedTime", style: TextStyle(fontSize: 12, color: Colors.grey[800], fontWeight: FontWeight.w500)),
+                         ],
+                       ),
+                    ],
+                  ),
+                ),
+                
+                // Countdown for Upcoming
+                if (match.status == 'Upcoming' && !isArchiveTab)
+                   _MatchCountdown(startDate: match.startDate),
+                
+                // Live Indicator
+                if (isLive)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.red)),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.circle, size: 8, color: Colors.red),
+                        SizedBox(width: 4),
+                        Text("LIVE NOW", style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold))
+                      ],
+                    )
+                  )
+
+              ],
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                 // Actions - Context Aware
+
+                 // LIVE TAB
+                 if (_selectedTab == 0) ...[
+                      OutlinedButton(onPressed: () => _updateMatchStatus(match, "Completed"), child: const Text("Finish Match")),
+                 ],
+
+                 // UPCOMING TAB
+                 if (_selectedTab == 1) ...[
+                      OutlinedButton(onPressed: () => _updateMatchStatus(match, "Live"), child: const Text("START MATCH")),
+                 ],
+
+                 // COMPLETED TAB (Manual Payout)
+                 if (_selectedTab == 2) ...[
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+                      icon: const Icon(Icons.monetization_on, size: 16),
+                      onPressed: () => _confirmAndDistribute(context, match), 
+                      label: const Text("Distribute Prizes"),
+                    ),
+                 ],
+
+                 // COMMON (Except Archive)
+                 if (_selectedTab != 3) ...[
+                   ElevatedButton.icon(
+                     style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0), minimumSize: const Size(0, 36)),
+                     icon: const Icon(Icons.edit, size: 16),
+                     onPressed: () => context.push('/admin/matches/${match.id}/manage-squad', extra: match),
+                     label: const Text("Manage Squad"),
+                   ),
+                   ElevatedButton.icon(
+                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0), minimumSize: const Size(0, 36)),
+                     icon: const Icon(Icons.cloud_upload, size: 16),
+                     onPressed: () => _publishSquad(context, match),
+                     label: const Text("Publish"),
+                   ),
+                   OutlinedButton.icon(
+                     icon: const Icon(Icons.group, size: 16),
+                     onPressed: () => context.push('/admin/matches/${match.id}/players', extra: match),
+                     label: const Text("View Active"),
+                   ),
+                   OutlinedButton.icon(
+                     icon: const Icon(Icons.emoji_events, size: 16),
+                     onPressed: () => context.push('/admin/matches/${match.id}/contests', extra: match),
+                     label: const Text("Contests"),
+                   ),
+                 ],
+                 
+                 // DELETE (Always available)
+                 IconButton(
+                   icon: const Icon(Icons.delete, color: Colors.red),
+                   onPressed: () => _deleteMatch(match),
+                   tooltip: "Delete",
+                 )
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchCountdown extends StatefulWidget {
+  final int startDate;
+  const _MatchCountdown({required this.startDate});
+
+  @override
+  State<_MatchCountdown> createState() => _MatchCountdownState();
+}
+
+class _MatchCountdownState extends State<_MatchCountdown> {
+  late Timer _timer;
+  String _timeLeft = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTime();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) => _updateTime());
+  }
+
+  void _updateTime() {
+    final now = DateTime.now();
+    final start = DateTime.fromMillisecondsSinceEpoch(widget.startDate);
+    final diff = start.difference(now);
+
+    if (diff.isNegative) {
+      if (mounted) setState(() => _timeLeft = "Starting...");
+    } else {
+      final days = diff.inDays;
+      final hours = diff.inHours % 24;
+      final minutes = diff.inMinutes % 60;
+      final seconds = diff.inSeconds % 60;
+      
+      String formatted;
+      if (days > 0) {
+        formatted = "${days}d ${hours}h ${minutes}m";
+      } else {
+        formatted = "${hours}h ${minutes}m ${seconds}s";
+      }
+      
+      if (mounted) setState(() => _timeLeft = formatted);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+        color: Colors.blueAccent.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blueAccent.withOpacity(0.3))
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(4)),
-                child: Text(match.status.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-              ),
-              const SizedBox(width: 16),
-              Text("${match.team1ShortName} vs ${match.team2ShortName}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-               _AdminActionButton(label: "Go Live", onTap: () => _updateMatchStatus(match, "Live")),
-               const SizedBox(width: 12),
-               _AdminActionButton(label: "Players", onTap: () => context.push('/admin/matches/${match.id}/players', extra: match)),
-               const SizedBox(width: 12),
-               _AdminActionButton(label: "Contests", icon: Icons.emoji_events, onTap: () => context.push('/admin/matches/${match.id}/contests', extra: match)),
-               const SizedBox(width: 12),
-               _AdminActionButton(label: "Finish", onTap: () => _updateMatchStatus(match, "Completed")),
-               const SizedBox(width: 12),
-               _AdminActionButton(label: "Delete", icon: Icons.delete_outline, onTap: () => _deleteMatch(match)),
-            ],
-=======
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Dashboard Overview", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-              IconButton(onPressed: _isLoading ? null : _refreshData, icon: const Icon(Icons.refresh, color: Colors.blueAccent))
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // 5 Key Cards
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              _DashboardCard(
-                title: "Live Matches", 
-                value: "$_liveMatches", 
-                icon: Icons.sports_cricket, 
-                color: Colors.redAccent,
-                onTap: () => context.go('/admin/matches'),
-              ),
-              _DashboardCard(
-                title: "Upcoming Matches", 
-                value: "$_upcomingMatches", 
-                icon: Icons.calendar_today, 
-                color: Colors.blueAccent,
-                onTap: () => context.go('/admin/matches'),
-              ),
-              _DashboardCard(
-                title: "Active Contests", 
-                value: "$_activeContests", 
-                icon: Icons.emoji_events, 
-                color: Colors.amber,
-                onTap: () => context.go('/admin/contests'),
-              ),
-              _DashboardCard(
-                title: "Pending Payouts", 
-                value: "$_pendingPayouts", 
-                icon: Icons.account_balance_wallet, 
-                color: Colors.orange,
-                onTap: () => context.go('/admin/wallet'),
-              ),
-              _DashboardCard(
-                title: "KYC Pending", 
-                value: "$_kycPending", 
-                icon: Icons.verified_user, 
-                color: Colors.purpleAccent,
-                onTap: () => context.go('/admin/kyc'),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 40),
-
-          // Recent Activity Section (Placeholder logic for now as requested "Read only")
-          Row(
-            children: [
-              const Icon(Icons.history, color: Colors.white54),
-              const SizedBox(width: 8),
-              const Text("System Status", style: TextStyle(color: Colors.white70, fontSize: 18)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D2235), // Dark Navy
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white10)
-            ),
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.check_circle_outline, size: 48, color: Colors.green),
-                  const SizedBox(height: 16),
-                  const Text("All Systems Operational", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text("Last Checked: ${DateFormat('hh:mm a').format(DateTime.now())}", style: const TextStyle(color: Colors.white54)),
-                ],
-              ),
->>>>>>> dev-update
-          )
+          const Text("Starts In", style: TextStyle(fontSize: 10, color: Colors.blueAccent)),
+          Text(_timeLeft, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent, fontSize: 13)),
         ],
       ),
     );
   }
-
-  Future<void> _updateMatchStatus(CricketMatchModel match, String newStatus) async {
-      await FirebaseFirestore.instance.collection('matches').doc(match.id.toString()).update({'status': newStatus});
-  }
-  
-  Future<void> _deleteMatch(CricketMatchModel match) async {
-       // Confirmation Dialog could be added here
-       await FirebaseFirestore.instance.collection('matches').doc(match.id.toString()).delete();
-  }
-
-  Future<void> _importSquad(String matchId, CricketMatchModel match) async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fetching Squad from API...")));
-    try {
-      await ref.read(rapidApiServiceProvider).fetchAndSaveSquad(matchId, matchId);
-      if(mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Squad Imported Successfully! Check Team Creation in User App."), backgroundColor: Colors.green));
-      }
-    } catch (e) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Import Failed: $e"), backgroundColor: Colors.red));
-    }
-  }
-}
-
-class _TabButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onTap;
-  final bool isActive;
-  const _TabButton({required this.label, required this.onTap, required this.isActive});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.grey.shade200 : Colors.transparent,
-          border: Border(bottom: BorderSide(color: isActive ? Colors.black : Colors.transparent, width: 2))
-        ),
-        child: Text(label, style: TextStyle(color: isActive ? Colors.black : Colors.grey, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-}
-
-class _AdminActionButton extends StatelessWidget {
-  final String label;
-  final IconData? icon;
-  final VoidCallback onTap;
-  const _AdminActionButton({required this.label, this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: onTap,
-      icon: icon != null ? Icon(icon, size: 16) : const SizedBox.shrink(),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.grey.shade200,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: Colors.grey.shade400))
-      ),
-    );
-  }
-}
-
+} // Closed _MatchCountdownState
 
 class _DashboardCard extends StatelessWidget {
   final String title;
@@ -476,65 +618,24 @@ class _DashboardCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: 220,
-        height: 120,
-        padding: const EdgeInsets.all(20),
+        width: 160,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E2A38), // Card Background
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: color, size: 28),
-                Icon(Icons.arrow_forward_ios, color: Colors.white10, size: 14)
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                 Text(value, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                 const SizedBox(height: 4),
-                 Text(title, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-              ],
-            )
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 12),
+            Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _AdminActionButton extends StatelessWidget {
-  final String label;
-  final IconData? icon;
-  final VoidCallback onTap;
-  final bool isLoading;
-
-  const _AdminActionButton({required this.label, this.icon, required this.onTap, this.isLoading = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: isLoading ? null : onTap,
-      icon: isLoading 
-        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-        : (icon != null ? Icon(icon, size: 18) : const SizedBox.shrink()),
-      label: Text(isLoading ? "Syncing..." : label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
       ),
     );
   }

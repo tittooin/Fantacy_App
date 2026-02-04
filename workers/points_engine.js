@@ -1,85 +1,153 @@
+
 /**
  * Fantasy Points Engine
- * Rules:
- * Batting: Run(+1), 4s(+1), 6s(+2), 30(+4), 50(+8), 100(+16), Duck(-2)
- * Bowling: Wicket(+25), Bowled/LBW(+8), Maiden(+12), 3W(+4), 5W(+8)
- * Fielding: Catch(+8), Runout(+12), Stumping(+12)
- * SR (min 10 balls): >170(+6), 150-170(+4), <60(-4)
- * Eco (min 2 overs): <5(+6), 5-6(+4), >10(-6)
- * Captain: 2x, VC: 1.5x
+ * Supports Multiple Formats: T20, ODI, TEST, T10
  */
 
-export function calculateFantasyPoints(stats) {
+const POINTS_CONFIG = {
+    'T20': {
+        run: 1,
+        boundary: 1,
+        six: 2,
+        half_century: 8,
+        century: 16,
+        duck: -2,
+        wicket: 25,
+        lbw_bowled: 8,
+        four_wickets: 8,
+        five_wickets: 16,
+        maiden: 8,
+        catch: 8,
+        stump: 12,
+        runout: 6
+    },
+    'ODI': {
+        // Placeholder for ODI rules
+        run: 1,
+        boundary: 1,
+        six: 2,
+        half_century: 4, // ODI usually has lower bonus
+        century: 8,
+        duck: -3,
+        wicket: 25,
+        lbw_bowled: 8,
+        four_wickets: 4,
+        five_wickets: 8,
+        maiden: 4,
+        catch: 8,
+        stump: 12,
+        runout: 6
+    },
+    'TEST': {
+        // Placeholder for TEST rules
+        run: 1,
+        boundary: 1,
+        six: 2,
+        half_century: 4,
+        century: 8,
+        duck: -4,
+        wicket: 16,
+        lbw_bowled: 8,
+        four_wickets: 4,
+        five_wickets: 8,
+        maiden: 0, // No points for maiden in test usually
+        catch: 8,
+        stump: 12,
+        runout: 6
+    }
+};
+
+export function calculateFantasyPoints(stats, format = 'T20') {
     let points = 0;
-    let breakdown = {
-        batting: 0,
-        bowling: 0,
-        fielding: 0,
-        bonus: 0,
-        economy: 0,
-        strikeRate: 0,
-        total: 0
-    };
+    let breakdown = {};
 
-    // --- Batting ---
-    breakdown.batting += (stats.runs || 0);
-    breakdown.bonus += (stats.fours || 0) * 1;
-    breakdown.bonus += (stats.sixes || 0) * 2;
+    // 1. Select Config (Default to T20 if unknown)
+    const rules = POINTS_CONFIG[format] || POINTS_CONFIG['T20'];
 
-    if ((stats.runs || 0) >= 100) breakdown.bonus += 16;
-    else if ((stats.runs || 0) >= 50) breakdown.bonus += 8;
-    else if ((stats.runs || 0) >= 30) breakdown.bonus += 4;
-
-    // Duck (0 runs, out, played > 0 balls or just out)
-    // Assuming 'isOut' is true and runs == 0.
-    // Note: Duck applies to batsmen, not bowlers who didn't bat. 
-    // We assume parser sets isBatting=true if they came to crease.
-    if (stats.isBatting && (stats.runs || 0) === 0 && stats.isOut) {
-        breakdown.batting -= 2;
+    // --- BATTING ---
+    if (stats.runs > 0) {
+        const runPoints = stats.runs * rules.run;
+        points += runPoints;
+        breakdown.runs = runPoints;
     }
 
-    // Strike Rate (min 10 balls)
-    if ((stats.balls || 0) >= 10) {
-        const sr = (stats.runs / stats.balls) * 100;
-        if (sr > 170) breakdown.strikeRate += 6;
-        else if (sr >= 150) breakdown.strikeRate += 4;
-        else if (sr < 60) breakdown.strikeRate -= 4;
+    if (stats.fours > 0) {
+        const fourBonus = stats.fours * rules.boundary;
+        points += fourBonus;
+        breakdown.fours = fourBonus;
     }
 
-    // --- Bowling ---
-    breakdown.bowling += (stats.wickets || 0) * 25;
-    breakdown.bonus += (stats.bowledLbwCount || 0) * 8;
-    breakdown.bowling += (stats.maidens || 0) * 12;
-
-    if ((stats.wickets || 0) >= 5) breakdown.bonus += 8;
-    else if ((stats.wickets || 0) >= 3) breakdown.bonus += 4;
-
-    // Economy (min 2 overs)
-    // Overs are often typically represented as 3.4 (3 overs 4 balls) -> convert to balls
-    // Or parser passes 'oversBowled' as float.
-    // Let's assume stats.overs is a number like 3.5
-    if ((stats.overs || 0) >= 2) {
-        const eco = (stats.runsConceded || 0) / (stats.overs || 1); // rough calc, parser should give clean eco
-        if (eco < 5) breakdown.economy += 6;
-        else if (eco >= 5 && eco <= 6) breakdown.economy += 4;
-        else if (eco > 10) breakdown.economy -= 6;
+    if (stats.sixes > 0) {
+        const sixBonus = stats.sixes * rules.six;
+        points += sixBonus;
+        breakdown.sixes = sixBonus;
     }
 
-    // --- Fielding ---
-    breakdown.fielding += (stats.catches || 0) * 8;
-    breakdown.fielding += (stats.runouts || 0) * 12;
-    breakdown.fielding += (stats.stumpings || 0) * 12;
+    // Milestones
+    if (stats.runs >= 100) {
+        points += rules.century;
+        breakdown.century = rules.century;
+    } else if (stats.runs >= 50) {
+        points += rules.half_century;
+        breakdown.half_century = rules.half_century;
+    }
 
-    // --- Total Base ---
-    points = breakdown.batting + breakdown.bowling + breakdown.fielding + breakdown.bonus + breakdown.economy + breakdown.strikeRate;
-    breakdown.total = points;
+    // Duck
+    if (stats.isOut && stats.runs === 0 && (stats.role === 'Batsman' || stats.role === 'Allrounder')) {
+        points += rules.duck; // duck value is negative in config
+        breakdown.duck = rules.duck;
+    }
 
-    // --- Multiplier ---
-    if (stats.isCaptain) points *= 2;
-    else if (stats.isViceCaptain) points *= 1.5;
+    // --- BOWLING ---
+    if (stats.wickets > 0) {
+        const wicketPoints = stats.wickets * rules.wicket;
+        points += wicketPoints;
+        breakdown.wickets = wicketPoints;
+    }
+
+    if (stats.lbwOrBowled > 0) {
+        const bonus = stats.lbwOrBowled * rules.lbw_bowled;
+        points += bonus;
+        breakdown.lbw_bowled = bonus;
+    }
+
+    // 4/5 Wicket Haul
+    if (stats.wickets >= 5) {
+        points += rules.five_wickets;
+        breakdown.five_wickets = rules.five_wickets;
+    } else if (stats.wickets >= 4) {
+        points += rules.four_wickets;
+        breakdown.four_wickets = rules.four_wickets;
+    }
+
+    if (stats.maidens > 0) {
+        const maidenPoints = stats.maidens * rules.maiden;
+        points += maidenPoints;
+        breakdown.maidens = maidenPoints;
+    }
+
+    // --- FIELDING ---
+    if (stats.catches > 0) {
+        const catchPoints = stats.catches * rules.catch;
+        points += catchPoints;
+        breakdown.catches = catchPoints;
+    }
+
+    if (stats.stumpings > 0) {
+        const stumpingPoints = stats.stumpings * rules.stump;
+        points += stumpingPoints;
+        breakdown.stumpings = stumpingPoints;
+    }
+
+    if (stats.runOuts > 0) {
+        const runOutPoints = stats.runOuts * rules.runout;
+        points += runOutPoints;
+        breakdown.run_outs = runOutPoints;
+    }
 
     return {
-        points: Math.round(points), // Ensure integer
-        breakdown
+        total: points,
+        breakdown: breakdown,
+        format_used: format // Helpful for debugging
     };
 }

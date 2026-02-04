@@ -28,7 +28,8 @@ class _AdminScaffoldState extends State<AdminScaffold> {
 
   final List<Map<String, dynamic>> _destinations = [
     {'label': 'Dashboard', 'icon': Icons.dashboard_rounded, 'route': '/admin/dashboard'},
-    {'label': 'Matches', 'icon': Icons.sports_cricket_rounded, 'route': '/admin/matches'},
+    {'label': 'Manage Matches', 'icon': Icons.sports_cricket_rounded, 'route': '/admin/dashboard'}, // Unify View
+    {'label': 'Import Matches', 'icon': Icons.cloud_download, 'route': '/admin/matches'}, // Explicit Import Link
     {'label': 'Contests', 'icon': Icons.emoji_events_rounded, 'route': '/admin/contests'},
     {'label': 'Users', 'icon': Icons.people_alt_rounded, 'route': '/admin/users'},
     {'label': 'Payouts', 'icon': Icons.payments_rounded, 'route': '/admin/wallet'},

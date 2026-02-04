@@ -10,7 +10,7 @@ abstract class PlayerModel with _$PlayerModel {
   const factory PlayerModel({
     required String id,
     required String name,
-    required String teamShortName, // e.g., "CSK"
+    String? teamShortName, // e.g., "CSK" - Nullable to handle legacy data
     required String role, // "WK", "BAT", "AR", "BOWL"
     required double credits, // e.g., 9.0
     required String imageUrl, // URL or asset path

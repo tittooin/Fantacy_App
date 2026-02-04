@@ -28,10 +28,12 @@ class _AdminMatchContestsScreenState extends ConsumerState<AdminMatchContestsScr
   Future<void> _fetchContests() async {
     setState(() => _isLoading = true);
     try {
+      // Convert String matchId to int for Firestore query
+      final int matchIdInt = int.parse(widget.matchId);
+      
       final qs = await FirebaseFirestore.instance
-          .collection('matches')
-          .doc(widget.matchId)
-          .collection('contests')
+          .collection('contests')  // Root collection (same as user-side)
+          .where('matchId', isEqualTo: matchIdInt)
           .get();
       
       final list = qs.docs.map((d) => ContestModel.fromJson(d.data())).toList();
@@ -46,9 +48,7 @@ class _AdminMatchContestsScreenState extends ConsumerState<AdminMatchContestsScr
   Future<void> _deleteContest(String contestId) async {
     try {
       await FirebaseFirestore.instance
-          .collection('matches')
-          .doc(widget.matchId)
-          .collection('contests')
+          .collection('contests')  // Root collection
           .doc(contestId)
           .delete();
       _fetchContests(); // Refresh

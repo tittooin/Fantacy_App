@@ -51,10 +51,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     if (mounted) setState(() => _isProcessing = false);
   }
   
-<<<<<<< HEAD
-  void _showWithdrawModal(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Withdrawal via Voucher coming soon!")));
-=======
   void _showWithdrawModal(BuildContext context, dynamic user) {
     final TextEditingController amountController = TextEditingController();
     final TextEditingController detailsController = TextEditingController();
@@ -173,7 +169,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         ),
       )
     );
->>>>>>> dev-update
   }
 
   @override
@@ -250,11 +245,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-<<<<<<< HEAD
-                              child: OutlinedButton.icon(
-                                onPressed: () {
-                                  _showWithdrawModal(context);
-=======
                                 child: OutlinedButton.icon(
                                 onPressed: () {
                                   // KYC CHECK
@@ -290,7 +280,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                        )
                                      );
                                   }
->>>>>>> dev-update
                                 },
                                 icon: const Icon(Icons.redeem),
                                 label: const Text("WITHDRAW"),
@@ -363,55 +352,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       backgroundColor: Colors.grey[900],
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
-<<<<<<< HEAD
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Buy Coins", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white, fontSize: 24),
-                decoration: const InputDecoration(
-                  prefixText: "₹ ",
-                  prefixStyle: TextStyle(color: Colors.white, fontSize: 24),
-                  hintText: "Enter Amount",
-                  hintStyle: TextStyle(color: Colors.white30),
-                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.green)),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text("Quick Add", style: TextStyle(color: Colors.white54)),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _quickAddChip(amountController, "100"),
-                  _quickAddChip(amountController, "500"),
-                  _quickAddChip(amountController, "1000"),
-                ],
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                     _initiateAddCash(amountController.text, user);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text("PAY & GET COINS")
-=======
       builder: (context) => StatefulBuilder( // Use StatefulBuilder to update Checkbox
         builder: (context, setModalState) => Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -437,7 +377,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
                     focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.green)),
                   ),
->>>>>>> dev-update
                 ),
                 const SizedBox(height: 20),
                 
@@ -509,44 +448,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     );
   }
 
-<<<<<<< HEAD
-  // New Transaction List using Stream from Repository
-  Widget _buildLiveTransactionList(String userId) {
-      return StreamBuilder<QuerySnapshot>(
-          stream: ref.read(walletRepositoryProvider).listenToTransactions(userId),
-          builder: (context, snapshot) {
-              if (snapshot.hasError) return const Center(child: Text("Error loading transactions"));
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              
-              final docs = snapshot.data!.docs;
-              if (docs.isEmpty) return const Center(child: Text("No transactions yet", style: TextStyle(color: Colors.white54)));
-
-              return ListView.builder(
-                  itemCount: docs.length,
-                  padding: EdgeInsets.zero,
-                  itemBuilder: (context, index) {
-                      final data = docs[index].data() as Map<String, dynamic>;
-                      final type = data['type'] ?? 'unknown';
-                      final amount = data['amount'] ?? 0;
-                      final isCredit = type == 'deposit' || type == 'winnings'; // Adjust keys as per worker
-                      
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isCredit ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
-                          child: Icon(
-                            isCredit ? Icons.arrow_downward : Icons.arrow_upward, 
-                            color: isCredit ? Colors.green : Colors.red, size: 16
-                          ),
-                        ),
-                        title: Text(type.toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 14)),
-                        subtitle: Text(data['status']?.toString().toUpperCase() ?? 'PENDING', style: const TextStyle(color: Colors.white54, fontSize: 10)),
-                        trailing: Text(
-                          "${isCredit ? '+' : '-'} ${amount.toString()}",
-                          style: TextStyle(color: isCredit ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                      );
-                  }
-=======
   // Optimized Transaction List (Future instead of Stream)
   Widget _buildLiveTransactionList(String userId) {
       return FutureBuilder<List<Map<String, dynamic>>>(
@@ -607,7 +508,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                         );
                     }
                 ),
->>>>>>> dev-update
               );
           }
       );

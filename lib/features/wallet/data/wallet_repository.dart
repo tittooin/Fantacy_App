@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 final walletRepositoryProvider = Provider((ref) => WalletRepository());
 
@@ -10,11 +11,7 @@ class WalletRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Worker URL
-<<<<<<< HEAD
-  static const String _workerUrl = "https://fantasy-cricket-api.tittooin.workers.dev";
-=======
   static const String _workerUrl = "https://fantasy-cricket-api.moremagical4.workers.dev";
->>>>>>> dev-update
 
   /// Realtime Listener for User Wallet Data
   Stream<DocumentSnapshot> listenToUserData(String userId) {
@@ -25,6 +22,11 @@ class WalletRepository {
   /// Returns {success, paymentLink, orderId, error}
   Future<Map<String, dynamic>> createDepositOrder(String userId, double amount) async {
     try {
+      debugPrint("💸 Creating Order: $userId, $amount");
+
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token == null) return {"success": false, "error": "User not authenticated"};
+
       final response = await _dio.post(
         '$_workerUrl/api/create-payment',
         data: {
@@ -33,11 +35,13 @@ class WalletRepository {
         },
         options: Options(
           headers: {
-            // Add any auth headers if needed, currently open or secured by conventions
             'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
           },
         ),
       );
+      
+      debugPrint("💸 Response: ${response.statusCode} - ${response.data}");
 
       if (response.statusCode == 200) {
         return response.data;
@@ -50,11 +54,7 @@ class WalletRepository {
     }
   }
 
-<<<<<<< HEAD
-  /// Get Transaction History
-=======
   /// Get Transaction History (Stream - Expensive)
->>>>>>> dev-update
   Stream<QuerySnapshot> listenToTransactions(String userId) {
     return _firestore
         .collection('transactions')
@@ -64,8 +64,6 @@ class WalletRepository {
         .snapshots();
   }
 
-<<<<<<< HEAD
-=======
   /// Get Transaction History (Future - Optimized)
   Future<List<Map<String, dynamic>>> getTransactions(String userId) async {
     try {
@@ -83,20 +81,14 @@ class WalletRepository {
     }
   }
 
->>>>>>> dev-update
   /// Internal: Add Funds (Winnings/Refunds)
   Future<void> addFunds(String userId, double amount) async {
-    // Ideally this goes through Worker for security, but for Service-to-Service internal calls in MVP
-    // we can use direct DB update if Rules allow, or simple increment.
-    // For now, doing direct increment as Admin/System.
-    
     await _firestore.runTransaction((transaction) async {
       final userRef = _firestore.collection('users').doc(userId);
       final snapshot = await transaction.get(userRef);
       
       if (snapshot.exists) {
         final current = (snapshot.data()?['winningBalance'] ?? 0.0) as num; 
-        // Note: Check if we update winningBalance or walletBalance
         transaction.update(userRef, {
            'winningBalance': current.toDouble() + amount,
            'walletBalance': ((snapshot.data()?['walletBalance'] ?? 0.0) as num).toDouble() + amount
@@ -104,8 +96,7 @@ class WalletRepository {
       }
     });
   }
-<<<<<<< HEAD
-=======
+
   // --- Withdrawal System (Manual) ---
 
   /// 1. Create Withdrawal Request (User)
@@ -123,8 +114,6 @@ class WalletRepository {
     
     // A. Deduct from User Wallet (Immediate Hold)
     final userRef = _firestore.collection('users').doc(userId);
-    // Note: We are deducting from walletBalance directly. 
-    // Ideally we should have 'lockedBalance', but for simplicity we deduct and refund if rejected.
     batch.update(userRef, {
       'walletBalance': FieldValue.increment(-amount),
       'winningBalance': FieldValue.increment(-amount), // Assuming withdrawal comes from winnings first
@@ -177,9 +166,7 @@ class WalletRepository {
       'adminNote': adminNote,
     });
 
-    // B. Update Transaction Status (Find transaction by relatedId is nicer, but we just add a success log or ignore)
-    // Here we choose to just log a new 'withdrawal_success' or update status.
-    // For simplicity, let's just create a notification transaction.
+    // B. Transaction Log
     final transRef = _firestore.collection('transactions').doc();
     batch.set(transRef, {
       'id': transRef.id,
@@ -228,5 +215,4 @@ class WalletRepository {
 
     await batch.commit();
   }
->>>>>>> dev-update
 }

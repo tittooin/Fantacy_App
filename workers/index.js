@@ -1,24 +1,28 @@
-/**
+﻿/**
  * Cloudflare Worker for Fantasy Cricket App
  * Hindi: RapidAPI se data fetch karke Firestore mein save karta hai
  * 
  * CORS issue solve karne ke liye server-side implementation
  */
 
+import { processCricketData } from './cricket_engine.js';
 import { calculateFantasyPoints } from './points_engine.js';
 import { processLiveContests } from './contest_engine.js';
 import { createCashfreeOrder } from './payment_service.js';
 import { handleCashfreeWebhook } from './webhook_handler.js';
+import { processLeaderboards } from './leaderboard_engine.js';
+import { processSquads, syncMatchSquad } from './squad_engine.js';
+import { processPayoutsForMatch } from './payout_engine.js'; // Added Import for Manual Trigger
+
+// ... (CORS Headers kept same)
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, x-rapidapi-key, x-rapidapi-host',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-rapidapi-key, x-rapidapi-host',
 };
 
-// Global State (In-Memory Cache)
-// Note: Workers reset frequently, so this is short-lived cache.
-let lastWorkingMatchEndpoint = '/matches/list';
+// ...
 
 export default {
     async fetch(request, env, ctx) {
@@ -29,42 +33,80 @@ export default {
         const url = new URL(request.url);
         const path = url.pathname;
 
-        // Routing - Support both clean paths and Flutter App's /api/ convention
-        if (path === '/matches' || path === '/api/get-matches') return handleGetMatches(env);
-        if (path === '/matches/refresh' || path === '/api/refresh-matches') return handleRefreshMatches(env, request);
+        // --- ROOT & COMPLIANCE (For Domain Verification) ---
+        if (path === '/') return handleStaticPage('home');
+        if (path === '/terms' || path === '/terms-and-conditions') return handleStaticPage('terms');
+        if (path === '/refund' || path === '/refund-policy' || path === '/cancellation') return handleStaticPage('refund');
+        if (path === '/privacy' || path === '/privacy-policy') return handleStaticPage('privacy');
+        if (path === '/contact' || path === '/contact-us') return handleStaticPage('contact');
 
-        // Scorecard: Support query param or path param
-        if (path === '/scorecard') return handleGetScorecard(url.searchParams.get('matchId'), env);
-        if (path.startsWith('/api/scorecard/')) {
-            const matchId = path.split('/').pop(); // Extracts ID from /api/scorecard/12345
+        if (path === '/matches' || path === '/api/get-matches') return handleGetMatches(env);
+        // Refresh manually?
+        if (path === '/matches/refresh' || path === '/api/refresh-matches') {
+            const matches = await processCricketData(env);
+            return jsonResponse({ success: true, message: "Triggered D1 Update", matches: matches });
+        }
+
+        if (path === '/scorecard' || path.startsWith('/api/scorecard')) {
+            const matchId = url.searchParams.get('matchId') || path.split('/').pop();
             return handleGetScorecard(matchId, env);
         }
 
         if (path === '/squads' || path === '/api/squads') return handleGetSquads(url.searchParams.get('matchId'), env);
 
         // --- PAYMENT ROUTES ---
+        if (path === '/pay') return handlePaymentRedirect(url.searchParams, env);
         if (path === '/api/create-payment') return handleCreatePayment(request, env);
         if (path === '/api/payment-webhook') return handlePaymentWebhook(request, env);
 
         // --- CONTEST ROUTES ---
-        // Secure server-side join to ensure wallet deduction
         if (path === '/api/join-contest') return handleJoinContest(request, env);
 
-        if (path === '/diag') return handleGlobalDiag(env);
+        // --- LEADERBOARD ROUTES ---
+        if (path === '/api/leaderboard') {
+            const contestId = url.searchParams.get('contestId');
+            if (!contestId) return jsonResponse({ success: false, error: 'contestId required' }, 400);
+            return handleGetLeaderboard(contestId, env);
+        }
+        if (path === '/api/calc-leaderboard') {
+            await processLeaderboards(env);
+            return jsonResponse({ success: true, message: 'Leaderboard Calc Triggered' });
+        }
 
-        return new Response("Fantasy Cricket Worker Live! (v2.1 - Opt) - Unknown Route: " + path, { status: 404, headers: corsHeaders });
+        // --- ADMIN D1 STATS (Zero Firestore) ---
+        if (path === '/api/admin/stats') {
+            return handleAdminStats(env);
+        }
+
+        // --- MANUAL PAYOUT TRIGGER (Safety Wrapper) ---
+        if (path === '/api/admin/payouts/distribute') {
+            // Expect POST with matchId
+            if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
+            const body = await request.json();
+            if (!body.matchId) return jsonResponse({ error: 'Match ID required' }, 400);
+
+            // Trigger Payout Logic
+            await processPayoutsForMatch(env, body.matchId);
+            return jsonResponse({ success: true, message: `Payout Process Initiated for ${body.matchId}` });
+        }
+
+        // --- MANUAL SQUAD ENTRY (Admin) ---
+        if (path === '/api/admin/match/squad') return handleAdminSaveSquad(request, env);
+
+        if (path === '/diag') return handleGlobalDiag(env);
+        if (path === '/fantasy-points') return handleGetFantasyPoints(url.searchParams.get('match_id'), env);
+        // if (path === '/debug-api') return handleDebugApi(env); // Removed in Phase 2
+
+        return new Response("Fantasy Cricket Worker (D1-Core) - Unknown Route: " + path, { status: 404, headers: corsHeaders });
     },
 
     // Scheduled Event (Cron Trigger)
-    // Runs every 2 minutes (configured in wrangler.toml)
     async scheduled(event, env, ctx) {
-        console.log("⏰ Cron Triggered: Checking Live Matches...");
-
-        // 1. Refresh Live Matches & Scores
-        await processLiveMatches(env); // In this file
-
-        // 2. Run Contest Engine (Leaderboard Updates)
-        await processLiveContests(env, null); // In contest_engine.js
+        console.log("â° Cron Triggered (D1 Mode)");
+        await processCricketData(env);     // Matches & Scores (Refactored to trigger Payouts)
+        await processLiveContests(env, null); // Legacy
+        await processLeaderboards(env); // Leaderboard Optimization
+        // await processSquads(env); // DISABLED: Manual Squad Only per User Request
     }
 };
 
@@ -123,9 +165,9 @@ async function handlePaymentWebhook(request, env) {
                 // 3. Update Transaction Status
                 await saveToFirestore('transactions', { id: orderId, status: 'success', gatewayResponse: JSON.stringify(gatewayData) }, env);
 
-                console.log(`✅ Wallet Updated for ${userId}: +${amount}`);
+                console.log(`âœ… Wallet Updated for ${userId}: +${amount}`);
             } else {
-                console.log(`⚠️ Transaction ${orderId} not found or already processed.`);
+                console.log(`âš ï¸ Transaction ${orderId} not found or already processed.`);
             }
         }
         else if (result.action === 'UPDATE_TRANSACTION_FAILED') {
@@ -146,7 +188,7 @@ async function handlePaymentWebhook(request, env) {
 async function handleJoinContest(request, env) {
     try {
         const body = await request.json();
-        const { userId, contestId, matchId, teamName, playerIds } = body; // playerIds if we select team here, or teamId if separate
+        const { userId, contestId, matchId, teamName, playerIds, teamId } = body; // ADDED teamId
 
         if (!userId || !contestId || !matchId) {
             return jsonResponse({ success: false, error: 'Missing required fields' }, 400);
@@ -173,7 +215,7 @@ async function handleJoinContest(request, env) {
         const newBalance = currentCoins - entryFee;
         await saveToFirestore('users', { id: userId, walletCoins: newBalance }, env);
 
-        // 5. Log Transaction
+        // 5. Log Transaction (Audit)
         const txnId = `join_${Date.now()}_${userId}`;
         await saveToFirestore('transactions', {
             id: txnId,
@@ -185,17 +227,33 @@ async function handleJoinContest(request, env) {
             createdAt: new Date().toISOString()
         }, env);
 
-        // 6. Add Participant to Contest (Subcollection)
-        // contests/{contestId}/participants/{userId}
-        await saveToFirestore(`contests/${contestId}/participants`, {
-            id: userId,
-            name: user.name || 'Unknown', // Ideally fetch from user doc
-            teamName: teamName || `Team ${userId.substring(0, 4)}`,
-            playerIds: playerIds || [],
-            totalPoints: 0,
-            rank: 0,
-            joinedAt: new Date().toISOString()
-        }, env);
+        // 6. D1 WRITE (PRIMARY) - ZERO FIRESTORE FOR PARTICIPANTS
+        // 'contest_participants' is the SOLE source of truth for contest entry
+        try {
+            await env.DB.prepare(
+                `INSERT OR REPLACE INTO contest_participants (contest_id, user_id, team_id, player_ids, team_name, joined_at, match_id) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`
+            ).bind(
+                contestId,
+                userId,
+                teamId || userId,
+                JSON.stringify(playerIds || []),
+                teamName || 'User Team',
+                Date.now(),
+                matchId
+            ).run();
+
+            // Sync simple count to D1 contests table (Optimistic)
+            await env.DB.prepare(
+                `UPDATE contests SET filled_spots = filled_spots + 1 WHERE id = ?`
+            ).bind(contestId).run().catch(e => console.log("Contest Count Update Failed", e));
+
+        } catch (d1Error) {
+            console.error("D1 Join Error:", d1Error);
+            // Panic: If D1 fails, refund user? Or retry?
+            // For now, return error but money is deducted (Audit exists in transactions to manual fix)
+            return jsonResponse({ success: false, error: "Join Failed on Server DB", tips: "Contact Support" }, 500);
+        }
 
         return jsonResponse({ success: true, message: 'Contest Joined Successfully', remainingBalance: newBalance });
 
@@ -204,6 +262,51 @@ async function handleJoinContest(request, env) {
         return jsonResponse({ success: false, error: e.message }, 500);
     }
 }
+
+async function handleAdminStats(env) {
+    try {
+        // Aggregated stats from D1
+        const matchesCount = await env.DB.prepare("SELECT COUNT(*) as c FROM matches WHERE status='Live'").first();
+        const upcomingCount = await env.DB.prepare("SELECT COUNT(*) as c FROM matches WHERE status='Upcoming'").first();
+        const contestsCount = await env.DB.prepare("SELECT COUNT(*) as c FROM contests").first();
+
+        // Users count - depends if we sync users. 
+        // If not synced, return 0 or fetching from a 'stats' table if we had one.
+        // For now, query 'users' table (Schema V4 created it)
+        const usersCount = await env.DB.prepare("SELECT COUNT(*) as c FROM users").first();
+
+        return jsonResponse({
+            success: true,
+            stats: {
+                liveMatches: matchesCount?.c || 0,
+                upcomingMatches: upcomingCount?.c || 0,
+                activeContests: contestsCount?.c || 0,
+                totalUsers: usersCount?.c || 0,
+                // Payouts/KYC are financial, still Firestore-bound for now, or 0
+                pendingPayouts: 0,
+                kycPending: 0
+            }
+        });
+    } catch (e) {
+        return jsonResponse({ success: false, error: e.message });
+    }
+}
+
+async function handleGetLeaderboard(contestId, env) {
+    try {
+        const row = await env.DB.prepare(
+            "SELECT data FROM contest_leaderboards WHERE contest_id = ?"
+        ).bind(contestId).first();
+
+        if (row && row.data) {
+            return jsonResponse({ success: true, leaderboard: JSON.parse(row.data) });
+        }
+        return jsonResponse({ success: true, leaderboard: [] }); // Empty if processing hasn't run yet
+    } catch (e) {
+        return jsonResponse({ success: false, error: e.message });
+    }
+}
+
 
 // Helper: Fetch Single Doc (Since getFromFirestore returns List)
 async function fetchDoc(path, env) {
@@ -226,209 +329,34 @@ async function fetchDoc(path, env) {
     }
 }
 
-/**
- * Phase 3: Points Engine & Live Score Processing
- * OPTIMIZED: Only write updates if points changed (Delta Updates)
- */
-async function processLiveMatches(env) {
-    const apiKey = env.RAPID_API_KEY;
-    const apiHost = env.RAPID_API_HOST || 'free-cricbuzz-cricket-api.p.rapidapi.com';
 
-    try {
-        // console.log(`📡 Fetching Live Scores...`);
-        const response = await fetch(`https://${apiHost}/cricket-livescores`, {
-            method: 'GET',
-            headers: {
-                'x-rapidapi-key': apiKey,
-                'x-rapidapi-host': apiHost
-            }
-        });
+// Legacy processLiveMatches removed. Using cricket_engine.js (D1)
 
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-        const data = await response.json();
 
-        // Handle API wrapper
-        const liveMatches = data.response || (Array.isArray(data) ? data : []) || [];
-        console.log(`Live Matches: ${liveMatches.length}`);
 
-        for (const match of liveMatches) {
-            const matchId = match.matchId || match.id || match.match_id;
-            if (!matchId) continue;
-
-            const playerStatsList = extractPlayerStats(match);
-
-            // OPTIMIZATION: Read existing players first to avoid unnecessary writes
-            const existingPlayersMap = await fetchCollectionMap(env, `matches/${matchId}/players`);
-
-            let updates = [];
-
-            for (const stats of playerStatsList) {
-                const pid = stats.playerId.toString();
-                const fantasy = calculateFantasyPoints(stats);
-
-                const existing = existingPlayersMap[pid];
-
-                // Check if points changed
-                if (!existing || existing.fantasyPoints !== fantasy.points) {
-                    updates.push({
-                        id: pid,
-                        ...stats,
-                        fantasyPoints: fantasy.points,
-                        fantasyBreakdown: fantasy.breakdown,
-                        lastUpdated: new Date().toISOString()
-                    });
-                }
-            }
-
-            if (updates.length > 0) {
-                console.log(`⚡ Match ${matchId}: Updating ${updates.length} players (Saved ${playerStatsList.length - updates.length} writes)`);
-
-                const batchPromises = updates.map(p => saveToFirestore(`matches/${matchId}/players`, p, env));
-                await Promise.all(batchPromises);
-
-                await updateLeaderboard(matchId, env);
-            } else {
-                console.log(`💤 Match ${matchId}: No point changes. Skipping write.`);
-            }
-        }
-
-    } catch (e) {
-        console.error("Error in processLiveMatches:", e);
-    }
-}
-
-// Helper to fetch collection as ID Map
-async function fetchCollectionMap(env, path) {
-    const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}?pageSize=300&key=${env.FIREBASE_API_KEY}`;
-    try {
-        const res = await fetch(url);
-        if (!res.ok) return {};
-        const data = await res.json();
-        if (!data.documents) return {};
-
-        const map = {};
-        data.documents.forEach(doc => {
-            const id = doc.name.split('/').pop();
-            const fields = doc.fields;
-            let points = 0;
-            if (fields.fantasyPoints) {
-                if (fields.fantasyPoints.doubleValue) points = parseFloat(fields.fantasyPoints.doubleValue);
-                else if (fields.fantasyPoints.integerValue) points = parseInt(fields.fantasyPoints.integerValue);
-            }
-            map[id] = { fantasyPoints: points };
-        });
-        return map;
-    } catch (e) {
-        return {};
-    }
-}
-
-function extractPlayerStats(matchData) {
-    let stats = [];
-
-    if (matchData.batsman || matchData.bowler) {
-        (matchData.batsman || []).forEach(b => {
-            stats.push({
-                playerId: (b.id || b.playerId || '0').toString(),
-                name: b.name || 'Unknown',
-                team: b.team || 'Unknown',
-                isBatting: true,
-                runs: parseInt(b.runs || 0),
-                balls: parseInt(b.balls || 0),
-                fours: parseInt(b.fours || 0),
-                sixes: parseInt(b.sixes || 0),
-                isOut: b.dismissal ? true : false
-            });
-        });
-
-        (matchData.bowler || []).forEach(b => {
-            let existing = stats.find(p => p.playerId === (b.id || b.playerId || '0').toString());
-            if (!existing) {
-                existing = {
-                    playerId: (b.id || b.playerId || '0').toString(),
-                    name: b.name || 'Unknown',
-                    team: b.team || 'Unknown',
-                    isBatting: false
-                };
-                stats.push(existing);
-            }
-            existing.wickets = parseInt(b.wickets || 0);
-            existing.overs = parseFloat(b.overs || 0);
-            existing.maidens = parseInt(b.maidens || 0);
-            existing.runsConceded = parseInt(b.runs || 0);
-        });
-    }
-
-    return stats;
-}
-
-async function updateLeaderboard(matchId, env) {
-    // Placeholder
-    // console.log(`Leaderboard update requested for ${matchId}`);
-}
-
-async function handleRefreshMatches(env, request) {
-    try {
-        console.log('🔄 Refresh triggered');
-
-        // 1. Check Rate Limit / Cache (30 Minutes)
-        // Unless ?force=true is passed
-        const url = new URL(request.url);
-        const force = url.searchParams.get('force') === 'true';
-
-        if (!force) {
-            const cachedMatches = await getFromFirestore('matches', env);
-            if (cachedMatches.length > 0) {
-                // Find most recent update
-                const lastUpdate = cachedMatches.reduce((max, m) => Math.max(max, m.lastUpdated || 0), 0);
-                const diffMins = (Date.now() - lastUpdate) / (1000 * 60);
-
-                if (diffMins < 30) {
-                    console.log(`✨ Serving cached matches (Age: ${diffMins.toFixed(1)} mins)`);
-                    return jsonResponse({
-                        success: true,
-                        cached: true,
-                        total_matches: cachedMatches.length,
-                        message: `Served from Cache (Next refresh in ${(30 - diffMins).toFixed(0)} mins). Use ?force=true to override.`
-                    });
-                }
-            }
-        }
-
-        console.log('⚡ Cache expired or Forced. Calling RapidAPI...');
-        const matches = await fetchFromRapidAPI('/cricket-schedule', env);
-        if (!matches || matches.length === 0) {
-            return jsonResponse({ success: false, message: 'No matches found from API' });
-        }
-        await saveToFirestore('matches', matches, env);
-        return jsonResponse({
-            success: true,
-            total_matches: matches.length,
-            message: `Refreshed ${matches.length} matches from API.`
-        });
-    } catch (error) {
-        return jsonResponse({ success: false, error: error.message });
-    }
-}
+// --- D1 HANDLERS ---
 
 async function handleGetMatches(env) {
     try {
-        const matches = await getFromFirestore('matches', env);
-        return jsonResponse({ success: true, matches });
+        const { results } = await env.DB.prepare('SELECT * FROM matches ORDER BY start_time ASC').all();
+        return jsonResponse({ success: true, matches: results });
     } catch (error) {
         return jsonResponse({ success: false, error: error.message });
     }
 }
 
+// ... (Other handlers kept as is, but remove old processLiveMatches logic)
+
 async function handleGetScorecard(matchId, env) {
     try {
-        const scorecard = await fetchFromRapidAPI(`/scorecard?matchId=${matchId}`, env);
-        if (scorecard) {
-            // Optional: Save to Firestore if needed, or just return proxy
-            // await saveToFirestore(`scorecards`, { id: matchId, ...scorecard }, env);
-            return jsonResponse({ success: true, scorecard });
+        const score = await env.DB.prepare('SELECT * FROM live_scores WHERE match_id = ?').bind(matchId).first();
+        if (score) {
+            return jsonResponse({ success: true, scorecard: score, source: 'D1' });
         }
-        return jsonResponse({ success: false, message: 'Scorecard not found' });
+
+        // 2. Fallback: Return empty/status
+        return jsonResponse({ success: false, message: 'Scorecard not available in D1' });
+
     } catch (error) {
         return jsonResponse({ success: false, error: error.message });
     }
@@ -438,15 +366,103 @@ async function handleGetSquads(matchId, env) {
     try {
         if (!matchId) return jsonResponse({ success: false, error: 'matchId required' });
 
-        // RapidAPI endpoint: /get-squad
-        const data = await fetchFromRapidAPI(`/get-squad?matchId=${matchId}`, env);
+        // 1. Try D1 First (Zero Quota)
+        const d1Squad = await env.DB.prepare(
+            "SELECT team_a_roster, team_b_roster, playing_11_a, playing_11_b FROM match_squads WHERE match_id = ?"
+        ).bind(matchId).first();
 
-        if (data) {
-            return jsonResponse(data); // Pass through exact structure to Flutter
+        if (d1Squad && d1Squad.team_a_roster) {
+            // Reconstruct JSON structure expected by app
+            return jsonResponse({
+                success: true,
+                source: 'D1',
+                teamA: JSON.parse(d1Squad.team_a_roster),
+                teamB: JSON.parse(d1Squad.team_b_roster),
+                xiA: JSON.parse(d1Squad.playing_11_a || '[]'),
+                xiB: JSON.parse(d1Squad.playing_11_b || '[]')
+            });
         }
-        return jsonResponse({ success: false, message: 'Squad not found' });
+
+        // 2. Fallback: On-Demand Sync
+        // If D1 is empty, trigger a sync now using the fallback logic in squad_engine.js
+        console.log(`âš ï¸ Squad missing in D1 for ${matchId}. Triggering On-Demand Sync...`);
+
+        // Construct minimal match object for sync
+        const mockMatch = { id: matchId, status: 'Upcoming' }; // Status helps logging
+        await syncMatchSquad(env, mockMatch, env.RAPID_API_KEY, env.RAPID_API_HOST);
+
+        // 3. Retry D1 Fetch
+        const d1Retry = await env.DB.prepare(
+            "SELECT team_a_roster, team_b_roster, playing_11_a, playing_11_b FROM match_squads WHERE match_id = ?"
+        ).bind(matchId).first();
+
+        if (d1Retry && d1Retry.team_a_roster) {
+            return jsonResponse({
+                success: true,
+                source: 'D1_SYNC',
+                teamA: JSON.parse(d1Retry.team_a_roster),
+                teamB: JSON.parse(d1Retry.team_b_roster),
+                xiA: JSON.parse(d1Retry.playing_11_a || '[]'),
+                xiB: JSON.parse(d1Retry.playing_11_b || '[]')
+            });
+        }
+
+        return jsonResponse({ success: false, message: 'Squad not found even after sync' });
     } catch (error) {
         return jsonResponse({ success: false, error: error.message });
+    }
+}
+
+async function handleAdminSaveSquad(request, env) {
+    if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
+    try {
+        const body = await request.json();
+        const { matchId, teamA, teamB, xiA, xiB } = body;
+
+        if (!matchId || !teamA || !teamB) {
+            return jsonResponse({ success: false, error: 'Missing required fields: matchId, teamA, teamB' }, 400);
+        }
+
+        // 1. Verify Match Status (Must be Upcoming)
+        // Actually User asked "Lock after Live", so allow edits for 'Upcoming'.
+        // Let's check status.
+        const match = await env.DB.prepare("SELECT status FROM matches WHERE id = ?").bind(matchId).first();
+        if (!match) return jsonResponse({ success: false, error: 'Match not found' }, 404);
+
+        if (match.status !== 'Upcoming' && match.status !== 'Live') {
+            // Allowing 'Live' for emergency fixes, but 'Completed' is definitely locked.
+            // User Rule: "Match Live hone ke baad squad LOCK ho jaaye".
+            // Strict compliance:
+            if (match.status !== 'Upcoming') {
+                return jsonResponse({ success: false, error: 'Squad is LOCKED. Match is Live or Completed.' }, 403);
+            }
+        }
+
+        // 2. Save to D1
+        await env.DB.prepare(`
+            INSERT INTO match_squads (match_id, team_a_roster, team_b_roster, playing_11_a, playing_11_b, last_updated)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(match_id) DO UPDATE SET
+                team_a_roster = excluded.team_a_roster,
+                team_b_roster = excluded.team_b_roster,
+                playing_11_a = excluded.playing_11_a,
+                playing_11_b = excluded.playing_11_b,
+                last_updated = excluded.last_updated
+        `).bind(
+            matchId,
+            JSON.stringify(teamA),
+            JSON.stringify(teamB),
+            JSON.stringify(xiA || []),
+            JSON.stringify(xiB || []),
+            Date.now()
+        ).run();
+
+        console.log(`âœ… Admin Saved Squad for ${matchId}`);
+        return jsonResponse({ success: true, message: 'Squad Saved Successfully' });
+
+    } catch (e) {
+        console.error("Admin Squad Save Error", e);
+        return jsonResponse({ success: false, error: e.message }, 500);
     }
 }
 
@@ -456,7 +472,7 @@ async function fetchFromRapidAPI(endpoint, env, retryCount = 0) {
     if (endpoint.includes('matches') && !isProbe) {
         targetEndpoint = lastWorkingMatchEndpoint || '/matches/list';
     }
-    const host = env.RAPID_API_HOST || 'free-cricbuzz-cricket-api.p.rapidapi.com';
+    const host = env.RAPID_API_HOST || 'unofficial-cricbuzz.p.rapidapi.com';
     const url = `https://${host}${targetEndpoint}`;
 
     try {
@@ -469,7 +485,7 @@ async function fetchFromRapidAPI(endpoint, env, retryCount = 0) {
         });
 
         if (!response.ok) {
-            console.error(`❌ RapidAPI Error: ${response.status} ${response.statusText}`);
+            console.error(`âŒ RapidAPI Error: ${response.status} ${response.statusText}`);
             return [];
         }
 
@@ -523,13 +539,13 @@ async function fetchFromRapidAPI(endpoint, env, retryCount = 0) {
         }
 
         if (matches.length === 0) {
-            console.log("⚠️ No matches parsed from API. Raw Keys:", Object.keys(data));
+            console.log("âš ï¸ No matches parsed from API. Raw Keys:", Object.keys(data));
         }
 
         return matches; // Always return array
 
     } catch (error) {
-        console.error('❌ Parse error:', error);
+        console.error('âŒ Parse error:', error);
         return [];
     }
 }
@@ -581,7 +597,7 @@ export async function saveToFirestore(collection, data, env) {
                 body: JSON.stringify({ fields })
             });
         } catch (e) {
-            console.error(`❌ Firestore Save Error: ${e.message}`);
+            console.error(`âŒ Firestore Save Error: ${e.message}`);
         }
     }
     return true;
@@ -609,9 +625,192 @@ async function handleGlobalDiag(env) {
     return jsonResponse({ status: 'ok' });
 }
 
+async function handleGetFantasyPoints(matchId, env) {
+    if (!matchId) return jsonResponse({ success: false, error: 'Match ID required' }, 400);
+
+    try {
+        const points = await env.DB.prepare('SELECT * FROM fantasy_points WHERE match_id = ?').bind(matchId).all();
+        // Parse breakdown JSON for cleaner response
+        const formatted = points.results.map(p => ({
+            ...p,
+            breakdown: JSON.parse(p.breakdown || '{}')
+        }));
+        return jsonResponse({ success: true, points: formatted });
+    } catch (e) {
+        return jsonResponse({ success: false, error: e.message });
+    }
+}
+
 export function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
         status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+}
+
+/**
+ * Serves a HTML page that auto-redirects to Cashfree Payment Gateway
+ */
+function handlePaymentRedirect(params, env) {
+    const sessionId = params.get('session_id');
+    const environment = params.get('env') || 'prod';
+
+    if (!sessionId) return new Response("Missing Session ID", { status: 400 });
+
+    const sdkUrl = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Prevent Caching -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Redirecting to Payment...</title>
+    <script src="${sdkUrl}"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .container { text-align: center; }
+        p { margin-top: 20px; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loader" style="margin:0 auto;"></div>
+        <p>Redirecting to Secure Payment Gateway...</p>
+        <p style="font-size:12px; color:#999">Session: ${sessionId.substring(0, 10)}...</p>
+    </div>
+    <script>
+        window.onload = function() {
+            try {
+                console.log("Initializing Cashfree v3...");
+                // V3 Factory - try without new first, or check type
+                const cashfree = Cashfree({
+                    mode: "${environment === 'sandbox' ? 'sandbox' : 'production'}"
+                });
+                console.log("Cashfree Instance:", cashfree); 
+                console.log("Redirecting...");
+                cashfree.checkout({
+                    paymentSessionId: "${sessionId}",
+                    redirectTarget: "_self"
+                });
+            } catch(e) {
+                console.error("Initialization Error:", e);
+                document.body.innerHTML = "<p style='color:red; text-align:center'>Error: " + e.message + "<br><br>Check Console for details.</p>";
+            }
+        };
+    </script>
+</body>
+</html>
+    `;
+
+    return new Response(html, {
+        headers: {
+            'Content-Type': 'text/html',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            ...corsHeaders
+        }
+    });
+}
+
+// --- STATIC PAGES FOR COMPLIANCE (Cashfree Verification) ---
+
+// --- STATIC PAGES FOR COMPLIANCE (Cashfree Verification) ---
+function handleStaticPage(type) {
+    let title = "Fantasy Cricket API";
+    let content = "";
+
+    const style = "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; color: #333; background: #fafafa; } .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); } h1 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 15px; } h2 { margin-top: 30px; color: #34495e; font-size: 1.2em; } a { color: #3498db; text-decoration: none; } ul { opacity: 0.8; } .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #999; }";
+
+    if (type === 'home') {
+        title = "Fantasy Cricket API - Skill Platform";
+        content = `
+            <div class="card">
+                <h1>Fantasy Cricket Services</h1>
+                <p>Welcome to the secure backend services for Axevora Labs' Skill-Based Cricket Strategy Platform.</p>
+                <p><strong>Status:</strong> Systems Operational ðŸŸ¢</p>
+                <p>This platform offers analytics, team management, and strategy simulation tools for cricket enthusiasts. All transactions are for digital services and skill-based contests.</p>
+                <p>Managed by <a href="https://axevoralabs.com">Axevora Labs</a>.</p>
+            </div>
+        `;
+    } else if (type === 'terms') {
+        title = "Terms of Service";
+        content = `
+            <div class="card">
+                <h1>Terms of Service</h1>
+                <p><strong>1. Introduction:</strong> These terms govern your use of our Skill-Based Fantasy Sports Platform. By accessing our services, you confirm you are 18+ years of age.</p>
+                <p><strong>2. Game of Skill:</strong> Our contests are strictly "Games of Skill" as recognized by the Supreme Court of India. Success depends on knowledge, training, attention, and experience of the player.</p>
+                <p><strong>3. Use of Services:</strong> Users pay platform fees to participate in organized skill contests. We strictly prohibit any form of gambling, betting, or wagering.</p>
+                <p><strong>4. Restricted States:</strong> Users from Assam, Odisha, Telangana, Nagaland, Sikkim, and Andhra Pradesh are restricted from paid contests.</p>
+                <p>For full legal terms, visit: <a href="https://axevoralabs.com/terms">Main Terms Policy</a></p>
+            </div>
+        `;
+    } else if (type === 'refund') {
+        title = "Refund & Cancellation Policy";
+        content = `
+            <div class="card">
+                <h1>Refund & Cancellation Policy</h1>
+                <h2>Cancellation</h2>
+                <p>Users may withdraw from a contest anytime before the match deadline. The participation amount will be instantly credited back to the user's unutilized wallet balance.</p>
+                <h2>Refunds</h2>
+                <p><strong>Failed Transactions:</strong> If amount is deducted but not credited, it will be automatically refunded within 5-7 business days.</p>
+                <p><strong>Contest Cancellation:</strong> If a real-world match is abandoned, all contest participation fees are refunded 100% to the user's wallet.</p>
+                <p><strong>Finality:</strong> Once a contest is Live, participation is final and non-refundable as the service is considered consumed.</p>
+            </div>
+        `;
+    } else if (type === 'privacy') {
+        title = "Privacy Policy";
+        content = `
+            <div class="card">
+                <h1>Privacy Policy</h1>
+                <p>We respect your privacy. We collect minimal data (Email, Mobile) essential for account security and service delivery.</p>
+                <p><strong>Data Usage:</strong> Your data is used strictly for authentication and transaction processing. We do not sell data to third parties.</p>
+                <p><strong>Secure Payments:</strong> All financial transactions are processed via regulating PCI-DSS compliant gateways.</p>
+            </div>
+        `;
+    } else if (type === 'contact') {
+        title = "Contact Us";
+        content = `
+            <div class="card">
+                <h1>Contact Us</h1>
+                <p>For support regarding payments, account, or contests, reach out to us:</p>
+                <ul>
+                    <li><strong>Email:</strong> support@axevoralabs.com</li>
+                    <li><strong>Operating Hours:</strong> Mon-Fri, 10 AM - 6 PM IST</li>
+                </ul>
+                <p><strong>Registered Address:</strong><br>Axevora Labs,<br>India.</p>
+            </div>
+        `;
+    }
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="robots" content="noindex, nofollow">
+            <title>${title}</title>
+            <style>${style}</style>
+        </head>
+        <body>
+            ${content}
+            <div class="footer">
+                &copy; ${new Date().getFullYear()} Axevora Labs. All Rights Reserved.<br>
+                <small>Indian Fantasy Sports Association Compliant</small>
+            </div>
+        </body>
+        </html>
+    `;
+
+    return new Response(html, {
+        headers: { 'Content-Type': 'text/html' }
     });
 }

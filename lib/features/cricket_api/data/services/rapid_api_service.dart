@@ -24,13 +24,40 @@ class RapidApiService {
       
       if (response.statusCode == 200) {
         final data = response.data;
+        
+        // LOG RAW RESPONSE FOR DEBUGGING
+        if (kDebugMode) {
+           debugPrint("🔍 Worker Raw Response: $data");
+        }
+
         if (data['success'] == true) {
           debugPrint("✅ Worker → Success: ${data['message']}");
-          return []; // UI will listen to Firestore
+          // Fix: Return matches if available so Import Dialog can show them
+          if (data['matches'] != null) {
+            final List<dynamic> list = data['matches'];
+            if (list.isEmpty) {
+               debugPrint("⚠️ Worker returned EMPTY 'matches' list.");
+            } else {
+               debugPrint("✅ Worker → Returning ${list.length} matches for Import");
+               if (list.isNotEmpty) {
+                 debugPrint("🔍 FIRST MATCH RAW: ${list.first}");
+               }
+            }
+            // Fix: Use fromMap because Worker sends FLATTENED data (processed), not Raw Nested JSON
+            return list.map((m) {
+              // debugPrint("Parsing match: $m"); 
+              return CricketMatchModel.fromMap(m);
+            }).toList();
+          } else {
+             debugPrint("⚠️ Worker Response Missing 'matches' key.");
+          }
+          return [];
         } else {
           debugPrint("⚠️ Worker → Error: ${data['error'] ?? data['message']}");
           if (data['tip'] != null) debugPrint("💡 Tip: ${data['tip']}");
         }
+      } else {
+         debugPrint("❌ Worker HTTP Error: ${response.statusCode}");
       }
     } catch (e) {
       debugPrint("❌ Worker Fixture Error: $e");
@@ -106,12 +133,23 @@ class RapidApiService {
         // Handle both List (Direct) and Map (Wrapper) responses
         if (data is List) {
           players = data;
-        } else if (data is Map && data['success'] == true && data['players'] != null) {
-          players = data['players'];
+        } else if (data is Map && data['success'] == true) {
+             // Phase 2: Handle teamA and teamB split
+             if (data['teamA'] != null || data['teamB'] != null) {
+                  players = [
+                      ...?(data['teamA'] as List?),
+                      ...?(data['teamB'] as List?)
+                  ];
+             } 
+             // Phase 1 Legacy: 'players' key
+             else if (data['players'] != null) {
+                  players = data['players'];
+             }
         }
 
         if (players.isNotEmpty) {
           debugPrint("✅ Worker → Received ${players.length} players. Saving to Firestore...");
+          debugPrint("🔍 DEBUG: First player data: ${players.first}");
           
           final batch = import_firestore.FirebaseFirestore.instance.batch();
           final collectionRef = import_firestore.FirebaseFirestore.instance
@@ -125,6 +163,9 @@ class RapidApiService {
           for (var p in players) {
              // Ensure 'id' exists
              if (p['id'] != null) {
+               // DEBUG: Log what Worker returned for teamShortName
+               debugPrint("🔍 Worker Data - Player: ${p['name']}, teamShortName: '${p['teamShortName']}'");
+               
                final docRef = collectionRef.doc(p['id'].toString());
                batch.set(docRef, p);
              }
@@ -133,20 +174,36 @@ class RapidApiService {
           await batch.commit();
           debugPrint("✅ Firestore → Squad Saved!");
         } else {
-<<<<<<< HEAD
-           throw Exception("Worker returned no players or invalid format");
-        }
-=======
            debugPrint("❌ Worker Response Data: $data"); // Log actual data
            throw Exception("Worker returned no players. Response: $data");
         }
       } else {
         throw Exception("Worker API Error: ${response.statusCode}");
->>>>>>> dev-update
       }
     } catch (e) {
       debugPrint("❌ Worker Squads Error: $e");
       rethrow;
+    }
+  }
+
+  /// Endpoint 6: Manual Payout Trigger (Admin Only)
+  Future<Map<String, dynamic>> distributePrizes(String matchId) async {
+    try {
+      debugPrint("📡 [Worker] POST /api/admin/payouts/distribute");
+      final response = await _dio.post(
+        '$_workerUrl/api/admin/payouts/distribute',
+        data: {'matchId': matchId},
+      );
+      
+      if (response.statusCode == 200) {
+        debugPrint("✅ Payout Triggered: ${response.data}");
+        return response.data;
+      } else {
+        throw Exception("Server Error: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("❌ Payout Error: $e");
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -177,6 +234,19 @@ class RapidApiService {
   Future<List<Map<String, dynamic>>> fetchSeries() async {
     debugPrint("⚠️ [Worker] fetchSeries not implemented yet");
     return [];
+  }
+
+  /// Endpoint 8: Admin Stats (D1 Aggregation)
+  Future<Map<String, dynamic>> fetchAdminStats() async {
+    try {
+      final response = await _dio.get('$_workerUrl/api/admin/stats');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['stats'] as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint("❌ Admin Stats Error: $e");
+    }
+    return {};
   }
 }
 

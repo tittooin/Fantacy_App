@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:axevora11/features/team/data/firestore_player_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TeamBuilderScreen extends ConsumerStatefulWidget {
   final CricketMatchModel match;
@@ -17,6 +18,7 @@ class TeamBuilderScreen extends ConsumerStatefulWidget {
 
 class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
   // State
+  CricketMatchModel? _activeMatch; // New local source of truth
   List<PlayerModel> _allPlayers = [];
   Set<String> _selectedIds = {};
   
@@ -37,15 +39,36 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
   static const int minBOWL = 3, maxBOWL = 6;
 
   bool _isLoading = true;
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
   
   @override
   void initState() {
     super.initState();
-    _loadPlayers();
+    _activeMatch = widget.match; // Initialize with passed data
+    _loadData();
   }
 
-  Future<void> _loadPlayers() async {
-    // Load from Firestore
+  Future<void> _loadData() async {
+    // 1. Fetch Fresh Match Data to ensure ShortNames are correct
+    try {
+      final doc = await FirebaseFirestore.instance.collection('matches').doc(widget.match.id.toString()).get();
+      if (doc.exists && doc.data() != null) {
+        setState(() {
+           _activeMatch = CricketMatchModel.fromMap(doc.data()!);
+        });
+        debugPrint("✅ Fresh Match Data: ${_activeMatch?.team1ShortName} vs ${_activeMatch?.team2ShortName}");
+      }
+    } catch (e) {
+      debugPrint("⚠️ Failed to refresh match data: $e");
+    }
+
+    // 2. Load Players
     final fetched = await FirestorePlayerService().getPlayers(widget.match.id.toString());
     
     if (mounted) {
@@ -59,7 +82,7 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
               _selectedIds.add(p.id);
               _totalCreditsUsed += p.credits;
               
-              if (p.teamShortName == widget.match.team1ShortName) {
+              if (_isTeam1(p)) {
                 _team1Count++;
               } else {
                 _team2Count++;
@@ -71,13 +94,22 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
     }
   }
 
+  bool _isTeam1(PlayerModel player) {
+    if (_activeMatch == null) return false;
+    final pTeam = (player.teamShortName ?? '').trim().toUpperCase();
+    final mTeam1 = _activeMatch!.team1ShortName.trim().toUpperCase();
+    return pTeam == mTeam1; 
+  }
+
   void _toggleSelection(PlayerModel player) {
     setState(() {
+      final isT1 = _isTeam1(player);
+      
       if (_selectedIds.contains(player.id)) {
         // Deselect
         _selectedIds.remove(player.id);
         _totalCreditsUsed -= player.credits;
-        if (player.teamShortName == widget.match.team1ShortName) {
+        if (isT1) {
           _team1Count--;
         } else {
           _team2Count--;
@@ -94,12 +126,15 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
           _showError("Not enough credits!");
           return;
         }
-        if (player.teamShortName == widget.match.team1ShortName && _team1Count >= 7) {
-            _showError("Max 7 players from ${widget.match.team1ShortName}!");
+        
+        final maxPerTeam = 7;
+        
+        if (isT1 && _team1Count >= maxPerTeam) {
+            _showError("Max $maxPerTeam players from ${_activeMatch!.team1ShortName}!");
             return;
         }
-         if (player.teamShortName != widget.match.team1ShortName && _team2Count >= 7) {
-            _showError("Max 7 players from ${widget.match.team2ShortName}!");
+        if (!isT1 && _team2Count >= maxPerTeam) {
+            _showError("Max $maxPerTeam players from ${_activeMatch!.team2ShortName}!");
             return;
         }
 
@@ -111,7 +146,7 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
 
         _selectedIds.add(player.id);
         _totalCreditsUsed += player.credits;
-        if (player.teamShortName == widget.match.team1ShortName) {
+        if (isT1) {
           _team1Count++;
         } else {
           _team2Count++;
@@ -229,17 +264,32 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
                 ),
                 Row(
                   children: [
-                     Image.network("https://via.placeholder.com/20?text=${widget.match.team1ShortName}", width: 20, errorBuilder: (c,e,s)=>const Icon(Icons.circle, size: 10, color: Colors.white)),
+                     // Team 1 Badge
+                     Image.network("https://via.placeholder.com/20?text=${_activeMatch?.team1ShortName ?? 'T1'}", width: 20, errorBuilder: (c,e,s)=>const Icon(Icons.circle, size: 10, color: Colors.blue)),
                      const SizedBox(width: 4),
-                     Text(widget.match.team1ShortName, style: const TextStyle(color: Colors.white)),
-                     const SizedBox(width: 8),
-                     Text("$_team1Count", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                     Text(_activeMatch?.team1ShortName.isNotEmpty == true ? _activeMatch!.team1ShortName : 'Team 1', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                     const SizedBox(width: 4),
+                     Container(
+                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                       decoration: BoxDecoration(
+                         color: _team1Count >= 7 ? Colors.red : Colors.green.withOpacity(0.3),
+                         borderRadius: BorderRadius.circular(4),
+                       ),
+                       child: Text("$_team1Count", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                     ),
                      const SizedBox(width: 16),
-                      Text("$_team2Count", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                     const SizedBox(width: 8),
-                     Text(widget.match.team2ShortName, style: const TextStyle(color: Colors.white)),
+                     Container(
+                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                       decoration: BoxDecoration(
+                         color: _team2Count >= 7 ? Colors.red : Colors.green.withOpacity(0.3),
+                         borderRadius: BorderRadius.circular(4),
+                       ),
+                       child: Text("$_team2Count", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                     ),
                      const SizedBox(width: 4),
-                     Image.network("https://via.placeholder.com/20?text=${widget.match.team2ShortName}", width: 20, errorBuilder: (c,e,s)=>const Icon(Icons.circle, size: 10, color: Colors.white)),
+                     Text(_activeMatch?.team2ShortName.isNotEmpty == true ? _activeMatch!.team2ShortName : 'Team 2', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                     const SizedBox(width: 4),
+                     Image.network("https://via.placeholder.com/20?text=${_activeMatch?.team2ShortName ?? 'T2'}", width: 20, errorBuilder: (c,e,s)=>const Icon(Icons.circle, size: 10, color: Colors.red)),
                   ],
                 ),
                 Column(
@@ -274,6 +324,23 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
         final isSelected = _selectedIds.contains(player.id);
         final isPlaying = widget.match.playingXI.contains(player.id);
         
+        // DEBUG: Log player team assignment
+        if (index == 0) {
+          debugPrint("🏏 PLAYER TEAM DEBUG:");
+          debugPrint("   Player: ${player.name}");
+          debugPrint("   Player.teamShortName: '${player.teamShortName}'");
+          debugPrint("   Match.team1ShortName: '${widget.match.team1ShortName}'");
+          debugPrint("   Match.team2ShortName: '${widget.match.team2ShortName}'");
+          debugPrint("   Matches Team1? ${player.teamShortName == widget.match.team1ShortName}");
+        }
+        
+        final isTeam1 = _isTeam1(player);
+        final teamBadgeColor = isTeam1 ? Colors.blue : Colors.red;
+        // Use active match names or fallbacks
+        final t1Name = _activeMatch?.team1ShortName ?? 'T1';
+        final t2Name = _activeMatch?.team2ShortName ?? 'T2';
+        final teamBadgeText = isTeam1 ? t1Name : t2Name;
+        
         return Container(
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF1B5E20).withOpacity(0.4) : Colors.transparent, // Dark Green vs Transparent
@@ -284,12 +351,25 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
               children: [
                  CircleAvatar(
                    backgroundColor: Colors.grey.shade800,
-                   child: Text(player.teamShortName[0], style: const TextStyle(fontSize: 12, color: Colors.white)),
+                   backgroundImage: player.imageUrl.isNotEmpty ? NetworkImage(player.imageUrl) : null,
+                   child: player.imageUrl.isEmpty ? Text(_getInitials(player.name), style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)) : null,
                  ),
-                 if (player.teamShortName == widget.match.team1ShortName)
-                   const Positioned(bottom: 0, left: 0, child: Icon(Icons.circle, size: 10, color: Colors.blue))
-                 else 
-                   const Positioned(bottom: 0, right: 0, child: Icon(Icons.circle, size: 10, color: Colors.red))
+                 Positioned(
+                   bottom: 0, 
+                   left: 0, 
+                   child: Container(
+                     padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                     decoration: BoxDecoration(
+                       color: teamBadgeColor,
+                       borderRadius: BorderRadius.circular(3),
+                       border: Border.all(color: Colors.white, width: 0.5),
+                     ),
+                     child: Text(
+                       teamBadgeText,
+                       style: const TextStyle(fontSize: 7, color: Colors.white, fontWeight: FontWeight.bold),
+                     ),
+                   ),
+                 ),
               ],
             ),
             title: Row(
@@ -302,10 +382,10 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
                      decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(4)),
                      child: const Text("Playing", style: TextStyle(fontSize: 8, color: Colors.white)),
                    )
-                ]
+                ],
               ],
             ),
-             subtitle: Text("Sel by 10% • ${player.points} pts", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+             subtitle: Text("Team: ${player.teamShortName ?? 'N/A'} • ${player.points} pts", style: const TextStyle(fontSize: 11, color: Colors.grey)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

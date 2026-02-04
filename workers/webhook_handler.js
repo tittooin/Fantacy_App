@@ -2,6 +2,45 @@
 // workers/webhook_handler.js
 import { getFromFirestore, saveToFirestore } from './index.js'; // Assuming we export these or moving them to shared
 
+// Helper to verify signature (Web Crypto API for Cloudflare Workers)
+async function verifySignature(ts, body, signature, secret) {
+    if (!ts || !signature || !secret) throw new Error("Missing verification headers/config");
+
+    // 1. Check Timestamp Age (Replay Attack Prevention)
+    const now = Math.floor(Date.now() / 1000); // Seconds
+    const webhookTime = parseInt(ts, 10);
+    if (Math.abs(now - webhookTime) > 300) { // 5 minutes tolerance
+        throw new Error("Webhook Timestamp expired");
+    }
+
+    // 2. Compute HMAC
+    const data = ts + body;
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(secret);
+    const msgData = encoder.encode(data);
+
+    const cryptoKey = await crypto.subtle.importKey(
+        "raw", keyData, { name: "HMAC", hash: "SHA-256" },
+        false, ["sign"]
+    );
+
+    const sigBuf = await crypto.subtle.sign("HMAC", cryptoKey, msgData);
+
+    // 3. Convert to Base64
+    let binary = '';
+    const bytes = new Uint8Array(sigBuf);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    const computedSig = btoa(binary);
+
+    // 4. Compare
+    if (computedSig !== signature) {
+        throw new Error(`Signature Mismatch: Computed ${computedSig} vs Header ${signature}`);
+    }
+}
+
 /**
  * Handles Cashfree Payment Webhook
  * @param {Request} request 
@@ -9,38 +48,23 @@ import { getFromFirestore, saveToFirestore } from './index.js'; // Assuming we e
  */
 export async function handleCashfreeWebhook(request, env) {
     try {
-        const signature = request.headers.get('x-webhook-signature'); // Verify this!
+        const signature = request.headers.get('x-webhook-signature');
         const timestamp = request.headers.get('x-webhook-timestamp');
         const bodyText = await request.text();
 
-        // TODO: Implement Strict Signature Verification here using env.CASHFREE_SECRET_KEY
-        // verifySignature(timestamp, bodyText, signature, env.CASHFREE_SECRET_KEY);
+        // STRICT VERIFICATION ENABLED
+        await verifySignature(timestamp, bodyText, signature, env.CASHFREE_SECRET_KEY);
+        // console.log("✅ Webhook Verified/Authentic");
 
         const data = JSON.parse(bodyText);
 
         /* 
            Cashfree Payload Structure (Type: PAYMENT_SUCCESS_WEBHOOK)
-           data: {
-             data: {
-               order: { order_id: "...", order_amount: 10, ... },
-               payment: { payment_status: "SUCCESS", ... },
-               customer_details: { ... }
-             },
-             type: "PAYMENT_SUCCESS_WEBHOOK"
-           }
         */
 
         if (data.type === 'PAYMENT_SUCCESS_WEBHOOK' || data.type === 'PAYMENT_SUCCESS') {
             const orderId = data.data.order.order_id;
             const amount = data.data.order.order_amount;
-            // Customer ID is often in customer_details, or we can look up the transaction by orderId
-
-            // 1. Fetch the transaction to get UserId (and ensure we process only once)
-            // We need to import 'getFromFirestore' or stick code in index.js.
-            // For now, I'll write the logic assuming we can run DB ops.
-            // Since module imports are tricky with mixed logic in index.js, 
-            // I will recommend moving DB helpers to 'firebase_utils.js' later.
-            // For now, I will return the "Action" to be taken, and index.js executes it.
 
             return {
                 action: 'UPDATE_WALLET',
@@ -60,7 +84,9 @@ export async function handleCashfreeWebhook(request, env) {
         return { action: 'IGNORE', reason: 'Unknown Event Type' };
 
     } catch (e) {
-        console.error("Webhook Error", e);
+        console.error("Webhook Verification Error:", e.message);
+        // Important: Return 200 to Cashfree but log error internally (or return 400 if you want retry loop)
+        // Here we just return action ERROR
         return { action: 'ERROR', error: e.message };
     }
 }

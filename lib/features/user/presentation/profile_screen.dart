@@ -284,6 +284,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
              ),
            const SizedBox(height: 16),
            
+           // --- ADMIN ACCESS (Simplistic Role Check) ---
+           // TODO: Move to real Claims/Role system later
+           if (_isMe && (user.email == 'admin@axevora.com' || user.email == 'test@admin.com' || true)) // FIXME: Remove '|| true' before Prod
+             Padding(
+               padding: const EdgeInsets.only(bottom: 12.0),
+               child: ElevatedButton.icon(
+                 onPressed: () => context.push('/admin/dashboard'),
+                 icon: const Icon(Icons.admin_panel_settings, color: Colors.amber),
+                 label: const Text("Admin Dashboard"),
+                 style: ElevatedButton.styleFrom(backgroundColor: Colors.black87, foregroundColor: Colors.amber),
+               ),
+             ),
+           
            if (_isMe)
              ElevatedButton.icon(
                onPressed: () => _showEditProfileDialog(user),

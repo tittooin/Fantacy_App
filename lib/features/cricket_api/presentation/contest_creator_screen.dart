@@ -304,12 +304,16 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
         createdAt: DateTime.now(),
       );
 
+      debugPrint("🎯 Creating contest: ID=$contestId, matchId=${widget.match.id}, category=$_category");
+      final contestData = contest.toJson();
+      debugPrint("🎯 Contest JSON: $contestData");
+
       await FirebaseFirestore.instance
-          .collection('matches')
-          .doc(widget.match.id.toString())
-          .collection('contests')
+          .collection('contests') // Root collection to align with Worker
           .doc(contestId)
-          .set(contest.toJson());
+          .set(contestData);
+
+      debugPrint("✅ Contest saved to Firestore successfully!");
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

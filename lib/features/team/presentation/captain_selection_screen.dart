@@ -63,6 +63,13 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
     setState(() => _isSaving = false);
   }
 
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,7 +105,7 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
                     CircleAvatar(
                       backgroundColor: Colors.grey.shade800,
                       backgroundImage: (player.imageUrl.isNotEmpty) ? NetworkImage(player.imageUrl) : null,
-                      child: player.imageUrl.isEmpty ? Text(player.teamShortName[0], style: const TextStyle(color: Colors.white)) : null,
+                      child: player.imageUrl.isEmpty ? Text(_getInitials(player.name), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)) : null,
                     ),
                     Positioned(
                       bottom: 0, right: 0,

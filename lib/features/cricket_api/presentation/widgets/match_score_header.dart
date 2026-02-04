@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:axevora11/features/cricket_api/data/providers/scorecard_provider.dart';
 
 class MatchScoreHeader extends ConsumerWidget {
   final String matchId;
@@ -9,30 +9,23 @@ class MatchScoreHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Listen to Firestore 'matches' collection for real-time updates
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('matches').doc(matchId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink(); // Initial load or error
+    final scoreAsync = ref.watch(scorecardProvider(matchId));
 
-        final data = snapshot.data!.data() as Map<String, dynamic>?;
-        if (data == null || !data.containsKey('score')) {
-           // FAIL-SAFE: If no score data yet, show nothing or "Waiting for update"
-           return const SizedBox.shrink();
-        }
-        
-        final scoreMap = data['score'] as Map<String, dynamic>;
-        final scoreData = scoreMap['scoreCard'] as List<dynamic>?;
-
-        if (scoreData == null || scoreData.isEmpty) return const SizedBox.shrink();
-
-        final inning = scoreData.last;
-        final batTeam = inning['batTeamDetails']?['batTeamName'] ?? "Team";
-        final runs = inning['runs'] ?? 0;
-        final wickets = inning['wickets'] ?? 0;
-        final overs = inning['overs'] ?? 0.0;
-
-        return Container(
+    return scoreAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_,__) => const SizedBox.shrink(), // Fail silently or show error
+      data: (data) {
+         if (data == null) return const SizedBox.shrink();
+         
+         final status = data['status_note'] ?? 'Live';
+         final t1Score = data['team_a_score'] ?? '';
+         final t2Score = data['team_b_score'] ?? '';
+         final over = data['current_over'] ?? '';
+         
+         // Basic display logic: Show team batting current (simplified)
+         // For now, simpler than parsing: Show Team A vs Team B scores
+         
+         return Container(
           width: double.infinity,
           margin: const EdgeInsets.all(12),
           padding: const EdgeInsets.all(16),
@@ -61,35 +54,31 @@ class MatchScoreHeader extends ConsumerWidget {
                      crossAxisAlignment: CrossAxisAlignment.start,
                      children: [
                        Text(
-                         batTeam,
+                         "Live Score",
                          style: const TextStyle(
                            color: Color(0xFF4FC3F7),
                            fontWeight: FontWeight.bold,
-                           fontSize: 14,
+                           fontSize: 12,
                          ),
                        ),
-                       const SizedBox(height: 4),
-                       Row(
-                         crossAxisAlignment: CrossAxisAlignment.baseline,
-                         textBaseline: TextBaseline.alphabetic,
-                         children: [
-                           Text(
-                             "$runs-$wickets",
-                             style: const TextStyle(
+                       const SizedBox(height: 8),
+                       if (t1Score.isNotEmpty)
+                       Text(
+                         t1Score, // e.g. "MI 120/4 (15)"
+                         style: const TextStyle(
                                color: Colors.white,
-                               fontSize: 28,
+                               fontSize: 20,
                                fontWeight: FontWeight.w900,
                              ),
-                           ),
-                           const SizedBox(width: 8),
-                           Text(
-                             "($overs)",
-                             style: const TextStyle(
+                       ),
+                       if (t2Score.isNotEmpty && t2Score != 'Yet to Bat')
+                       Text(
+                         t2Score,
+                         style: const TextStyle(
                                color: Colors.white70,
                                fontSize: 16,
+                               fontWeight: FontWeight.bold,
                              ),
-                           ),
-                         ],
                        ),
                      ],
                    ),
@@ -99,13 +88,13 @@ class MatchScoreHeader extends ConsumerWidget {
               const SizedBox(height: 12),
               const Divider(color: Colors.white10, height: 1),
               const SizedBox(height: 8),
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.circle, color: Colors.red, size: 8),
-                  SizedBox(width: 8),
+                  const Icon(Icons.circle, color: Colors.red, size: 8),
+                  const SizedBox(width: 8),
                   Text(
-                    "LIVE MATCH SCORE • Updates end of over",
-                    style: TextStyle(
+                    status.toString().toUpperCase(),
+                    style: const TextStyle(
                       color: Colors.white54,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -117,7 +106,7 @@ class MatchScoreHeader extends ConsumerWidget {
             ],
           ),
         );
-      },
+      }
     );
   }
 }

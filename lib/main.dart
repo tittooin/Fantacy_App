@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/core/router/app_router.dart';
 import 'package:axevora11/core/theme/app_theme.dart';
+import 'package:axevora11/core/guards/boot_guard.dart'; // BootGuard
 import 'package:axevora11/features/location/data/location_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -13,13 +14,29 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-<<<<<<< HEAD
-=======
+
   usePathUrlStrategy();
->>>>>>> dev-update
+
   debugPrint("🚀 [BOOT] AXEVORA v2.0 - STRICT RAPIDAPI MODE ACTIVE");
   debugPrint("🚫 [CLEANUP] ALL PROXY/CLOUDFLARE CODE REMOVED");
   
+  // Initialize SharedPreferences EARLY for BootGuard
+  final prefs = await SharedPreferences.getInstance();
+
+  // --- BOOT GUARD CHECK ---
+  // Prevents infinite reload loops from exhausting Quota/Ram
+  final isSafe = await BootGuard.checkSafety(prefs);
+  if (!isSafe) {
+    runApp(BootBlockedScreen(onReset: () async {
+      await BootGuard.reset(prefs);
+      // Force Reload not possible easily in pure Flutter Mobile without native, 
+      // but for Web (where loop usually happens) we can reload window or just ask user to restart.
+      // For now, allow them to restart app manually.
+    }));
+    return;
+  }
+  // ------------------------
+
   try {
     // Initialize Firebase
     if (kIsWeb) {
@@ -46,9 +63,6 @@ void main() async {
   } catch (e) {
     debugPrint("Firebase init failed: $e");
   }
-  
-  // Initialize SharedPreferences
-  final prefs = await SharedPreferences.getInstance();
 
   runApp(
     ProviderScope(

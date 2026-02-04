@@ -9,6 +9,7 @@ import 'package:axevora11/features/admin/presentation/lineup_management_screen.d
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/admin/data/audit_service.dart'; // Import Audit Service
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:go_router/go_router.dart';
 
 class MatchControlScreen extends ConsumerStatefulWidget {
   const MatchControlScreen({super.key});
@@ -178,8 +179,6 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
     }
   }
 
-<<<<<<< HEAD
-=======
 
   late Stream<QuerySnapshot> _matchesStream;
 
@@ -193,8 +192,6 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
         .limit(50) // Reduced Quota Usage
         .snapshots();
   }
-
->>>>>>> dev-update
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -297,6 +294,11 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
                         runSpacing: 8,
                         children: [
                           // Manage Lineups (Always needed)
+                          _buildActionButton(
+                            "Squad", Icons.people, Colors.purpleAccent, 
+                            () => context.push('/admin/matches/$apiId/manage-squad', extra: match)
+                          ),
+
                           _buildActionButton(
                             "Import Squad", Icons.download, Colors.green, 
                             () => _importSquad(apiId, match)

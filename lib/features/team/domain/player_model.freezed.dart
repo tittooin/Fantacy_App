@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PlayerModel {
 
- String get id; String get name; String get teamShortName;// e.g., "CSK"
+ String get id; String get name; String? get teamShortName;// e.g., "CSK" - Nullable to handle legacy data
  String get role;// "WK", "BAT", "AR", "BOWL"
  double get credits;// e.g., 9.0
  String get imageUrl;// URL or asset path
@@ -53,7 +53,7 @@ abstract mixin class $PlayerModelCopyWith<$Res>  {
   factory $PlayerModelCopyWith(PlayerModel value, $Res Function(PlayerModel) _then) = _$PlayerModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String teamShortName, String role, double credits, String imageUrl, double points, bool isPlaying
+ String id, String name, String? teamShortName, String role, double credits, String imageUrl, double points, bool isPlaying
 });
 
 
@@ -70,12 +70,12 @@ class _$PlayerModelCopyWithImpl<$Res>
 
 /// Create a copy of PlayerModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? teamShortName = null,Object? role = null,Object? credits = null,Object? imageUrl = null,Object? points = null,Object? isPlaying = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? teamShortName = freezed,Object? role = null,Object? credits = null,Object? imageUrl = null,Object? points = null,Object? isPlaying = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,teamShortName: null == teamShortName ? _self.teamShortName : teamShortName // ignore: cast_nullable_to_non_nullable
-as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as String,teamShortName: freezed == teamShortName ? _self.teamShortName : teamShortName // ignore: cast_nullable_to_non_nullable
+as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,credits: null == credits ? _self.credits : credits // ignore: cast_nullable_to_non_nullable
 as double,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
@@ -165,7 +165,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PlayerModel() when $default != null:
 return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.isPlaying);case _:
@@ -186,7 +186,7 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying)  $default,) {final _that = this;
 switch (_that) {
 case _PlayerModel():
 return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.isPlaying);case _:
@@ -206,7 +206,7 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying)?  $default,) {final _that = this;
 switch (_that) {
 case _PlayerModel() when $default != null:
 return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.isPlaying);case _:
@@ -221,13 +221,13 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 @JsonSerializable()
 
 class _PlayerModel implements PlayerModel {
-  const _PlayerModel({required this.id, required this.name, required this.teamShortName, required this.role, required this.credits, required this.imageUrl, this.points = 0.0, this.isPlaying = false});
+  const _PlayerModel({required this.id, required this.name, this.teamShortName, required this.role, required this.credits, required this.imageUrl, this.points = 0.0, this.isPlaying = false});
   factory _PlayerModel.fromJson(Map<String, dynamic> json) => _$PlayerModelFromJson(json);
 
 @override final  String id;
 @override final  String name;
-@override final  String teamShortName;
-// e.g., "CSK"
+@override final  String? teamShortName;
+// e.g., "CSK" - Nullable to handle legacy data
 @override final  String role;
 // "WK", "BAT", "AR", "BOWL"
 @override final  double credits;
@@ -271,7 +271,7 @@ abstract mixin class _$PlayerModelCopyWith<$Res> implements $PlayerModelCopyWith
   factory _$PlayerModelCopyWith(_PlayerModel value, $Res Function(_PlayerModel) _then) = __$PlayerModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String teamShortName, String role, double credits, String imageUrl, double points, bool isPlaying
+ String id, String name, String? teamShortName, String role, double credits, String imageUrl, double points, bool isPlaying
 });
 
 
@@ -288,12 +288,12 @@ class __$PlayerModelCopyWithImpl<$Res>
 
 /// Create a copy of PlayerModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? teamShortName = null,Object? role = null,Object? credits = null,Object? imageUrl = null,Object? points = null,Object? isPlaying = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? teamShortName = freezed,Object? role = null,Object? credits = null,Object? imageUrl = null,Object? points = null,Object? isPlaying = null,}) {
   return _then(_PlayerModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,teamShortName: null == teamShortName ? _self.teamShortName : teamShortName // ignore: cast_nullable_to_non_nullable
-as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as String,teamShortName: freezed == teamShortName ? _self.teamShortName : teamShortName // ignore: cast_nullable_to_non_nullable
+as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,credits: null == credits ? _self.credits : credits // ignore: cast_nullable_to_non_nullable
 as double,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable

@@ -59,10 +59,10 @@ class CricketMatchModel {
       matchDesc: matchInfo['matchDesc'] as String? ?? '',
       matchFormat: matchInfo['matchFormat'] as String? ?? '',
       team1Name: team1['teamName'] as String? ?? '',
-      team1ShortName: team1['teamSName'] as String? ?? '',
+      team1ShortName: team1['teamSName'] as String? ?? _generateShortName(team1['teamName'] as String? ?? ''),
       team1Img: team1['imageId']?.toString() ?? '',
       team2Name: team2['teamName'] as String? ?? '',
-      team2ShortName: team2['teamSName'] as String? ?? '',
+      team2ShortName: team2['teamSName'] as String? ?? _generateShortName(team2['teamName'] as String? ?? ''),
       team2Img: team2['imageId']?.toString() ?? '',
       startDate: int.tryParse(matchInfo['startDate']?.toString() ?? '0') ?? 0,
       endDate: int.tryParse(matchInfo['endDate']?.toString() ?? '0') ?? 0,
@@ -86,10 +86,14 @@ class CricketMatchModel {
       matchDesc: map['matchDesc'] as String? ?? '',
       matchFormat: map['matchFormat'] as String? ?? '',
       team1Name: map['team1Name'] as String? ?? '',
-      team1ShortName: map['team1ShortName'] as String? ?? '',
+      team1ShortName: (map['team1ShortName'] as String?)?.isNotEmpty == true 
+          ? map['team1ShortName'] as String 
+          : _generateShortName(map['team1Name'] as String? ?? ''),
       team1Img: map['team1Img'] as String? ?? '',
       team2Name: map['team2Name'] as String? ?? '',
-      team2ShortName: map['team2ShortName'] as String? ?? '',
+      team2ShortName: (map['team2ShortName'] as String?)?.isNotEmpty == true 
+          ? map['team2ShortName'] as String 
+          : _generateShortName(map['team2Name'] as String? ?? ''),
       team2Img: map['team2Img'] as String? ?? '',
       startDate: map['startDate'] as int? ?? 0,
       endDate: map['endDate'] as int? ?? 0,
@@ -150,5 +154,36 @@ class CricketMatchModel {
       venue: '',
       status: 'Upcoming',
     );
+  }
+
+  /// Generate short name from full team name
+  /// Examples: "Afghanistan" -> "AFG", "West Indies" -> "WI"
+  static String _generateShortName(String fullName) {
+    if (fullName.isEmpty) return '';
+    
+    // Common team abbreviations
+    final Map<String, String> knownTeams = {
+      'Afghanistan': 'AFG',
+      'Australia': 'AUS',
+      'Bangladesh': 'BAN',
+      'England': 'ENG',
+      'India': 'IND',
+      'New Zealand': 'NZ',
+      'Pakistan': 'PAK',
+      'South Africa': 'SA',
+      'Sri Lanka': 'SL',
+      'West Indies': 'WI',
+      'Zimbabwe': 'ZIM',
+      'Ireland': 'IRE',
+      'Netherlands': 'NED',
+    };
+    
+    // Check if it's a known team
+    if (knownTeams.containsKey(fullName)) {
+      return knownTeams[fullName]!;
+    }
+    
+    // Fallback: Take first 3 letters
+    return fullName.substring(0, fullName.length >= 3 ? 3 : fullName.length).toUpperCase();
   }
 }

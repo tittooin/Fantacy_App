@@ -45,8 +45,8 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
     try {
       await firestore.runTransaction((transaction) async {
         final userRef = firestore.collection('users').doc(user.uid);
-        final matchContestRef = firestore.collection('matches')
-            .doc(contest.matchId).collection('contests').doc(contest.contestId);
+        // Correct path: Contests are now at root level
+        final matchContestRef = firestore.collection('contests').doc(contest.contestId);
         final userContestRef = firestore.collection('user_contests').doc(contest.id);
 
         // 1. Read User Balance
@@ -88,8 +88,9 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
         transaction.set(userContestRef, contest.toMap());
 
         // C. Create Public Leaderboard Entry
-        final leaderboardRef = firestore.collection('matches')
-            .doc(contest.matchId).collection('contests').doc(contest.contestId)
+        // Use root level contests path
+        final leaderboardRef = firestore.collection('contests')
+            .doc(contest.contestId)
             .collection('entries').doc(user.uid);
             
         final userName = userSnapshot.data()?['displayName'] ?? "Player ${user.phoneNumber?.substring(user.phoneNumber!.length - 4) ?? 'User'}";

@@ -13,6 +13,11 @@ import 'package:axevora11/features/contest/domain/user_contest_entity.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
+import 'package:axevora11/features/cricket_api/data/providers/fantasy_points_provider.dart';
+import 'package:axevora11/features/cricket_api/data/providers/scorecard_provider.dart';
+import 'package:axevora11/features/cricket_api/data/providers/leaderboard_provider.dart';
+
+
 
 class ContestDetailScreen extends ConsumerStatefulWidget {
   final String contestId;
@@ -59,9 +64,8 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
 
     setState(() => _isLoading = true);
     try {
+      debugPrint("🔍 Finding contest in root collection: ${widget.contestId}");
       final doc = await FirebaseFirestore.instance
-          .collection('matches')
-          .doc(mId!)
           .collection('contests')
           .doc(widget.contestId)
           .get();
@@ -210,32 +214,39 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
             minHeight: 6,
           ),
           const SizedBox(height: 8),
-          StreamBuilder<DocumentSnapshot>(
-             stream: FirebaseFirestore.instance.collection('matches').doc(_resolvedMatchId ?? contest.id).snapshots(),
-             builder: (context, snapshot) {
-                if (!snapshot.hasData || !snapshot.data!.exists) return const SizedBox.shrink();
-                final data = snapshot.data!.data() as Map<String, dynamic>;
-                final matchScore = data['matchScore'] as Map<String, dynamic>?;
-                
-                if (matchScore != null && matchScore.isNotEmpty) {
-                   final t1 = matchScore['team1Score'] ?? "";
-                   final t2 = matchScore['team2Score'] ?? "";
-                   return Container(
+          const SizedBox(height: 8),
+          Consumer(
+            builder: (context, ref, child) {
+              final matchId = _resolvedMatchId ?? contest.id;
+              final scoreAsync = ref.watch(scorecardProvider(matchId));
+              
+              return scoreAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (data) {
+                  if (data == null) return const SizedBox.shrink();
+                  
+                  final t1 = data['team_a_score'] ?? "";
+                  final t2 = data['team_b_score'] ?? "";
+                  
+                  if (t1.isEmpty && t2.isEmpty) return const SizedBox.shrink();
+                  
+                  return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                           Text(t1, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo)),
-                           const Text("vs", style: TextStyle(color: Colors.grey, fontSize: 11)),
-                           Text(t2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo)),
+                            Text(t1, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo)),
+                            const Text("vs", style: TextStyle(color: Colors.grey, fontSize: 11)),
+                            Text(t2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo)),
                         ],
                       ),
-                   );
+                  );
                 }
-                return const SizedBox.shrink();
-             }
+              );
+            }
           ),
           // const SizedBox(height: 8), // Removed as margin included above
           Row(
@@ -328,13 +339,6 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
   }
 
   Widget _buildLeaderboardTab(ContestModel contest) {
-    // Rely on resolved ID from initState
-    final matchId = _resolvedMatchId; 
-    
-    if (matchId == null) {
-      return const Center(child: Text("Error: Match ID not found"));
-    }
-
     return Column(
       children: [
         Container(
@@ -342,87 +346,60 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
           color: Colors.amber.withOpacity(0.1),
           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
           child: const Text(
-            "Points & Ranks are updated at the end of each over.",
+            "Points & Ranks are updated every 5 minutes by the Server (Zero Firestore Reads).",
             style: TextStyle(color: Colors.amber, fontSize: 10),
             textAlign: TextAlign.center,
           ),
         ),
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('matches')
-                .doc(matchId)
-                .collection('contests')
-                .doc(contest.id)
-                .collection('entries')
-                .orderBy('points', descending: true)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                 return Center(child: Text("Error: ${snapshot.error}"));
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                 return const Center(child: CircularProgressIndicator());
-              }
-      
-              final docs = snapshot.data?.docs ?? [];
-              if (docs.isEmpty) {
-                 return RefreshIndicator(
-                   onRefresh: _handleRefresh,
-                   child: ListView(
-                     physics: const AlwaysScrollableScrollPhysics(), 
-                     children: const [
-                       SizedBox(height: 200),
-                       Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.people_outline, size: 48, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text("Be the first to join!", style: TextStyle(color: Colors.grey)),
-                          ],
-                        ),
+          child: Consumer(
+             builder: (context, ref, _) {
+                final leaderboardAsync = ref.watch(leaderboardProvider(widget.contestId));
+
+                return leaderboardAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, stack) => Center(child: Text("Error: $err")),
+                  data: (entries) {
+                     if (entries.isEmpty) {
+                        return const Center(child: Text("No participants or data pending calculation."));
+                     }
+
+                     return RefreshIndicator(
+                       onRefresh: () async {
+                          // Invalidate provider to force refresh
+                          return ref.refresh(leaderboardProvider(contest.id));
+                       },
+                       child: ListView.builder(
+                         physics: const AlwaysScrollableScrollPhysics(),
+                         itemCount: entries.length,
+                         itemBuilder: (context, index) {
+                           final data = entries[index];
+                           final rank = data['rank'] ?? (index + 1);
+                           final name = data['displayName'] ?? 'User'; // D1 might store userId lookup or name
+                           // Note: Worker stores 'userId', 'teamName'.
+                           // If display name is missing in D1 leaderboard JSON, we might show teamName
+                           final display = name; // Show displayName instead of teamName
+                           final points = data['points'] ?? 0;
+                           final isCurrentUser = data['userId'] == FirebaseAuth.instance.currentUser?.uid;
+
+                           return Container(
+                             color: isCurrentUser ? Colors.indigo.withOpacity(0.05) : Colors.white,
+                             child: ListTile(
+                               leading: CircleAvatar(
+                                 backgroundColor: isCurrentUser ? Colors.indigo : Colors.grey[300],
+                                 child: Text("$rank", style: TextStyle(color: isCurrentUser ? Colors.white : Colors.black)),
+                               ),
+                               title: Text(display, style: TextStyle(fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal)),
+                               subtitle: Text("${data['teamName'] ?? 'Team'} • $points pts"),
+                               trailing: isCurrentUser ? const Icon(Icons.star, color: Colors.orange, size: 16) : null,
+                             ),
+                           );
+                         }
                        ),
-                     ],
-                   ),
-                 );
-              }
-      
-              return RefreshIndicator(
-                onRefresh: _handleRefresh,
-                child: ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    final rank = index + 1; 
-                    final name = data['displayName'] ?? "User";
-                    final team = data['teamName'] ?? "Team 1";
-                    final points = data['points'] ?? 0;
-                    final isCurrentUser = data['userId'] == FirebaseAuth.instance.currentUser?.uid;
-      
-                    return Container(
-                      color: isCurrentUser ? Colors.indigo.withOpacity(0.05) : Colors.white,
-                      child: ListTile(
-                        onTap: () {
-                           final userId = data['userId'] as String?;
-                           if (userId != null) {
-                             context.push('/profile/$userId');
-                           }
-                        },
-                        leading: CircleAvatar(
-                          backgroundColor: isCurrentUser ? Colors.indigo : Colors.grey[300],
-                          child: Text("$rank", style: TextStyle(color: isCurrentUser ? Colors.white : Colors.black)),
-                        ),
-                        title: Text(name, style: TextStyle(fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal)),
-                        subtitle: Text(team, style: const TextStyle(fontSize: 12)),
-                        trailing: Text("$points pts", style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
+                     );
+                  }
+                );
+             }
           ),
         ),
       ],
