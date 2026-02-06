@@ -435,6 +435,11 @@ async function handleGetSquads(matchId, env) {
         const now = Date.now();
         const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
 
+        // Fetch Team IDs from matches table to include in reponse (Optimized: fetch early if needed, or inside cache block)
+        const matchInfo = await env.DB.prepare("SELECT team_a_id, team_b_id FROM matches WHERE id = ?").bind(matchId).first();
+        const teamAId = matchInfo?.team_a_id || 0;
+        const teamBId = matchInfo?.team_b_id || 0;
+
         // 2. Return cached if fresh
         if (d1Squad && d1Squad.team_a_roster) {
             const age = now - (d1Squad.last_updated || 0);
@@ -445,10 +450,15 @@ async function handleGetSquads(matchId, env) {
                     teamA: JSON.parse(d1Squad.team_a_roster),
                     teamB: JSON.parse(d1Squad.team_b_roster),
                     xiA: JSON.parse(d1Squad.playing_11_a || '[]'),
-                    xiB: JSON.parse(d1Squad.playing_11_b || '[]')
+                    xiB: JSON.parse(d1Squad.playing_11_b || '[]'),
+                    matchId: matchId,
+                    team1Id: teamAId,
+                    team2Id: teamBId
                 });
             }
         }
+
+        // Fetch Team IDs Logic already executed above
 
         // 3. Lazy fetch if missing or stale
         console.log(`🔄 Squad stale/missing for ${matchId}, fetching...`);
@@ -467,7 +477,9 @@ async function handleGetSquads(matchId, env) {
                 teamA: JSON.parse(d1Retry.team_a_roster),
                 teamB: JSON.parse(d1Retry.team_b_roster),
                 xiA: JSON.parse(d1Retry.playing_11_a || '[]'),
-                xiB: JSON.parse(d1Retry.playing_11_b || '[]')
+                xiB: JSON.parse(d1Retry.playing_11_b || '[]'),
+                team1Id: teamAId,
+                team2Id: teamBId
             });
         }
 

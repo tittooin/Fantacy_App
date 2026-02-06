@@ -83,6 +83,10 @@ class AdminRepository {
       final xiA = List<String>.from(squadData['xiA'] ?? []);
       final xiB = List<String>.from(squadData['xiB'] ?? []);
       
+      // Extract Team IDs from D1 response (Fix for Frontend Badge logic)
+      final team1Id = squadData['team1Id'] ?? 0;
+      final team2Id = squadData['team2Id'] ?? 0;
+      
       // Combine all players
       final allPlayers = [...teamA, ...teamB];
       final playingXIIds = [...xiA, ...xiB]; // For verify
@@ -108,9 +112,12 @@ class AdminRepository {
       }
       
       // 2. Update Match Document with playingXI identifiers (Legacy + App Trigger)
+      // Fix: Also write Team IDs so Frontend 'CreateTeamScreen' can map them
       batch.set(firestore.collection('matches').doc(matchId), {
          'isSquadPublished': true,
          'playingXI': playingXIIds, // List of IDs
+         'team1Id': team1Id, // Vital for Badge Logic
+         'team2Id': team2Id, // Vital for Badge Logic
          'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       
