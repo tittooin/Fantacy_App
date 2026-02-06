@@ -58,6 +58,8 @@ class AdminRepository {
           'teamB': response.data['teamB'],
           'xiA': response.data['xiA'],
           'xiB': response.data['xiB'],
+          'team1Id': response.data['team1Id'],
+          'team2Id': response.data['team2Id'],
         };
       }
       return {'success': false};

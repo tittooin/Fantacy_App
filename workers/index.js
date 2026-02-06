@@ -444,16 +444,21 @@ async function handleGetSquads(matchId, env) {
         if (d1Squad && d1Squad.team_a_roster) {
             const age = now - (d1Squad.last_updated || 0);
             if (age < staleThreshold) {
+                const teamA = JSON.parse(d1Squad.team_a_roster || '[]');
+                const teamB = JSON.parse(d1Squad.team_b_roster || '[]');
+                const team1Id = matchInfo?.team_a_id || 0;
+                const team2Id = matchInfo?.team_b_id || 0;
+
                 return jsonResponse({
                     success: true,
                     source: 'D1_CACHE',
-                    teamA: JSON.parse(d1Squad.team_a_roster),
-                    teamB: JSON.parse(d1Squad.team_b_roster),
+                    teamA: teamA.map(p => ({ ...p, teamId: (p.teamId || team1Id).toString() })),
+                    teamB: teamB.map(p => ({ ...p, teamId: (p.teamId || team2Id).toString() })),
                     xiA: JSON.parse(d1Squad.playing_11_a || '[]'),
                     xiB: JSON.parse(d1Squad.playing_11_b || '[]'),
                     matchId: matchId,
-                    team1Id: teamAId,
-                    team2Id: teamBId
+                    team1Id: team1Id,
+                    team2Id: team2Id
                 });
             }
         }
