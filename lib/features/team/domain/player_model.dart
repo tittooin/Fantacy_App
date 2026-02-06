@@ -16,6 +16,7 @@ abstract class PlayerModel with _$PlayerModel {
     required String imageUrl, // URL or asset path
     @Default(0.0) double points, // Last match points or average
     @Default(false) bool isPlaying, // For lineup announcement
+    String? teamId, // Added for robust team matching
   }) = _PlayerModel;
 
   factory PlayerModel.fromJson(Map<String, dynamic> json) => _$PlayerModelFromJson(json);

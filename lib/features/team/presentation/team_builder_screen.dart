@@ -96,6 +96,15 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
 
   bool _isTeam1(PlayerModel player) {
     if (_activeMatch == null) return false;
+    
+    // PRIMARY Check: Team IDs (Robust)
+    final pTeamId = (player.teamId ?? '').trim();
+    final mTeam1Id = _activeMatch!.team1Id.toString().trim();
+    if (pTeamId.isNotEmpty && mTeam1Id.isNotEmpty) {
+      return pTeamId == mTeam1Id;
+    }
+
+    // FALLBACK Check: Team Names (Legacy)
     final pTeam = (player.teamShortName ?? '').trim().toUpperCase();
     final mTeam1 = _activeMatch!.team1ShortName.trim().toUpperCase();
     return pTeam == mTeam1; 

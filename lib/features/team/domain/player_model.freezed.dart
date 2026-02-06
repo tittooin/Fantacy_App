@@ -20,7 +20,8 @@ mixin _$PlayerModel {
  double get credits;// e.g., 9.0
  String get imageUrl;// URL or asset path
  double get points;// Last match points or average
- bool get isPlaying;
+ bool get isPlaying;// For lineup announcement
+ String? get teamId;
 /// Create a copy of PlayerModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -33,16 +34,16 @@ $PlayerModelCopyWith<PlayerModel> get copyWith => _$PlayerModelCopyWithImpl<Play
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlayerModel&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.teamShortName, teamShortName) || other.teamShortName == teamShortName)&&(identical(other.role, role) || other.role == role)&&(identical(other.credits, credits) || other.credits == credits)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.points, points) || other.points == points)&&(identical(other.isPlaying, isPlaying) || other.isPlaying == isPlaying));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlayerModel&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.teamShortName, teamShortName) || other.teamShortName == teamShortName)&&(identical(other.role, role) || other.role == role)&&(identical(other.credits, credits) || other.credits == credits)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.points, points) || other.points == points)&&(identical(other.isPlaying, isPlaying) || other.isPlaying == isPlaying)&&(identical(other.teamId, teamId) || other.teamId == teamId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,teamShortName,role,credits,imageUrl,points,isPlaying);
+int get hashCode => Object.hash(runtimeType,id,name,teamShortName,role,credits,imageUrl,points,isPlaying,teamId);
 
 @override
 String toString() {
-  return 'PlayerModel(id: $id, name: $name, teamShortName: $teamShortName, role: $role, credits: $credits, imageUrl: $imageUrl, points: $points, isPlaying: $isPlaying)';
+  return 'PlayerModel(id: $id, name: $name, teamShortName: $teamShortName, role: $role, credits: $credits, imageUrl: $imageUrl, points: $points, isPlaying: $isPlaying, teamId: $teamId)';
 }
 
 
@@ -53,7 +54,7 @@ abstract mixin class $PlayerModelCopyWith<$Res>  {
   factory $PlayerModelCopyWith(PlayerModel value, $Res Function(PlayerModel) _then) = _$PlayerModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String? teamShortName, String role, double credits, String imageUrl, double points, bool isPlaying
+ String id, String name, String? teamShortName, String role, double credits, String imageUrl, double points, bool isPlaying, String? teamId
 });
 
 
@@ -70,7 +71,7 @@ class _$PlayerModelCopyWithImpl<$Res>
 
 /// Create a copy of PlayerModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? teamShortName = freezed,Object? role = null,Object? credits = null,Object? imageUrl = null,Object? points = null,Object? isPlaying = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? teamShortName = freezed,Object? role = null,Object? credits = null,Object? imageUrl = null,Object? points = null,Object? isPlaying = null,Object? teamId = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -80,7 +81,8 @@ as String,credits: null == credits ? _self.credits : credits // ignore: cast_nul
 as double,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
 as double,isPlaying: null == isPlaying ? _self.isPlaying : isPlaying // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,teamId: freezed == teamId ? _self.teamId : teamId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -165,10 +167,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying,  String? teamId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PlayerModel() when $default != null:
-return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.isPlaying);case _:
+return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.isPlaying,_that.teamId);case _:
   return orElse();
 
 }
@@ -186,10 +188,10 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying,  String? teamId)  $default,) {final _that = this;
 switch (_that) {
 case _PlayerModel():
-return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.isPlaying);case _:
+return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.isPlaying,_that.teamId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -206,10 +208,10 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  bool isPlaying,  String? teamId)?  $default,) {final _that = this;
 switch (_that) {
 case _PlayerModel() when $default != null:
-return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.isPlaying);case _:
+return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.isPlaying,_that.teamId);case _:
   return null;
 
 }
@@ -221,7 +223,7 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 @JsonSerializable()
 
 class _PlayerModel implements PlayerModel {
-  const _PlayerModel({required this.id, required this.name, this.teamShortName, required this.role, required this.credits, required this.imageUrl, this.points = 0.0, this.isPlaying = false});
+  const _PlayerModel({required this.id, required this.name, this.teamShortName, required this.role, required this.credits, required this.imageUrl, this.points = 0.0, this.isPlaying = false, this.teamId});
   factory _PlayerModel.fromJson(Map<String, dynamic> json) => _$PlayerModelFromJson(json);
 
 @override final  String id;
@@ -237,6 +239,8 @@ class _PlayerModel implements PlayerModel {
 @override@JsonKey() final  double points;
 // Last match points or average
 @override@JsonKey() final  bool isPlaying;
+// For lineup announcement
+@override final  String? teamId;
 
 /// Create a copy of PlayerModel
 /// with the given fields replaced by the non-null parameter values.
@@ -251,16 +255,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PlayerModel&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.teamShortName, teamShortName) || other.teamShortName == teamShortName)&&(identical(other.role, role) || other.role == role)&&(identical(other.credits, credits) || other.credits == credits)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.points, points) || other.points == points)&&(identical(other.isPlaying, isPlaying) || other.isPlaying == isPlaying));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PlayerModel&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.teamShortName, teamShortName) || other.teamShortName == teamShortName)&&(identical(other.role, role) || other.role == role)&&(identical(other.credits, credits) || other.credits == credits)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.points, points) || other.points == points)&&(identical(other.isPlaying, isPlaying) || other.isPlaying == isPlaying)&&(identical(other.teamId, teamId) || other.teamId == teamId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,teamShortName,role,credits,imageUrl,points,isPlaying);
+int get hashCode => Object.hash(runtimeType,id,name,teamShortName,role,credits,imageUrl,points,isPlaying,teamId);
 
 @override
 String toString() {
-  return 'PlayerModel(id: $id, name: $name, teamShortName: $teamShortName, role: $role, credits: $credits, imageUrl: $imageUrl, points: $points, isPlaying: $isPlaying)';
+  return 'PlayerModel(id: $id, name: $name, teamShortName: $teamShortName, role: $role, credits: $credits, imageUrl: $imageUrl, points: $points, isPlaying: $isPlaying, teamId: $teamId)';
 }
 
 
@@ -271,7 +275,7 @@ abstract mixin class _$PlayerModelCopyWith<$Res> implements $PlayerModelCopyWith
   factory _$PlayerModelCopyWith(_PlayerModel value, $Res Function(_PlayerModel) _then) = __$PlayerModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String? teamShortName, String role, double credits, String imageUrl, double points, bool isPlaying
+ String id, String name, String? teamShortName, String role, double credits, String imageUrl, double points, bool isPlaying, String? teamId
 });
 
 
@@ -288,7 +292,7 @@ class __$PlayerModelCopyWithImpl<$Res>
 
 /// Create a copy of PlayerModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? teamShortName = freezed,Object? role = null,Object? credits = null,Object? imageUrl = null,Object? points = null,Object? isPlaying = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? teamShortName = freezed,Object? role = null,Object? credits = null,Object? imageUrl = null,Object? points = null,Object? isPlaying = null,Object? teamId = freezed,}) {
   return _then(_PlayerModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -298,7 +302,8 @@ as String,credits: null == credits ? _self.credits : credits // ignore: cast_nul
 as double,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
 as double,isPlaying: null == isPlaying ? _self.isPlaying : isPlaying // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,teamId: freezed == teamId ? _self.teamId : teamId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
