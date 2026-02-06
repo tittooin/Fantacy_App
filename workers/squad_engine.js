@@ -64,6 +64,16 @@ export async function syncMatchSquad(env, match, key, host) {
     try {
         console.log(`📡 Syncing Squad for Match ${matchId} (Series ${seriesId})`);
 
+        // Fetch Match Detail First to get Team IDs
+        const matchDetail = await env.DB.prepare("SELECT team_a, team_b, team_a_id, team_b_id FROM matches WHERE id = ?").bind(matchId).first();
+        if (!matchDetail) {
+            console.log("Match not found, skipping.");
+            return null;
+        }
+
+        const teamAId = matchDetail.team_a_id;
+        const teamBId = matchDetail.team_b_id;
+
         // Strategy 1: Match Squad (Playing XI)
         // Endpoint: /matches/v1/match/squad?matchId={matchId} (or check series match squad if available)
         // Note: We probed /matches/v1/match/squad on cricbuzz and it failed (404/500), but we will try Series-based Match Squad first?
@@ -89,8 +99,8 @@ export async function syncMatchSquad(env, match, key, host) {
                 // (Reuse existing logic if structure matches)
                 const teams = data.items;
                 if (teams.length >= 2) {
-                    finalSquads.teamA = mapPlayers(teams[0]?.players);
-                    finalSquads.teamB = mapPlayers(teams[1]?.players);
+                    finalSquads.teamA = mapPlayers(teams[0]?.players, teamAId);
+                    finalSquads.teamB = mapPlayers(teams[1]?.players, teamBId);
                     dataFound = true;
                 }
             }
@@ -108,25 +118,15 @@ export async function syncMatchSquad(env, match, key, host) {
             if (resp.ok && resp.status !== 204) {
                 const data = await resp.json();
                 if (data.squads) {
-                    // Map Teams to Squad IDs
-                    // matches table has team_a, team_b (names) and team_a_id, team_b_id
-                    // detailed match object needed? 'match' arg has basic fields.
-                    // We need team names. Fetch from DB if missing?
-                    // The 'match' object passed from processSquads ONLY has id, status, series_id.
-                    // We need Team Names/IDs to map!
+                    // Use already fetched matchDetail
+                    const squadA = findSquadId(data.squads, matchDetail.team_a, teamAId);
+                    const squadB = findSquadId(data.squads, matchDetail.team_b, teamBId);
 
-                    const matchDetail = await env.DB.prepare("SELECT team_a, team_b, team_a_id, team_b_id FROM matches WHERE id = ?").bind(matchId).first();
+                    if (squadA) finalSquads.teamA = await fetchSquadPlayers(squadA, seriesId, key, apiHost, teamAId); // Pass Team ID
+                    if (squadB) finalSquads.teamB = await fetchSquadPlayers(squadB, seriesId, key, apiHost, teamBId); // Pass Team ID
 
-                    if (matchDetail) {
-                        const squadA = findSquadId(data.squads, matchDetail.team_a, matchDetail.team_a_id);
-                        const squadB = findSquadId(data.squads, matchDetail.team_b, matchDetail.team_b_id);
-
-                        if (squadA) finalSquads.teamA = await fetchSquadPlayers(squadA, seriesId, key, apiHost);
-                        if (squadB) finalSquads.teamB = await fetchSquadPlayers(squadB, seriesId, key, apiHost);
-
-                        if (finalSquads.teamA.length > 0 || finalSquads.teamB.length > 0) {
-                            dataFound = true;
-                        }
+                    if (finalSquads.teamA.length > 0 || finalSquads.teamB.length > 0) {
+                        dataFound = true;
                     }
                 }
             }
@@ -193,49 +193,29 @@ function findSquadId(squadsList, teamName, teamId) {
     return found ? found.squadId : null;
 }
 
-async function fetchSquadPlayers(squadId, seriesId, key, host) {
-    const url = `https://${host}/series/v1/${seriesId}/squads/${squadId}`; // Correct Endpoint (no /players) 
-    // Actually user screenshot selected 'get-players', but endpoint might be just .../squads/{id} ?
-    // Let's assume user screenshot implies .../squads/{id}/players or just .../squads/{id} returns players?
-    // User JSON: { player: [...] }.
-    // If I use .../squads/{id}, and it returns { player: ...}, then fine.
-    // Try URL without /players first? No, screenshot 1 showed .../squads/15826 AND selected 'get-players'. 
-    // Usually get-players is a sub-resource.
-    // But wait, RapidAPI endpoints list shows 'series-get-players' as separate GET.
-    // Path params: seriesId, squadId.
-    // URL pattern in RapidAPI is usually mapped.
-    // Let's guess `.../squads/{squadId}/players` is standard.
-    // If 404, we catch error.
-
-    // Wait, the RapidAPI screenshot 2 shows path params: seriesId, squadId.
-    // It does NOT show /players in the URL bar (it shows .../series/get-players).
-    // This implies the RapidAPI endpoint definition handles the path.
-    // Standard REST would be /series/v1/{id}/squads/{id}/players.
-    // Let's use `.../series/v1/${seriesId}/squads/${squadId}/players`? 
-    // OR `.../series/v1/${seriesId}/squads/${squadId}`?
-    // Previous "Match Squad" was `.../squads/{matchId}`.
-    // Let's try `.../squads/{squadId}` first. If it returns { player: ... } then good.
-
+async function fetchSquadPlayers(squadId, seriesId, key, host, teamId) {
     const u = `https://${host}/series/v1/${seriesId}/squads/${squadId}`;
     try {
         const r = await fetch(u, { headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, 'User-Agent': 'Mozilla/5.0' } });
         if (r.ok) {
             const d = await r.json();
-            if (d.player) return mapPlayers(d.player);
+            if (d.player) return mapPlayers(d.player, teamId);
         }
     } catch (e) { }
     return [];
 }
 
-function mapPlayers(players) {
+// Helper: Map Players with Team ID
+function mapPlayers(players, teamId) {
     if (!players || !Array.isArray(players)) return [];
     return players.filter(p => !p.isHeader).map(p => ({
         id: (p.id || '').toString(),
         name: p.name || 'Unknown',
         role: mapRole(p.role),
-        image: p.imageId ? `https://i.cricketcb.com/stats/img/faceImages/${p.imageId}.jpg` : '', // Cricbuzz Image URL guess or similar
+        image: p.imageId ? `https://i.cricketcb.com/stats/img/faceImages/${p.imageId}.jpg` : '',
         isCaptain: p.captain || false,
-        isWicketKeeper: (p.role || '').toLowerCase().includes('wk') || (p.role || '').toLowerCase().includes('keeper')
+        isWicketKeeper: (p.role || '').toLowerCase().includes('wk') || (p.role || '').toLowerCase().includes('keeper'),
+        teamId: teamId ? teamId.toString() : '0' // Inject Team ID
     }));
 }
 
