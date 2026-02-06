@@ -335,12 +335,13 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
         
         // DEBUG: Log player team assignment
         if (index == 0) {
+          final isT1 = _isTeam1(player);
           debugPrint("🏏 PLAYER TEAM DEBUG:");
           debugPrint("   Player: ${player.name}");
-          debugPrint("   Player.teamShortName: '${player.teamShortName}'");
-          debugPrint("   Match.team1ShortName: '${widget.match.team1ShortName}'");
-          debugPrint("   Match.team2ShortName: '${widget.match.team2ShortName}'");
-          debugPrint("   Matches Team1? ${player.teamShortName == widget.match.team1ShortName}");
+          debugPrint("   Player.teamId: '${player.teamId}'");
+          debugPrint("   Match.team1Id: '${_activeMatch?.team1Id}'");
+          debugPrint("   Matches Team1? $isT1");
+          debugPrint("   Image: ${player.imageUrl}");
         }
         
         final isTeam1 = _isTeam1(player);
