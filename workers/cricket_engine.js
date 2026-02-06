@@ -1,47 +1,67 @@
 /**
- * Cricket Engine - Core Logic for Phase 2 (LiveScore6 Migration)
+ * Cricket Engine - Core Logic for Match Fetching (Cricbuzz Migration)
  * Responsibilities:
- * 1. Fetch from Rapids LiveScore6 API
- * 2. Parse Data (Adapted Schema)
+ * 1. Fetch from Cricbuzz Cricket API (RapidAPI)
+ * 2. Parse Data (Cricbuzz Structure)
  * 3. Update Cloudflare D1 (Delta Updates Only)
  * 4. STRICTLY NO FIRESTORE WRITES
  */
 
 import { calculateFantasyPoints } from './points_engine.js';
-import { processPayoutsForMatch } from './payout_engine.js';
+// import { processPayoutsForMatch } from './payout_engine.js'; // Disabled for now
 
 export async function processCricketData(env) {
-    console.log("🏏 Cricket Engine Started (LiveScore6)...");
+    console.log("🏏 Cricket Engine Started (Cricbuzz)...");
     const apiKey = env.RAPID_API_KEY;
-    const apiHost = 'livescore6.p.rapidapi.com'; // MIGRATION HOST
+    const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
 
     try {
-        // 1. Fetch Schedule (includes Live usually)
+        // Fetch Matches (Live, Upcoming, Recent)
+        // 3 Hits per cycle. If cycle is 10 mins = ~13k hits/month. Safe.
         const matches = await fetchMatchesFromAPI(apiKey, apiHost, env);
         console.log(`📡 Fetched ${matches.length} matches from API`);
 
-        // 2. Process Matches (Upsert to D1)
+        // Process Matches (Upsert to D1)
         for (const match of matches) {
             await syncMatchToD1(match, env);
-
-            // 3. If Live, Fetch & Update Score (TODO: Update for LS6)
-            if (isLive(match.status)) {
-                // LS6 Live Score usually needs specific endpoint or is included in List info
-                // For now, we rely on List info for basic score, detailed stats disabled temporarily
-                // await processLiveScore(match.id, match.matchFormat || 'T20', apiKey, apiHost, env);
-            }
-            // 4. If Completed, JUST Log it (Payouts are now MANUAL via Admin)
-            else if (match.status === 'Completed') {
-                console.log(`✅ Match ${match.id} Completed. Waiting for Admin Payout Trigger.`);
-            }
         }
 
-        console.log("✅ Cricket Engine Cycle Complete");
-        return matches; // Return for API response
+        // Return Latest State from D1 (Always full list) with Frontend Compatibility
+        const cached = await env.DB.prepare('SELECT * FROM matches ORDER BY start_time ASC').all();
+
+        const mappedResults = cached.results.map(m => ({
+            ...m,
+            // Map D1 snake_case to Frontend expected keys
+            team1Name: m.team_a,
+            team2Name: m.team_b,
+            teamA: m.team_a,
+            teamB: m.team_b,
+            matchDesc: m.title,
+            seriesName: m.series_name || m.title, // Use DB Series Name, Fallback to Title
+            team1ShortName: m.short_title ? m.short_title.split(' vs ')[0] : (m.team_a ? m.team_a.substring(0, 3).toUpperCase() : 'T1'),
+            team2ShortName: m.short_title ? m.short_title.split(' vs ')[1] : (m.team_b ? m.team_b.substring(0, 3).toUpperCase() : 'T2'),
+            startDate: m.start_time,
+            status: m.status
+        }));
+
+        console.log(`✅ Returns ${mappedResults.length} matches from D1 (Mapped)`);
+        return mappedResults;
 
     } catch (e) {
         console.error("❌ Cricket Engine Error:", e);
-        return [];
+        // Fallback: Try to list DB anyway
+        try {
+            const cached = await env.DB.prepare('SELECT * FROM matches ORDER BY start_time ASC').all();
+            return cached.results.map(m => ({
+                ...m,
+                team1Name: m.team_a,
+                team2Name: m.team_b,
+                teamA: m.team_a,
+                teamB: m.team_b,
+                matchDesc: m.title,
+                startDate: m.start_time
+            }));
+        } catch (ex) { return []; }
     }
 }
 
@@ -53,191 +73,177 @@ async function syncMatchToD1(match, env) {
         const existing = await env.DB.prepare('SELECT last_updated, status, team_a_id FROM matches WHERE id = ?').bind(match.id).first();
 
         if (existing) {
-            const missingIds = !existing.team_a_id;
-            if (!missingIds && existing.status === match.status && match.status !== 'Live' && match.status !== 'In Progress') {
-                return;
+            const existingStatus = existing.status;
+
+            await env.DB.prepare(`
+                UPDATE matches SET 
+                title = ?,
+                short_title = ?,
+                series_id = ?,
+                series_name = ?,
+                start_time = ?,
+                team_a_img = ?,
+                team_b_img = ?,
+                team_a_id = ?,
+                team_b_id = ?,
+                last_updated = ?
+                WHERE id = ?
+            `).bind(
+                match.title, match.shortTitle, match.seriesId, match.seriesName || '', match.startTime,
+                match.teamAImg, match.teamBImg, match.team1Id, match.team2Id, Date.now(), match.id
+            ).run();
+
+        } else {
+            await env.DB.prepare(`
+            INSERT INTO matches (id, series_id, series_name, title, short_title, status, start_time, team_a, team_b, team_a_img, team_b_img, team_a_id, team_b_id, last_updated)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+                match.id, match.seriesId, match.seriesName || '', match.title, match.shortTitle, match.status, match.startTime,
+                match.teamA, match.teamB, match.teamAImg, match.teamBImg, match.team1Id, match.team2Id, Date.now()
+            ).run();
+            // Trigger Squad Fetch for New Match
+            if (match.status === 'Upcoming' || match.status === 'Live') {
+                const squadCheck = await env.DB.prepare(`SELECT match_id FROM match_squads WHERE match_id = ?`).bind(match.id).first();
+                if (!squadCheck) {
+                    console.log(`🆕 New match detected: ${match.id}, queuing squad check...`);
+                    const { syncMatchSquad } = await import('./squad_engine.js');
+                    await syncMatchSquad(env, { id: match.id, series_id: match.seriesId, status: match.status }, env.RAPID_API_KEY, env.RAPID_API_HOST);
+                }
             }
         }
-
-        // Upsert
-        await env.DB.prepare(`
-            INSERT INTO matches (id, series_id, title, short_title, status, start_time, team_a, team_b, team_a_img, team_b_img, team_a_id, team_b_id, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                status = excluded.status,
-                title = excluded.title,
-                team_a_id = excluded.team_a_id,
-                team_b_id = excluded.team_b_id,
-                last_updated = excluded.last_updated
-        `).bind(
-            match.id, match.seriesId, match.title, match.shortTitle, match.status,
-            match.startTime, match.teamA, match.teamB, match.teamAImg, match.teamBImg,
-            match.team1Id, match.team2Id,
-            Date.now()
-        ).run();
 
     } catch (e) {
         console.error(`Error syncing match ${match.id}:`, e);
     }
 }
 
-// --- API HELPERS (LiveScore6 Migration) ---
+// --- API HELPERS (Cricbuzz Migration) ---
 
 async function fetchMatchesFromAPI(key, host, env) {
-    const primary = {
-        host: host,
-        endpointLive: '/matches/v2/list-live?Category=cricket',
-        endpointDate: '/matches/v2/list-by-date?Category=cricket'
-    };
-
     let parsed = [];
+    const endpoints = [
+        { path: '/matches/v1/live', key: 'fetch_live', ttl: 300000 },      // 5 Mins
+        { path: '/matches/v1/upcoming', key: 'fetch_upcoming', ttl: 900000 }, // 15 Mins
+        { path: '/matches/v1/recent', key: 'fetch_recent', ttl: 1800000 }   // 30 Mins
+    ];
 
-    // 1. Fetch LIVE
-    try {
-        console.log(`📡 Fetching Live: https://${primary.host}${primary.endpointLive}`);
-        const resp = await fetch(`https://${primary.host}${primary.endpointLive}`, {
-            headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': primary.host }
-        });
+    for (const ep of endpoints) {
+        try {
+            // Throttling Check per Endpoint
+            const dbKey = `last_${ep.key}`;
+            const lastFetch = await env.DB.prepare("SELECT value FROM sys_config WHERE key = ?").bind(dbKey).first();
 
-        if (resp.ok) {
-            const data = await resp.json();
-            const liveMatches = parseMatches(data);
-            console.log(`✅ Live Matches: ${liveMatches.length}`);
-            parsed = [...parsed, ...liveMatches];
-        } else {
-            console.error(`❌ Live Fetch Error: ${resp.status}`);
-        }
-    } catch (e) {
-        console.error(`⚠️ Live API Failed: ${e.message}`);
-    }
+            if (lastFetch && (Date.now() - parseInt(lastFetch.value)) < ep.ttl) {
+                console.log(`⏳ Skipping ${ep.path} (Limit < ${ep.ttl / 60000}m)`);
+                continue;
+            }
 
-    // 2. Fetch UPCOMING (Yesterday, Today, Tomorrow) - Coverage across timezones
-    try {
-        const dates = [];
-        const d = new Date();
-        dates.push(d.toISOString().split('T')[0].replace(/-/g, '')); // Today
-        d.setDate(d.getDate() + 1);
-        dates.push(d.toISOString().split('T')[0].replace(/-/g, '')); // Tomorrow
-        d.setDate(d.getDate() - 2);
-        dates.push(d.toISOString().split('T')[0].replace(/-/g, '')); // Yesterday
-
-        for (const dateStr of dates) {
-            const url = `https://${primary.host}${primary.endpointDate}&Date=${dateStr}`;
-            console.log(`📡 Fetching Schedule (${dateStr}): ${url}`);
-
+            // Execute Fetch
+            const url = `https://${host}${ep.path}`;
+            console.log(`📡 Fetching: ${url}`);
             const resp = await fetch(url, {
-                headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': primary.host }
+                headers: {
+                    'x-rapidapi-key': key,
+                    'x-rapidapi-host': host,
+                    'User-Agent': 'Mozilla/5.0'
+                }
             });
 
             if (resp.ok) {
                 const data = await resp.json();
-                const schedMatches = parseMatches(data);
-                console.log(`✅ Scheduled Matches (${dateStr}): ${schedMatches.length}`);
-                parsed = [...parsed, ...schedMatches];
+                const matches = parseCricbuzzMatches(data);
+                console.log(`✅ ${ep.path}: Found ${matches.length} matches`);
+                parsed = [...parsed, ...matches];
+
+                // Update Timestamp ONLY on success
+                await env.DB.prepare("INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)").bind(dbKey, Date.now().toString(), Date.now()).run();
+
+            } else {
+                console.error(`⚠️ API Error ${ep.path}: ${resp.status}`);
             }
+        } catch (e) {
+            console.error(`Fetch Failed ${ep.path}:`, e);
         }
-    } catch (e) {
-        console.error(`⚠️ Schedule API Failed: ${e.message}`);
     }
 
     if (parsed.length === 0) return [];
 
-    // Deduplicate
+    // Deduplicate by ID
     const unique = new Map();
     parsed.forEach(m => {
-        if (m.id && m.team1Name && m.team2Name) {
-            unique.set(m.id, m);
-        }
+        if (m.id) unique.set(m.id, m);
     });
 
-    console.log(`🔍 Found ${unique.size} unique matches from LiveScore6`);
-
-    // --- SERIES FILTERING ---
-    let allowedIds = [];
-    try {
-        const results = await env.DB.prepare("SELECT series_id FROM allowed_series").all();
-        if (results && results.results) {
-            allowedIds = results.results.map(r => r.series_id.toString());
-        }
-    } catch (e) {
-        console.error("⚠️ Failed allowed_series fetch", e);
-    }
-
-    const finalMatches = Array.from(unique.values());
-
-    if (allowedIds.length > 0) {
-        console.log(`🎯 Filtering for Allowed Series: ${allowedIds.join(', ')}`);
-        return finalMatches.filter(m => allowedIds.includes(m.seriesId?.toString()));
-    } else {
-        return finalMatches;
-    }
+    return Array.from(unique.values());
 }
 
-function parseMatches(data) {
+function parseCricbuzzMatches(data) {
     let matches = [];
-    if (data.Stages && Array.isArray(data.Stages)) {
-        data.Stages.forEach(stage => {
-            const events = stage.Events || [];
-            events.forEach(event => {
-                const m = formatMatch(event, stage);
-                if (m) matches.push(m);
-            });
+    // Structure: typeMatches[] -> seriesMatches[] -> seriesAdWrapper -> matches[] -> matchInfo
+    if (data.typeMatches && Array.isArray(data.typeMatches)) {
+        data.typeMatches.forEach(tm => {
+            if (tm.seriesMatches) {
+                tm.seriesMatches.forEach(sm => {
+                    const wrapper = sm.seriesAdWrapper || {};
+                    if (wrapper.matches) {
+                        wrapper.matches.forEach(m => {
+                            const parsed = formatCricbuzzMatch(m.matchInfo);
+                            if (parsed) matches.push(parsed);
+                        });
+                    }
+                });
+            }
         });
     }
     return matches;
 }
 
-function parseLiveScoreDate(dateStr) {
-    // Format: YYYYMMDDHHMMSS e.g. 20260203203000
-    if (!dateStr) return Date.now();
-    const str = dateStr.toString();
-    if (str.length < 14) return Date.now();
-    const y = str.substring(0, 4);
-    const m = str.substring(4, 6);
-    const d = str.substring(6, 8);
-    const h = str.substring(8, 10);
-    const min = str.substring(10, 12);
-    const s = str.substring(12, 14);
-    // Assume UTC as per standard API practice
-    return new Date(`${y}-${m}-${d}T${h}:${min}:${s}Z`).getTime();
-}
+function formatCricbuzzMatch(info) {
+    if (!info || !info.matchId) return null;
 
-function formatMatch(event, stage) {
-    if (!event || !event.T1 || !event.T2) return null;
-    const t1 = event.T1[0] || {};
-    const t2 = event.T2[0] || {};
-    const mId = event.Eid;
-    const sDate = parseLiveScoreDate(event.Esd);
-
-    if (!mId || !t1.Nm || !t2.Nm) return null;
-
+    // Status Mapping
     let status = 'Upcoming';
-    const statusText = event.EpsL || '';
-    if (statusText === 'Finished' || statusText === 'Full Time' || statusText.includes('Result')) status = 'Completed';
-    else if (statusText === 'Play in progress' || statusText === 'Innings Break') status = 'Live';
-    else if (statusText === 'Cancelled' || statusText === 'Abandoned') status = 'Abandoned';
+    const state = info.state || ''; // Complete, In Progress, Preview, Toss, Stumps...
 
-    if (status === 'Upcoming' && Date.now() > sDate + 3600000) status = 'Live'; // Fallback
+    if (state === 'Complete' || state === 'Mom' || state.includes('Won')) status = 'Completed';
+    else if (state === 'In Progress' || state === 'Live' || state === 'Toss' || state === 'Stumps' || state === 'Innings Break') status = 'Live';
+    else if (state === 'Preview' || state === 'Upcoming') status = 'Upcoming';
+    else if (state === 'Abandoned' || state === 'No Result') status = 'Abandoned';
+
+    // Teams
+    const t1 = info.team1 || {};
+    const t2 = info.team2 || {};
 
     return {
-        id: mId.toString(), // MAPPED: Eid -> id
-        seriesId: (stage.Sid || '0').toString(), // MAPPED: Sid -> seriesId
-        seriesName: stage.Snm || stage.Cnm || 'Unknown Series',
-        title: `${t1.Nm} vs ${t2.Nm}`, // MAPPED: Constructed
-        shortTitle: `${t1.Abr || t1.Nm.substring(0, 3)} vs ${t2.Abr || t2.Nm.substring(0, 3)}`,
-        status: status, // MAPPED: Derived
-        startTime: sDate, // MAPPED: Esd -> timestamp
-        teamA: t1.Nm, // T1.Nm
-        teamB: t2.Nm, // T2.Nm
-        teamAImg: t1.Img || '',
-        teamBImg: t2.Img || '',
-        team1Id: (t1.ID || '0').toString(), // MAPPED: T1.ID
-        team2Id: (t2.ID || '0').toString(), // MAPPED: T2.ID
-        matchFormat: stage.Ccd ? stage.Ccd.toUpperCase() : 'T20',
+        id: info.matchId.toString(),
+        seriesId: (info.seriesId || '0').toString(),
+        seriesName: info.seriesName || 'Unknown Series',
+        title: `${t1.teamName || 'T1'} vs ${t2.teamName || 'T2'}`,
+        shortTitle: `${t1.teamSName || 'T1'} vs ${t2.teamSName || 'T2'}`,
+        status: status,
+        matchFormat: info.matchFormat ? info.matchFormat.toUpperCase() : 'T20',
+
+        // COMPATIBILITY FIELDS (For Frontend)
+        team1Name: t1.teamName || 'Team A',
+        team2Name: t2.teamName || 'Team B',
+        team1ShortName: t1.teamSName || 'T1',
+        team2ShortName: t2.teamSName || 'T2',
+        matchDesc: `${t1.teamName} vs ${t2.teamName}`,
+        startDate: parseInt(info.startDate) || Date.now(),
+        endDate: parseInt(info.endDate) || (parseInt(info.startDate) + 14400000), // Fallback +4h
+        venue: info.venueInfo ? info.venueInfo.ground : 'TBD',
+
+        startTime: parseInt(info.startDate) || Date.now(), // Ensure MS
+
+        teamA: t1.teamName || 'Team A',
+        teamB: t2.teamName || 'Team B',
+        teamAImg: t1.imageId ? `https://i.cricketcb.com/stats/img/faceImages/${t1.imageId}.jpg` : '',
+        teamBImg: t2.imageId ? `https://i.cricketcb.com/stats/img/faceImages/${t2.imageId}.jpg` : '',
+
+        team1Id: (t1.teamId || '0').toString(),
+        team2Id: (t2.teamId || '0').toString(),
+
         lastUpdated: Date.now()
     };
 }
 
-function isLive(status) {
-    return status === 'Live' || status === 'In Progress';
-}

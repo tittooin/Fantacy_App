@@ -159,14 +159,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         )),
         data: (allMatches) {
            final now = DateTime.now().millisecondsSinceEpoch;
+           
+           // Major League Filter Keywords (Case Insensitive)
+           final majorKeywords = [
+             'IPL', 'WPL', 'Women\'s Premier League', // Indian Leagues
+             'BBL', 'Big Bash', 'WBBL', // Australian Leagues
+             'PSL', 'Pakistan Super League', 
+             'SA20', 'ILT20', 'The Hundred', 
+             'CPL', 'Caribbean Premier League',
+             'LPL', 'Lanka Premier League',
+             'BPL', 'Bangladesh Premier League',
+             'Super Smash', 'Major League Cricket', 'MLC',
+             'T20 World Cup', 'World Cup', 'Champions Trophy', 'Asia Cup',
+             'ODI', 'Test', 'T20I', // Format Indicators often in Int. matches
+             'IND', 'AUS', 'ENG', 'SA', 'PAK', 'NZ', 'WI', 'SL', 'BAN', 'AFG', 'IRE', 'ZIM' // Intl Teams
+           ];
+
+           bool isMajorMatch(Map<String, dynamic> m) {
+              final title = (m['title'] as String? ?? '').toLowerCase();
+              final teamA = (m['team_a'] as String? ?? '').toLowerCase();
+              final teamB = (m['team_b'] as String? ?? '').toLowerCase();
+              
+              // Check Title
+              for (final k in majorKeywords) {
+                 if (title.contains(k.toLowerCase())) return true;
+              }
+              // Check Teams (for International matches like "India vs Australia")
+              // Only check strict team codes if title fail? Or just check if title contains them?
+              // Usually title is "IND vs AUS".
+              
+              return false;
+           }
+
            final upcoming = allMatches.where((m) {
               final status = m['status'];
               final start = m['start_time'] ?? 0;
               final isLive = status == 'Live' || status == 'In Progress';
               final isFuture = start > now;
               
+              if (!isMajorMatch(m)) return false; // FILTER STEP
+
               // Only show if Live OR strictly Future
-              // If status is Upcoming but time is past, hide it (Stale)
               return isLive || (status == 'Upcoming' && isFuture);
            }).toList();
            
@@ -176,6 +209,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               final isFinished = status == 'Completed' || status == 'Finished' || status == 'Abandoned';
               // User Constraint: Show only last 1 week of completed matches
               final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+              
+              if (!isMajorMatch(m)) return false; // FILTER STEP
+
               return isFinished && start > sevenDaysAgo;
            }).toList();
 

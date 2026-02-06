@@ -65,3 +65,17 @@ CREATE TABLE IF NOT EXISTS leaderboards (
     PRIMARY KEY (match_id, contest_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_lb_contest ON leaderboards(contest_id, rank);
+
+-- 7. Vouchers (Reward Credits Redemption)
+CREATE TABLE IF NOT EXISTS vouchers (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    code TEXT UNIQUE NOT NULL,
+    brand TEXT NOT NULL,
+    value INTEGER NOT NULL,
+    status TEXT DEFAULT 'active',
+    created_at INTEGER NOT NULL,
+    redeemed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_voucher_user ON vouchers(user_id);
+CREATE INDEX IF NOT EXISTS idx_voucher_status ON vouchers(status);

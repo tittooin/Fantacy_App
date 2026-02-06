@@ -85,15 +85,15 @@ class CricketMatchModel {
       seriesName: map['seriesName'] as String? ?? '',
       matchDesc: map['matchDesc'] as String? ?? '',
       matchFormat: map['matchFormat'] as String? ?? '',
-      team1Name: map['team1Name'] as String? ?? '',
+      team1Name: (map['team1Name'] as String?)?.isNotEmpty == true ? map['team1Name'] as String : map['teamA'] as String? ?? '',
       team1ShortName: (map['team1ShortName'] as String?)?.isNotEmpty == true 
           ? map['team1ShortName'] as String 
-          : _generateShortName(map['team1Name'] as String? ?? ''),
+          : _generateShortName((map['team1Name'] as String?)?.isNotEmpty == true ? map['team1Name'] as String : map['teamA'] as String? ?? ''),
       team1Img: map['team1Img'] as String? ?? '',
-      team2Name: map['team2Name'] as String? ?? '',
+      team2Name: (map['team2Name'] as String?)?.isNotEmpty == true ? map['team2Name'] as String : map['teamB'] as String? ?? '',
       team2ShortName: (map['team2ShortName'] as String?)?.isNotEmpty == true 
           ? map['team2ShortName'] as String 
-          : _generateShortName(map['team2Name'] as String? ?? ''),
+          : _generateShortName((map['team2Name'] as String?)?.isNotEmpty == true ? map['team2Name'] as String : map['teamB'] as String? ?? ''),
       team2Img: map['team2Img'] as String? ?? '',
       startDate: map['startDate'] as int? ?? 0,
       endDate: map['endDate'] as int? ?? 0,

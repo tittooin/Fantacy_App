@@ -21,7 +21,18 @@ final userEntityProvider = StreamProvider<UserEntity?>((ref) {
       .snapshots()
       .map((snapshot) {
         if (snapshot.exists && snapshot.data() != null) {
-          return UserEntity.fromJson(snapshot.data()!);
+          final data = snapshot.data()!;
+          data['uid'] = snapshot.id; // Ensure UID is present from Doc ID
+
+          try {
+            return UserEntity.fromJson(data);
+          } catch (e) {
+            // Log error to console (visible in DevTools)
+            // This prevents the 'Red Screen' / 'White Blank' crash
+            print("🚨 User Parse Error: $e");
+            print("📄 Corrupted Data: $data");
+            return null; // Fallback to Guest/Logout
+          }
         }
         return null;
       });

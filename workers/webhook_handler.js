@@ -7,9 +7,14 @@ async function verifySignature(ts, body, signature, secret) {
     if (!ts || !signature || !secret) throw new Error("Missing verification headers/config");
 
     // 1. Check Timestamp Age (Replay Attack Prevention)
-    const now = Math.floor(Date.now() / 1000); // Seconds
-    const webhookTime = parseInt(ts, 10);
-    if (Math.abs(now - webhookTime) > 300) { // 5 minutes tolerance
+    const now = Math.floor(Date.now() / 1000); // Current Time in Seconds
+
+    // Cashfree sends x-webhook-timestamp in MILLISECONDS
+    const webhookTimeMs = parseInt(ts, 10);
+    const webhookTimeSeconds = Math.floor(webhookTimeMs / 1000);
+
+    if (Math.abs(now - webhookTimeSeconds) > 300) { // 5 minutes tolerance
+        console.error(`Timestamp Expired: Now ${now}, Hook ${webhookTimeSeconds}`);
         throw new Error("Webhook Timestamp expired");
     }
 
@@ -53,8 +58,17 @@ export async function handleCashfreeWebhook(request, env) {
         const bodyText = await request.text();
 
         // STRICT VERIFICATION ENABLED
-        await verifySignature(timestamp, bodyText, signature, env.CASHFREE_SECRET_KEY);
-        // console.log("✅ Webhook Verified/Authentic");
+        console.log(`[Webhook Debug] TS: ${timestamp}, Sig: ${signature ? 'Present' : 'Missing'}`);
+        // console.log(`[Webhook Debug] Body: ${bodyText}`); // Careful with PII, but need for sig debug
+
+        try {
+            await verifySignature(timestamp, bodyText, signature, env.CASHFREE_SECRET_KEY);
+            console.log("✅ Webhook Verified/Authentic");
+        } catch (sigError) {
+            console.error(`[Webhook Sig Failed] ${sigError.message}`);
+            // Force Fail for Debugging? No, just log distinct error.
+            throw sigError;
+        }
 
         const data = JSON.parse(bodyText);
 

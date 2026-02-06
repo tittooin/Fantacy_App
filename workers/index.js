@@ -12,7 +12,9 @@ import { createCashfreeOrder } from './payment_service.js';
 import { handleCashfreeWebhook } from './webhook_handler.js';
 import { processLeaderboards } from './leaderboard_engine.js';
 import { processSquads, syncMatchSquad } from './squad_engine.js';
-import { processPayoutsForMatch } from './payout_engine.js'; // Added Import for Manual Trigger
+import { processPayoutsForMatch } from './payout_engine.js';
+import { handleVoucherRedeem, handleVoucherList } from './voucher_system.js';
+
 
 // ... (CORS Headers kept same)
 
@@ -93,24 +95,80 @@ export default {
         // --- MANUAL SQUAD ENTRY (Admin) ---
         if (path === '/api/admin/match/squad') return handleAdminSaveSquad(request, env);
 
+        // --- VOUCHER ROUTES ---
+        if (path === '/api/voucher/redeem') return handleVoucherRedeem(request, env);
+        if (path === '/api/voucher/list') return handleVoucherList(request, env);
+
         if (path === '/diag') return handleGlobalDiag(env);
         if (path === '/fantasy-points') return handleGetFantasyPoints(url.searchParams.get('match_id'), env);
-        // if (path === '/debug-api') return handleDebugApi(env); // Removed in Phase 2
+        if (path === '/debug-api' || path === '/api/debug-api') return handleDebugApi(env);
 
         return new Response("Fantasy Cricket Worker (D1-Core) - Unknown Route: " + path, { status: 404, headers: corsHeaders });
-    },
-
-    // Scheduled Event (Cron Trigger)
-    async scheduled(event, env, ctx) {
-        console.log("â° Cron Triggered (D1 Mode)");
-        await processCricketData(env);     // Matches & Scores (Refactored to trigger Payouts)
-        await processLiveContests(env, null); // Legacy
-        await processLeaderboards(env); // Leaderboard Optimization
-        // await processSquads(env); // DISABLED: Manual Squad Only per User Request
     }
 };
 
 // --- HANDLERS ---
+
+async function handleDebugApi(env) {
+    const key = env.RAPID_API_KEY;
+    const hosts = [
+        { name: 'LiveScore6', host: 'livescore6.p.rapidapi.com', path: '/matches/v2/list-live?Category=cricket' },
+    ];
+
+    let results = {};
+
+    for (const h of hosts) {
+        try {
+            const start = Date.now();
+            const url = `https://${h.host}${h.path}`;
+            const resp = await fetch(url, {
+                headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': h.host }
+            });
+            let dataPreview = "No Body";
+            let parseDebug = {};
+            try {
+                const data = await resp.json();
+
+                // DATA INSPECTION
+                const stages = data.Stages || [];
+                const firstStage = stages[0] || {};
+                const events = firstStage.Events || [];
+                const firstEvent = events[0] || {};
+
+                parseDebug = {
+                    hasStages: !!data.Stages,
+                    stagesCount: stages.length,
+                    firstStageEvents: events.length,
+                    sampleEventKeys: Object.keys(firstEvent),
+                    hasT1: !!firstEvent.T1,
+                    hasT2: !!firstEvent.T2,
+                    t1Name: firstEvent.T1 ? (firstEvent.T1[0]?.Nm) : 'N/A',
+                    eid: firstEvent.Eid
+                };
+
+                dataPreview = JSON.stringify(data).substring(0, 500) + "...";
+            } catch (e) {
+                dataPreview = "Indigestible JSON: " + e.message;
+            }
+
+            results[h.name] = {
+                status: resp.status,
+                ok: resp.ok,
+                latency: Date.now() - start,
+                parseDebug: parseDebug,
+                dataPreview: dataPreview // Longer preview
+            };
+        } catch (e) {
+            results[h.name] = { error: e.message };
+        }
+    }
+
+    return jsonResponse({
+        success: true,
+        env_key_preview: key ? key.substring(0, 5) + '...' : 'MISSING',
+        results: results
+    });
+}
 
 async function handleCreatePayment(request, env) {
     try {
@@ -156,11 +214,13 @@ async function handlePaymentWebhook(request, env) {
 
                 // 2. Update User Wallet
                 const user = await fetchDoc(`users/${userId}`, env);
-                const currentCoins = user && user.walletCoins ? parseFloat(user.walletCoins) : 0;
+                // Migration: Check walletBalance (V2) -> walletCoins (Legacy) -> 0
+                const currentCoins = (user && user.walletBalance) ? parseFloat(user.walletBalance) :
+                    (user && user.walletCoins) ? parseFloat(user.walletCoins) : 0;
                 const newCoins = currentCoins + parseFloat(amount);
 
-                // Update User
-                await saveToFirestore('users', { id: userId, walletCoins: newCoins, lastUpdated: new Date().toISOString() }, env);
+                // Update User with walletBalance
+                await saveToFirestore('users', { id: userId, walletBalance: newCoins, lastUpdated: new Date().toISOString() }, env);
 
                 // 3. Update Transaction Status
                 await saveToFirestore('transactions', { id: orderId, status: 'success', gatewayResponse: JSON.stringify(gatewayData) }, env);
@@ -198,7 +258,8 @@ async function handleJoinContest(request, env) {
         const user = await fetchDoc(`users/${userId}`, env);
         if (!user) return jsonResponse({ success: false, error: 'User not found' }, 404);
 
-        const currentCoins = user.walletCoins ? parseFloat(user.walletCoins) : 0;
+        const currentCoins = (user.walletBalance) ? parseFloat(user.walletBalance) :
+            (user.walletCoins) ? parseFloat(user.walletCoins) : 0;
 
         // 2. Fetch Contest Entry Fee
         const contest = await fetchDoc(`contests/${contestId}`, env);
@@ -213,7 +274,7 @@ async function handleJoinContest(request, env) {
 
         // 4. Deduct Coins
         const newBalance = currentCoins - entryFee;
-        await saveToFirestore('users', { id: userId, walletCoins: newBalance }, env);
+        await saveToFirestore('users', { id: userId, walletBalance: newBalance }, env);
 
         // 5. Log Transaction (Audit)
         const txnId = `join_${Date.now()}_${userId}`;
@@ -366,32 +427,35 @@ async function handleGetSquads(matchId, env) {
     try {
         if (!matchId) return jsonResponse({ success: false, error: 'matchId required' });
 
-        // 1. Try D1 First (Zero Quota)
+        // 1. D1 cache read
         const d1Squad = await env.DB.prepare(
-            "SELECT team_a_roster, team_b_roster, playing_11_a, playing_11_b FROM match_squads WHERE match_id = ?"
+            "SELECT team_a_roster, team_b_roster, playing_11_a, playing_11_b, last_updated FROM match_squads WHERE match_id = ?"
         ).bind(matchId).first();
 
+        const now = Date.now();
+        const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
+
+        // 2. Return cached if fresh
         if (d1Squad && d1Squad.team_a_roster) {
-            // Reconstruct JSON structure expected by app
-            return jsonResponse({
-                success: true,
-                source: 'D1',
-                teamA: JSON.parse(d1Squad.team_a_roster),
-                teamB: JSON.parse(d1Squad.team_b_roster),
-                xiA: JSON.parse(d1Squad.playing_11_a || '[]'),
-                xiB: JSON.parse(d1Squad.playing_11_b || '[]')
-            });
+            const age = now - (d1Squad.last_updated || 0);
+            if (age < staleThreshold) {
+                return jsonResponse({
+                    success: true,
+                    source: 'D1_CACHE',
+                    teamA: JSON.parse(d1Squad.team_a_roster),
+                    teamB: JSON.parse(d1Squad.team_b_roster),
+                    xiA: JSON.parse(d1Squad.playing_11_a || '[]'),
+                    xiB: JSON.parse(d1Squad.playing_11_b || '[]')
+                });
+            }
         }
 
-        // 2. Fallback: On-Demand Sync
-        // If D1 is empty, trigger a sync now using the fallback logic in squad_engine.js
-        console.log(`âš ï¸ Squad missing in D1 for ${matchId}. Triggering On-Demand Sync...`);
-
-        // Construct minimal match object for sync
-        const mockMatch = { id: matchId, status: 'Upcoming' }; // Status helps logging
+        // 3. Lazy fetch if missing or stale
+        console.log(`🔄 Squad stale/missing for ${matchId}, fetching...`);
+        const mockMatch = { id: matchId, status: 'Upcoming' };
         await syncMatchSquad(env, mockMatch, env.RAPID_API_KEY, env.RAPID_API_HOST);
 
-        // 3. Retry D1 Fetch
+        // 4. Return fresh data
         const d1Retry = await env.DB.prepare(
             "SELECT team_a_roster, team_b_roster, playing_11_a, playing_11_b FROM match_squads WHERE match_id = ?"
         ).bind(matchId).first();
@@ -399,7 +463,7 @@ async function handleGetSquads(matchId, env) {
         if (d1Retry && d1Retry.team_a_roster) {
             return jsonResponse({
                 success: true,
-                source: 'D1_SYNC',
+                source: 'D1_FRESH',
                 teamA: JSON.parse(d1Retry.team_a_roster),
                 teamB: JSON.parse(d1Retry.team_b_roster),
                 xiA: JSON.parse(d1Retry.playing_11_a || '[]'),
@@ -407,9 +471,10 @@ async function handleGetSquads(matchId, env) {
             });
         }
 
-        return jsonResponse({ success: false, message: 'Squad not found even after sync' });
-    } catch (error) {
-        return jsonResponse({ success: false, error: error.message });
+        return jsonResponse({ success: false, error: 'Squad unavailable' });
+    } catch (e) {
+        console.error('Squad Error:', e);
+        return jsonResponse({ success: false, error: e.message }, 500);
     }
 }
 

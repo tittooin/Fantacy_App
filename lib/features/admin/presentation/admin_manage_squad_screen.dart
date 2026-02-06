@@ -51,10 +51,13 @@ class _AdminManageSquadScreenState extends ConsumerState<AdminManageSquadScreen>
     try {
       final data = await ref.read(adminRepositoryProvider).getSquad(widget.matchId);
       if (data['success'] == true) {
+        final xiA = List<String>.from(data['xiA'] ?? []);
+        final xiB = List<String>.from(data['xiB'] ?? []);
+
         if (data['teamA'] != null) {
           setState(() {
-            teamPlayersA = List<Map<String, dynamic>>.from(data['teamA']).map((p) => _reverseTransform(p)).toList();
-            teamPlayersB = List<Map<String, dynamic>>.from(data['teamB']).map((p) => _reverseTransform(p)).toList();
+            teamPlayersA = List<Map<String, dynamic>>.from(data['teamA']).map((p) => _reverseTransform(p, xiA)).toList();
+            teamPlayersB = List<Map<String, dynamic>>.from(data['teamB']).map((p) => _reverseTransform(p, xiB)).toList();
           });
         }
       }
@@ -65,7 +68,7 @@ class _AdminManageSquadScreenState extends ConsumerState<AdminManageSquadScreen>
     }
   }
 
-  Map<String, dynamic> _reverseTransform(Map<String, dynamic> p) {
+  Map<String, dynamic> _reverseTransform(Map<String, dynamic> p, List<String> xiIds) {
     String roleFull = 'Batsman';
     switch(p['role']) {
       case 'BAT': roleFull = 'Batsman'; break;
@@ -75,10 +78,15 @@ class _AdminManageSquadScreenState extends ConsumerState<AdminManageSquadScreen>
       default: roleFull = p['role'] ?? 'Batsman';
     }
     
+    // Check if ID is in XI List
+    final pid = p['id'].toString();
+    final isPlaying = xiIds.contains(pid) || p['isPlaying11'] == true;
+
     return {
       ...p,
       'role': roleFull,
-      'image': p['imageUrl'] ?? p['image'] ?? "", // Handle both keys
+      'image': p['imageUrl'] ?? p['image'] ?? "", 
+      'isPlaying11': isPlaying, // Ensure not null
     };
   }
 

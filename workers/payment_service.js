@@ -34,7 +34,7 @@ export async function createCashfreeOrder(userId, amount, env) {
                 customer_name: `User ${userId.substring(0, 5)}`
             },
             order_meta: {
-                return_url: `https://fantacy-app.pages.dev/#/wallet?order_id={order_id}`,
+                return_url: `https://fantacy-app.pages.dev/wallet?order_id={order_id}`,
                 notify_url: `${env.WORKER_URL}/api/payment-webhook`
             }
         };
@@ -82,6 +82,7 @@ async function savePendingTransaction(userId, orderId, amount, env) {
     if (!env.FIREBASE_PROJECT_ID) return; // Skip if no DB
 
     const transaction = {
+        id: orderId, // Vital: This ensures Firestore Doc ID matches Order ID
         userId: userId,
         type: 'deposit',
         amount: Number(amount),

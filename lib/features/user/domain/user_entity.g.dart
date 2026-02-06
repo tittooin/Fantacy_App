@@ -18,7 +18,7 @@ _UserEntity _$UserEntityFromJson(Map<String, dynamic> json) => _UserEntity(
   isPhoneVerified: json['isPhoneVerified'] as bool? ?? false,
   isEmailVerified: json['isEmailVerified'] as bool? ?? false,
   isKYCVerified: json['isKYCVerified'] as bool? ?? false,
-  kycStatus: json['kycStatus'] as String? ?? 'unverified',
+  kycStatus: json['kycStatus'] as String?,
   walletBalance: (json['walletBalance'] as num?)?.toDouble() ?? 0,
   bonusBalance: (json['bonusBalance'] as num?)?.toDouble() ?? 0,
   winningBalance: (json['winningBalance'] as num?)?.toDouble() ?? 0,

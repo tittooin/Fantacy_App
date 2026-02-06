@@ -16,41 +16,49 @@ class AdminRepository {
     required String matchId,
     required List<Map<String, dynamic>> teamA,
     required List<Map<String, dynamic>> teamB,
-    required List<String> xiA, // List of Player IDs
+    required List<String> xiA,
     required List<String> xiB,
   }) async {
     try {
-      debugPrint("🔍 FIRESTORE SAVE ATTEMPT STARTING..."); // VERIFICATION LOG
-      // Save directly to Firestore instead of Worker API
-      final FirebaseFirestore firestore = FirebaseFirestore.instance;
+      debugPrint("🔍 D1 SAVE ATTEMPT: Sending to Worker API...");
       
-      await firestore.collection('matches').doc(matchId).set({
-        'squad': {
+      final response = await _dio.post(
+        "$_workerUrl/api/admin/match/squad",
+        data: {
+          'matchId': matchId,
           'teamA': teamA,
           'teamB': teamB,
           'xiA': xiA,
           'xiB': xiB,
         },
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));  // Merge to not overwrite other match data
-      
-      debugPrint("✅ Squad saved to Firestore successfully!");
+        options: Options(headers: {'Content-Type': 'application/json'})
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+         debugPrint("✅ Squad saved to D1 successfully!");
+      } else {
+         throw Exception(response.data['error'] ?? 'Unknown Error');
+      }
+
     } catch (e) {
       debugPrint("AdminRepo: Save Squad Failed: $e");
       rethrow;
     }
   }
+
   Future<Map<String, dynamic>> getSquad(String matchId) async {
     try {
-      // Fetch from Firestore instead of Worker API
-      final FirebaseFirestore firestore = FirebaseFirestore.instance;
-      final doc = await firestore.collection('matches').doc(matchId).get();
+      // Fetch from Worker API (D1)
+      final response = await _dio.get("$_workerUrl/api/squads?matchId=$matchId");
       
-      if (doc.exists) {
-        final data = doc.data();
-        if (data != null && data.containsKey('squad')) {
-          return {'success': true, ...data['squad']};
-        }
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return {
+          'success': true,
+          'teamA': response.data['teamA'],
+          'teamB': response.data['teamB'],
+          'xiA': response.data['xiA'],
+          'xiB': response.data['xiB'],
+        };
       }
       return {'success': false};
     } catch (e) {
