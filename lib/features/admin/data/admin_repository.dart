@@ -69,19 +69,15 @@ class AdminRepository {
 
   Future<void> publishManualSquad(String matchId) async {
     try {
-      final FirebaseFirestore firestore = FirebaseFirestore.instance;
-      final matchDoc = await firestore.collection('matches').doc(matchId).get();
+      debugPrint("🚀 Publishing Squad for Match: $matchId ...");
       
-      if (!matchDoc.exists || matchDoc.data() == null) {
-        throw Exception("Match not found");
+      // 1. Fetch Squad from D1 (using existing helper)
+      final squadData = await getSquad(matchId);
+      
+      if (squadData['success'] != true) {
+         throw Exception("No squad found on D1. Please Save Squad first.");
       }
-      
-      final data = matchDoc.data()!;
-      if (!data.containsKey('squad')) {
-        throw Exception("No manual squad saved. Please save squad first.");
-      }
-      
-      final squadData = data['squad'];
+
       final teamA = List<Map<String, dynamic>>.from(squadData['teamA'] ?? []);
       final teamB = List<Map<String, dynamic>>.from(squadData['teamB'] ?? []);
       final xiA = List<String>.from(squadData['xiA'] ?? []);
@@ -95,14 +91,13 @@ class AdminRepository {
         throw Exception("Squad is empty");
       }
 
-      debugPrint("🚀 Publishing ${allPlayers.length} players to Subcollection...");
+      debugPrint("🚀 Syncing ${allPlayers.length} players to Firestore Subcollection (Legacy Support)...");
       
+      final FirebaseFirestore firestore = FirebaseFirestore.instance;
       final batch = firestore.batch();
       final playersRef = firestore.collection('matches').doc(matchId).collection('players');
       
-      // 1. Delete old players (optional - better to overwrite)
-      // For now we overwrite by ID
-      
+      // 1. Sync Players to Subcollection
       for (var p in allPlayers) {
         final pid = p['id'].toString();
         // Ensure required fields
@@ -112,8 +107,7 @@ class AdminRepository {
         batch.set(playersRef.doc(pid), p);
       }
       
-      // 2. Update Match Document with playingXI identifiers (if needed by app)
-      // Usually user app checks subcollection, but keeping match-level metadata is good
+      // 2. Update Match Document with playingXI identifiers (Legacy + App Trigger)
       batch.set(firestore.collection('matches').doc(matchId), {
          'isSquadPublished': true,
          'playingXI': playingXIIds, // List of IDs
@@ -121,7 +115,7 @@ class AdminRepository {
       }, SetOptions(merge: true));
       
       await batch.commit();
-      debugPrint("✅ Manual Squad Published Successfully!");
+      debugPrint("✅ Manual Squad Published & Synced Successfully!");
       
     } catch (e) {
       debugPrint("AdminRepo: Publish Failed: $e");
