@@ -88,6 +88,15 @@ class AdminRepository {
       // Extract Team IDs from D1 response (Fix for Frontend Badge logic)
       final team1Id = squadData['team1Id'] ?? 0;
       final team2Id = squadData['team2Id'] ?? 0;
+
+      // 🚨 CRITICAL FIX: Force Assign Team IDs to players before saving
+      // This ensures that even if Worker sends null, we overwrite it with the correct Match Team ID
+      for (var p in teamA) {
+        p['teamId'] = team1Id.toString();
+      }
+      for (var p in teamB) {
+        p['teamId'] = team2Id.toString();
+      }
       
       // Combine all players
       final allPlayers = [...teamA, ...teamB];

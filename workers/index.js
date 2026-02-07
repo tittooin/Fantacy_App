@@ -435,10 +435,10 @@ async function handleGetSquads(matchId, env) {
         const now = Date.now();
         const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
 
-        // Fetch Team IDs from matches table to include in reponse (Optimized: fetch early if needed, or inside cache block)
+        // Fetch Team IDs from matches table
         const matchInfo = await env.DB.prepare("SELECT team_a_id, team_b_id FROM matches WHERE id = ?").bind(matchId).first();
-        const teamAId = matchInfo?.team_a_id || 0;
-        const teamBId = matchInfo?.team_b_id || 0;
+        const team1Id = matchInfo?.team_a_id || 0;
+        const team2Id = matchInfo?.team_b_id || 0;
 
         // 2. Return cached if fresh
         if (d1Squad && d1Squad.team_a_roster) {
@@ -476,15 +476,18 @@ async function handleGetSquads(matchId, env) {
         ).bind(matchId).first();
 
         if (d1Retry && d1Retry.team_a_roster) {
+            const teamAFresh = JSON.parse(d1Retry.team_a_roster || '[]');
+            const teamBFresh = JSON.parse(d1Retry.team_b_roster || '[]');
+
             return jsonResponse({
                 success: true,
                 source: 'D1_FRESH',
-                teamA: JSON.parse(d1Retry.team_a_roster),
-                teamB: JSON.parse(d1Retry.team_b_roster),
+                teamA: teamAFresh.map(p => ({ ...p, teamId: (p.teamId || team1Id).toString() })),
+                teamB: teamBFresh.map(p => ({ ...p, teamId: (p.teamId || team2Id).toString() })),
                 xiA: JSON.parse(d1Retry.playing_11_a || '[]'),
                 xiB: JSON.parse(d1Retry.playing_11_b || '[]'),
-                team1Id: teamAId,
-                team2Id: teamBId
+                team1Id: team1Id,
+                team2Id: team2Id
             });
         }
 
@@ -508,7 +511,7 @@ async function handleAdminSaveSquad(request, env) {
         // 1. Verify Match Status (Must be Upcoming)
         // Actually User asked "Lock after Live", so allow edits for 'Upcoming'.
         // Let's check status.
-        const match = await env.DB.prepare("SELECT status FROM matches WHERE id = ?").bind(matchId).first();
+        const match = await env.DB.prepare("SELECT status FROM matches WHERE id = ?").bind(parseInt(matchId)).first();
         if (!match) return jsonResponse({ success: false, error: 'Match not found' }, 404);
 
         if (match.status !== 'Upcoming' && match.status !== 'Live') {

@@ -80,7 +80,7 @@ export async function syncMatchSquad(env, match, key, host) {
         // Actually, user screenshot showed /series/v1/{seriesId}/squads/{matchId} returns 204. That IS the Match Squad endpoint.
         // We stick to the Series-based Match endpoint first.
 
-        const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
+        const apiHost = host;
         const matchSquadUrl = `https://${apiHost}/series/v1/${seriesId}/squads/${matchId}`;
 
         let resp = await fetch(matchSquadUrl, {
