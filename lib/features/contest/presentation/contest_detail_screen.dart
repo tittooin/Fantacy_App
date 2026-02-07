@@ -428,7 +428,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: Text("Join for ₹${contest.entryFee.toStringAsFixed(0)}", 
+              child: Text("Join for ${contest.entryFee.toStringAsFixed(0)} Axe Coins", 
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
               ),
             ),
@@ -535,7 +535,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Low Balance"),
-        content: Text("You need ₹${deficit.toStringAsFixed(0)} more to join this contest."),
+        content: Text("You need ${deficit.toStringAsFixed(0)} Axe Coins more to join this contest."), // Keep currency consistent
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
@@ -544,7 +544,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
               context.push('/wallet'); // Navigate to Add Cash
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-            child: const Text("ADD CASH"),
+            child: const Text("ADD COINS"), // Consistent with Wallet
           )
         ],
       )
@@ -556,7 +556,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Join Contest Confirmation"),
-        content: Text("Join '${contest.category}' with Team '${team.teamName}'?\nEntry: ₹${contest.entryFee}"),
+        content: Text("Join '${contest.category}' with Team '${team.teamName}'?\nEntry: ${contest.entryFee} Axe Coins"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(

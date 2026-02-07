@@ -233,7 +233,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                   _showAddCashModal(context, dynamicUser);
                                 },
                                 icon: const Icon(Icons.add),
-                                label: const Text("ADD COINS"),
+                                label: const Text("BUY COINS"),
                                 style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
@@ -337,7 +337,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           const SizedBox(height: 8),
           Text("${totalBalance.toStringAsFixed(0)}", style: const TextStyle(color: Colors.amber, fontSize: 40, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Text("1 Coin = ₹1", style: TextStyle(color: Colors.white30, fontSize: 10)),
+          const Text("1 Rs = 1 Axe Coin", style: TextStyle(color: Colors.white30, fontSize: 10)),
         ],
       ),
     );
@@ -361,7 +361,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Add Cash", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text("Buy Coins", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
                 
                 // Amount Input

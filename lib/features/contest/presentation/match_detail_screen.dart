@@ -540,7 +540,7 @@ class ContestCard extends ConsumerWidget {
                     child: Text(
                        (match?.status == 'Live' || match?.status == 'Completed') 
                          ? "View" 
-                         : "₹${contest.entryFee.toStringAsFixed(0)}"
+                         : "${contest.entryFee.toStringAsFixed(0)} Axe Coins"
                     ),
                   ),
                 ],
@@ -686,7 +686,7 @@ class ContestCard extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Low Balance"),
-        content: Text("You need ₹${deficit.toStringAsFixed(0)} more to join this contest."),
+        content: Text("You need ${deficit.toStringAsFixed(0)} Axe Coins more to join this contest."), // Keep currency consistent
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
@@ -695,7 +695,7 @@ class ContestCard extends ConsumerWidget {
               context.push('/wallet'); // Navigate to Add Cash
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-            child: const Text("ADD CASH"),
+            child: const Text("ADD COINS"), // Consistent with Wallet
           )
         ],
       )
@@ -713,7 +713,7 @@ class ContestCard extends ConsumerWidget {
           children: [
              Text("Join '${contest.category}' with Team '${team.teamName}'?", style: const TextStyle(fontWeight: FontWeight.bold)),
              const SizedBox(height: 8),
-             Text("Entry Fee: ₹${contest.entryFee}", style: const TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold)),
+             Text("Entry Fee: ${contest.entryFee} Axe Coins", style: const TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold)),
              const Divider(height: 24),
              const Text("• Entry fee is non-refundable.", style: TextStyle(fontSize: 12, color: Colors.grey)),
              const Text("• This is a skill-based contest.", style: TextStyle(fontSize: 12, color: Colors.grey)),
