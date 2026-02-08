@@ -46,53 +46,91 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ]),
       );
     }
-    
+
+    // Grouping Logic
+    final groupedMatches = <String, List<Map<String, dynamic>>>{};
+    for (var m in matches) {
+      // Prioritize 'seriesName' if available, fallback to 'title'
+      final String series = m['seriesName'] ?? m['title'] ?? 'Other Matches';
+      if (!groupedMatches.containsKey(series)) {
+        groupedMatches[series] = [];
+      }
+      groupedMatches[series]!.add(m);
+    }
+
     return RefreshIndicator(
       onRefresh: _refreshMatches,
       child: ListView.builder(
-          itemCount: matches.length,
+          itemCount: groupedMatches.length,
           padding: const EdgeInsets.only(bottom: 80),
           itemBuilder: (context, index) {
-            final m = matches[index];
-            // Convert to Model for cleaner UI code or use Map directly
-            // Using Map directly for now since CricketMatchModel might expect different field names from D1
-            // D1 fields: id, title, team_a, team_b...
-            
-            // Adapter logic (D1 -> UI)
-            final id = m['id'].toString();
-            final title = m['title'] ?? 'Match';
-            final teamA = m['team_a'] ?? 'Team A';
-            final teamB = m['team_b'] ?? 'Team B';
-            final date = DateTime.fromMillisecondsSinceEpoch(m['start_time'] ?? 0);
-            final status = m['status'] ?? 'Upcoming';
-            final isLive = status == 'Live' || status == 'In Progress';
-            final teamAImg = m['team_a_img'] ?? '';
-            final teamBImg = m['team_b_img'] ?? '';
+            final seriesName = groupedMatches.keys.elementAt(index);
+            final seriesMatches = groupedMatches[seriesName]!;
 
-            return MatchCard(
-              id: id,
-              teamA: teamA,
-              teamB: teamB,
-              teamAImg: teamAImg,
-              teamBImg: teamBImg,
-              seriesName: title,
-              date: date,
-              status: status,
-              isLive: isLive,
-              onPrivateContest: () {
-                 // Pass map as extra
-                 context.push('/match/$id/create-private-contest', extra: m);
-              },
-              onTap: () {
-                 if (status == 'Upcoming' || isLive || status == 'In Progress') {
-                    context.push('/match/$id', extra: m);
-                 } else {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Match Completed")));
-                 }
-              }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSeriesHeader(seriesName),
+                ...seriesMatches.map((m) {
+                  // Adapter logic (D1 -> UI)
+                  final id = m['id'].toString();
+                  // For the card, we might duplicate seriesName, but it's fine.
+                  final title = m['title'] ?? seriesName; 
+                  final teamA = m['team_a'] ?? 'Team A';
+                  final teamB = m['team_b'] ?? 'Team B';
+                  final date = DateTime.fromMillisecondsSinceEpoch(m['start_time'] ?? 0);
+                  final status = m['status'] ?? 'Upcoming';
+                  final isLive = status == 'Live' || status == 'In Progress';
+                  final teamAImg = m['team_a_img'] ?? '';
+                  final teamBImg = m['team_b_img'] ?? '';
+
+                  return MatchCard(
+                    id: id,
+                    teamA: teamA,
+                    teamB: teamB,
+                    teamAImg: teamAImg,
+                    teamBImg: teamBImg,
+                    seriesName: title, // Keep passing specific match title/series
+                    date: date,
+                    status: status,
+                    isLive: isLive,
+                    onPrivateContest: () {
+                       context.push('/match/$id/create-private-contest', extra: m);
+                    },
+                    onTap: () {
+                       if (status == 'Upcoming' || isLive || status == 'In Progress' || status == 'Completed' || status == 'Finished') {
+                          context.push('/match/$id', extra: m);
+                       } else {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Match Unavailable")));
+                       }
+                    }
+                  );
+                }).toList()
+              ],
             );
           },
         ),
+    );
+  }
+
+  Widget _buildSeriesHeader(String title) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF3949AB).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF3949AB).withOpacity(0.2))
+      ),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          color: Color(0xFF3949AB),
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          letterSpacing: 1.0
+        ),
+      ),
     );
   }
 

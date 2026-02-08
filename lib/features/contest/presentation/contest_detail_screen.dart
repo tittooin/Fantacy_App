@@ -180,7 +180,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                   const Text("Prize Pool", style: TextStyle(color: Colors.grey, fontSize: 12)),
                   Row(
                     children: [
-                       Text("₹${contest.prizePool}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                       Text("${contest.prizePool} Axe Coins", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                        const SizedBox(width: 8),
                        if (widget.match?.status == 'Live')
                           Container(
@@ -292,7 +292,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(rankText, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text("₹$amount"),
+                  Text("$amount Coins"),
                 ],
               ),
             );
@@ -323,7 +323,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text("#$rank", style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text("₹${amount.toStringAsFixed(0)}"),
+          Text("${amount.toStringAsFixed(0)} Coins"),
         ],
       ),
     );

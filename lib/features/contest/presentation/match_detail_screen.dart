@@ -335,7 +335,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(contest.contestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text("Entry: ₹${contest.entryFee.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                      Text("Entry: ${contest.entryFee.toStringAsFixed(0)} Axe Coins", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                     ],
                   ),
                   const Divider(),
@@ -521,7 +521,7 @@ class ContestCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text("Prize Pool", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                      Text("₹${contest.prizePool.toStringAsFixed(0)}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text("${contest.prizePool.toStringAsFixed(0)} Coins", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   ElevatedButton(
