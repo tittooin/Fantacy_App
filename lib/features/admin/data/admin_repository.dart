@@ -130,7 +130,50 @@ class AdminRepository {
                };
             }
         } else {
-          debugPrint("❌ No players found in parsed data");
+          debugPrint("❌ No players found in parsed data. Attempting Firestore Fallback...");
+          
+          // FALLBACK: Fetch from Firestore (Client SDK)
+          // Since RapidApiService saves there, we should find it.
+          try {
+             final fs = FirebaseFirestore.instance;
+             final snap = await fs.collection('matches').doc(matchId).collection('players').get();
+             
+             if (snap.docs.isNotEmpty) {
+                debugPrint("✅ Firestore Fallback: Found ${snap.docs.length} players locally.");
+                final fsPlayers = snap.docs.map((d) => d.data()).toList();
+                
+                // Reuse grouping logic
+                final groups = <String, List<dynamic>>{};
+                for(var p in fsPlayers) {
+                   final t = p['teamShortName'] ?? p['teamName'] ?? 'Unknown';
+                   if (!groups.containsKey(t)) groups[t] = [];
+                   groups[t]!.add(p);
+                }
+                
+                if (groups.length >= 2) {
+                   final keys = groups.keys.toList();
+                   return {
+                     'success': true,
+                     'teamA': groups[keys[0]]!,
+                     'teamB': groups[keys[1]]!,
+                     'xiA': [],
+                     'xiB': [],
+                   };
+                } else {
+                   return {
+                     'success': true,
+                     'teamA': fsPlayers,
+                     'teamB': [],
+                     'xiA': [],
+                     'xiB': [],
+                   };
+                }
+             } else {
+                debugPrint("❌ Firestore Fallback: No players found there either.");
+             }
+          } catch (e) {
+             debugPrint("❌ Firestore Fallback Error: $e");
+          }
         }
       }
       return {'success': false, 'error': 'No Data/Empty'};
