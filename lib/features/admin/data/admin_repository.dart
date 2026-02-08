@@ -51,16 +51,78 @@ class AdminRepository {
       // Fetch from Worker API (D1)
       final response = await _dio.get("$_workerUrl/api/squads?matchId=$matchId");
       
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        return {
-          'success': true,
-          'teamA': response.data['teamA'],
-          'teamB': response.data['teamB'],
-          'xiA': response.data['xiA'],
-          'xiB': response.data['xiB'],
-          'team1Id': response.data['team1Id'],
-          'team2Id': response.data['team2Id'],
-        };
+      if (response.statusCode == 200) {
+        final data = response.data;
+        List<dynamic> allPlayers = [];
+        List<dynamic> teamA = [];
+        List<dynamic> teamB = [];
+        
+        // 1. Handle List Response (Legacy)
+        if (data is List) {
+           allPlayers = data;
+        } 
+        // 2. Handle Map Response
+        else if (data is Map) {
+           if (data['teamA'] != null) teamA = data['teamA'];
+           if (data['teamB'] != null) teamB = data['teamB'];
+           
+           if (data['players'] != null) {
+             allPlayers = data['players'];
+           }
+        }
+
+        // If explicitly separated, return as is
+        if (teamA.isNotEmpty || teamB.isNotEmpty) {
+           return {
+             'success': true,
+             'teamA': teamA,
+             'teamB': teamB,
+             'xiA': data['xiA'],
+             'xiB': data['xiB'],
+             'team1Id': data['team1Id'],
+             'team2Id': data['team2Id'],
+           };
+        }
+
+        // If flattened list, we need to split manually (Heuristic)
+        // We can't easily split without knowing team names/ids unless they are in the object
+        // But the screen expects teamA and teamB arrays.
+        // We will return ALL in teamA temporarily or try to split if 'teamShortName' exists
+        
+        if (allPlayers.isNotEmpty) {
+           // Try to split by teamShortName if possible, otherwise return generic lists
+           // Since we don't have match details here efficiently, we might need to rely on the Screen to sort?
+           // No, the Screen has 2 tabs: Team A and Team B.
+           
+           // Strategy: Group by teamShortName
+            final groups = <String, List<dynamic>>{};
+            for(var p in allPlayers) {
+               final t = p['teamShortName'] ?? p['teamName'] ?? 'Unknown';
+               if (!groups.containsKey(t)) groups[t] = [];
+               groups[t]!.add(p);
+            }
+            
+            if (groups.length >= 2) {
+               final keys = groups.keys.toList();
+               return {
+                 'success': true,
+                 'teamA': groups[keys[0]],
+                 'teamB': groups[keys[1]],
+                 'xiA': [],
+                 'xiB': [],
+               };
+            } else {
+               // Fallback: Return all in Team A (User can move manually? No, screen doesn't allow moving between teams easily)
+               // Better to return as Team A and let user re-import or fix
+               return {
+                 'success': true,
+                 'teamA': allPlayers,
+                 'teamB': [],
+                 'xiA': [],
+                 'xiB': [],
+               };
+            }
+        }
       }
       return {'success': false};
     } catch (e) {
