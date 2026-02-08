@@ -48,26 +48,40 @@ class AdminRepository {
 
   Future<Map<String, dynamic>> getSquad(String matchId) async {
     try {
-      // Fetch from Worker API (D1)
-      final response = await _dio.get("$_workerUrl/api/squads?matchId=$matchId");
+      final url = "$_workerUrl/api/squads?matchId=$matchId";
+      debugPrint("🔍 AdminRepo: Fetching Squad from $url");
+      
+      final response = await _dio.get(url);
+      debugPrint("✅ AdminRepo: Response Code: ${response.statusCode}");
       
       if (response.statusCode == 200) {
         final data = response.data;
+        // debugPrint("DATA: $data"); // Uncomment if needed
+
         List<dynamic> allPlayers = [];
         List<dynamic> teamA = [];
         List<dynamic> teamB = [];
         
         // 1. Handle List Response (Legacy)
         if (data is List) {
-           allPlayers = data;
+           debugPrint("ℹ️ Data is LIST of length ${data.length}");
+           allPlayers = List.from(data);
         } 
         // 2. Handle Map Response
         else if (data is Map) {
-           if (data['teamA'] != null) teamA = data['teamA'];
-           if (data['teamB'] != null) teamB = data['teamB'];
+           debugPrint("ℹ️ Data is MAP");
+           if (data['teamA'] != null) {
+              teamA = List.from(data['teamA']);
+              debugPrint("Found teamA with ${teamA.length} players");
+           }
+           if (data['teamB'] != null) {
+              teamB = List.from(data['teamB']);
+              debugPrint("Found teamB with ${teamB.length} players");
+           }
            
            if (data['players'] != null) {
-             allPlayers = data['players'];
+             allPlayers = List.from(data['players']);
+             debugPrint("Found 'players' list with ${allPlayers.length} items");
            }
         }
 
@@ -77,23 +91,15 @@ class AdminRepository {
              'success': true,
              'teamA': teamA,
              'teamB': teamB,
-             'xiA': data['xiA'],
-             'xiB': data['xiB'],
+             'xiA': data['xiA'] ?? [],
+             'xiB': data['xiB'] ?? [],
              'team1Id': data['team1Id'],
              'team2Id': data['team2Id'],
            };
         }
 
-        // If flattened list, we need to split manually (Heuristic)
-        // We can't easily split without knowing team names/ids unless they are in the object
-        // But the screen expects teamA and teamB arrays.
-        // We will return ALL in teamA temporarily or try to split if 'teamShortName' exists
-        
         if (allPlayers.isNotEmpty) {
-           // Try to split by teamShortName if possible, otherwise return generic lists
-           // Since we don't have match details here efficiently, we might need to rely on the Screen to sort?
-           // No, the Screen has 2 tabs: Team A and Team B.
-           
+           debugPrint("⚠️ Flattened List. Categorizing by teamShortName...");
            // Strategy: Group by teamShortName
             final groups = <String, List<dynamic>>{};
             for(var p in allPlayers) {
@@ -102,18 +108,19 @@ class AdminRepository {
                groups[t]!.add(p);
             }
             
+            debugPrint("⚠️ Found Groups: ${groups.keys}");
+
             if (groups.length >= 2) {
                final keys = groups.keys.toList();
                return {
                  'success': true,
-                 'teamA': groups[keys[0]],
-                 'teamB': groups[keys[1]],
+                 'teamA': groups[keys[0]]!,
+                 'teamB': groups[keys[1]]!,
                  'xiA': [],
                  'xiB': [],
                };
             } else {
-               // Fallback: Return all in Team A (User can move manually? No, screen doesn't allow moving between teams easily)
-               // Better to return as Team A and let user re-import or fix
+               // Fallback: If only 1 group found, return it as Team A
                return {
                  'success': true,
                  'teamA': allPlayers,
@@ -122,12 +129,15 @@ class AdminRepository {
                  'xiB': [],
                };
             }
+        } else {
+          debugPrint("❌ No players found in parsed data");
         }
       }
-      return {'success': false};
-    } catch (e) {
-      debugPrint("AdminRepo: Get Squad Failed: $e");
-      return {'success': false};
+      return {'success': false, 'error': 'No Data/Empty'};
+    } catch (e, stack) {
+      debugPrint("❌ AdminRepo: Get Squad Failed: $e");
+      debugPrint(stack.toString());
+      return {'success': false, 'error': e.toString()};
     }
   }
 

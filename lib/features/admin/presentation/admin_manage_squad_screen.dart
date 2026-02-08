@@ -59,10 +59,26 @@ class _AdminManageSquadScreenState extends ConsumerState<AdminManageSquadScreen>
             teamPlayersA = List<Map<String, dynamic>>.from(data['teamA']).map((p) => _reverseTransform(p, xiA)).toList();
             teamPlayersB = List<Map<String, dynamic>>.from(data['teamB']).map((p) => _reverseTransform(p, xiB)).toList();
           });
+          
+          if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+               content: Text("Loaded ${teamPlayersA.length + teamPlayersB.length} players from API"),
+               backgroundColor: (teamPlayersA.isEmpty && teamPlayersB.isEmpty) ? Colors.orange : Colors.green,
+             ));
+          }
+        }
+      } else {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+             content: Text("Fetch Failed: ${data['error'] ?? 'Unknown Error'}"),
+             backgroundColor: Colors.red,
+             duration: const Duration(seconds: 5),
+           ));
         }
       }
     } catch (e) {
       debugPrint("Fetch Error: $e");
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
