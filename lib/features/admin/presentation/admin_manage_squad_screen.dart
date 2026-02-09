@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/admin/data/admin_repository.dart';
+import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
 
 class AdminManageSquadScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -45,6 +46,25 @@ class _AdminManageSquadScreenState extends ConsumerState<AdminManageSquadScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetchExistingData());
+  }
+
+  Future<void> _importFromApi() async {
+    setState(() => _isLoading = true);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Importing from API... This might take a few seconds.")));
+    try {
+       // Call fetchAndSaveSquad from RapidApiService
+       // We use matchId as cricbuzzId for now (standard in this app)
+       await ref.read(rapidApiServiceProvider).fetchAndSaveSquad(widget.matchId, widget.matchId);
+       
+       if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Import Complete! Refreshing list..."), backgroundColor: Colors.green));
+          // Refresh Data
+          await _fetchExistingData();
+       }
+    } catch (e) {
+       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Import Failed: $e"), backgroundColor: Colors.red));
+       setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _fetchExistingData() async {
@@ -268,6 +288,11 @@ class _AdminManageSquadScreenState extends ConsumerState<AdminManageSquadScreen>
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.cloud_download, color: Colors.blueAccent),
+            onPressed: _isLoading ? null : _importFromApi,
+            tooltip: "Force Import from API",
+          ),
           IconButton(
             icon: const Icon(Icons.paste),
             onPressed: () => _showBulkImport(_tabController.index == 0),
