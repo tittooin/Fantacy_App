@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -76,13 +77,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   final id = m['id'].toString();
                   // For the card, we might duplicate seriesName, but it's fine.
                   final title = m['title'] ?? seriesName; 
-                  final teamA = m['team_a'] ?? 'Team A';
-                  final teamB = m['team_b'] ?? 'Team B';
-                  final date = DateTime.fromMillisecondsSinceEpoch(m['start_time'] ?? 0);
+                  
+                  // Schema Adapter: Admin (CricketMatchModel) vs Legacy
+                  final teamA = m['team1ShortName'] ?? m['team_a'] ?? 'Team A';
+                  final teamB = m['team2ShortName'] ?? m['team_b'] ?? 'Team B';
+                  final teamAImg = m['team1Img'] ?? m['team_a_img'] ?? '';
+                  final teamBImg = m['team2Img'] ?? m['team_b_img'] ?? '';
+                  
+                  final startTime = m['startDate'] ?? m['start_time'] ?? 0;
+                  final date = DateTime.fromMillisecondsSinceEpoch(startTime);
+                  
                   final status = m['status'] ?? 'Upcoming';
                   final isLive = status == 'Live' || status == 'In Progress';
-                  final teamAImg = m['team_a_img'] ?? '';
-                  final teamBImg = m['team_b_img'] ?? '';
 
                   return MatchCard(
                     id: id,
@@ -200,96 +206,107 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
            
            // Major League Filter Keywords (Case Insensitive)
            final majorKeywords = [
-             'IPL', 'WPL', 'Women\'s Premier League', // Indian Leagues
-             'BBL', 'Big Bash', 'WBBL', // Australian Leagues
-             'PSL', 'Pakistan Super League', 
-             'SA20', 'ILT20', 'The Hundred', 
-             'CPL', 'Caribbean Premier League',
-             'LPL', 'Lanka Premier League',
-             'BPL', 'Bangladesh Premier League',
-             'Super Smash', 'Major League Cricket', 'MLC',
-             'T20 World Cup', 'World Cup', 'Champions Trophy', 'Asia Cup',
-             'ODI', 'Test', 'T20I', // Format Indicators often in Int. matches
-             'IND', 'AUS', 'ENG', 'SA', 'PAK', 'NZ', 'WI', 'SL', 'BAN', 'AFG', 'IRE', 'ZIM' // Intl Teams
+             'IPL', 'Indian Premier League', 
+             'World Cup', 'T20 World Cup', '2026' 
            ];
 
-           bool isMajorMatch(Map<String, dynamic> m) {
-              final title = (m['title'] as String? ?? '').toLowerCase();
-              final teamA = (m['team_a'] as String? ?? '').toLowerCase();
-              final teamB = (m['team_b'] as String? ?? '').toLowerCase();
-              
-              // Check Title
-              for (final k in majorKeywords) {
-                 if (title.contains(k.toLowerCase())) return true;
-              }
-              // Check Teams (for International matches like "India vs Australia")
-              // Only check strict team codes if title fail? Or just check if title contains them?
-              // Usually title is "IND vs AUS".
-              
-              return false;
-           }
+            bool isMajorMatch(Map<String, dynamic> m) {
+               final title = (m['title'] as String? ?? '').toLowerCase();
+               final series = (m['seriesName'] as String? ?? '').toLowerCase();
+               final desc = (m['matchDesc'] as String? ?? '').toLowerCase();
+
+               // Combined string to check (Title often missing in Firestore/Model usage)
+               final fullText = "$title $series $desc";
+               
+               for (final k in majorKeywords) {
+                  if (fullText.contains(k.toLowerCase())) return true;
+               }
+               return false;
+            }
+
+            final live = allMatches.where((m) {
+              final status = m['status'];
+              final isLive = status == 'Live' || status == 'In Progress';
+              if (!isMajorMatch(m)) return false;
+              return isLive;
+           }).toList();
 
            final upcoming = allMatches.where((m) {
               final status = m['status'];
-              final start = m['start_time'] ?? 0;
-              final isLive = status == 'Live' || status == 'In Progress';
-              final isFuture = start > now;
+              final start = m['start_time'] ?? m['startDate'] ?? 0;
               
-              if (!isMajorMatch(m)) return false; // FILTER STEP
+              // DEBUG PRINT
+              debugPrint("Checking Match: ${m['title']} | Series: ${m['seriesName']} | Status: $status | Start: $start");
 
-              // Only show if Live OR strictly Future
-              return isLive || (status == 'Upcoming' && isFuture);
+              if (!isMajorMatch(m)) {
+                 debugPrint("-> Rejected by Major Filter: ${m['title']}");
+                 return false; 
+              }
+
+              return status == 'Upcoming' && start > now;
            }).toList();
            
            final completed = allMatches.where((m) {
               final status = m['status'];
-              final start = m['start_time'] ?? 0;
+              final start = m['start_time'] ?? m['startDate'] ?? 0;
               final isFinished = status == 'Completed' || status == 'Finished' || status == 'Abandoned';
-              // User Constraint: Show only last 1 week of completed matches
               final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
               
-              if (!isMajorMatch(m)) return false; // FILTER STEP
+              if (!isMajorMatch(m)) return false;
 
               return isFinished && start > sevenDaysAgo;
            }).toList();
 
            return DefaultTabController(
-            length: 2,
+            length: 3,
             child: Column(
               children: [
-                // Banner Area
+                // Premium Banner Area
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
                   decoration: const BoxDecoration(
-                    gradient: LinearGradient(colors: [Color(0xFF3949AB), Color(0xFF8E24AA)], begin: Alignment.topCenter, end: Alignment.bottomCenter)
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF1A237E), Colors.black],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight
+                    )
                   ),
-                  child: Column(
+                  child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                       const Text("Welcome back, Tittoo", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                       const SizedBox(height: 4),
-                       const Text("IPL 2026 is Here!", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                       const Text("Join India's biggest fantasy league now.", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                       Text("AXEVORA", style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                       SizedBox(height: 4),
+                       Text("Premium Fantasy", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                       Text("Elite Matches • Exclusive Vouchers", style: TextStyle(color: Colors.white60, fontSize: 12)),
                     ],
                   ),
                 ),
+                
+                // My Matches Section
+                _buildMyMatchesSection(allMatches),
                 
                 // TABS
                 Container(
                   color: Colors.white,
                   child: const TabBar(
-                    labelColor: Color(0xFF3949AB),
+                    labelColor: Color(0xFF1A237E),
                     unselectedLabelColor: Colors.grey,
-                    indicatorColor: Color(0xFF3949AB),
+                    indicatorColor: Color(0xFF1A237E),
                     indicatorWeight: 3,
-                    tabs: [Tab(text: "Upcoming"), Tab(text: "Completed")],
+                    tabs: [
+                      Tab(text: "Live"),
+                      Tab(text: "Upcoming"), 
+                      Tab(text: "Completed")
+                    ],
                   ),
                 ),
 
                 Expanded(
                   child: TabBarView(
                     children: [
-                      _buildMatchTab(matches: upcoming, emptyMsg: "No Upcoming Matches.\nPull to Refresh."),
+                      _buildMatchTab(matches: live, emptyMsg: "No Live Matches currently."),
+                      _buildMatchTab(matches: upcoming, emptyMsg: "No Upcoming Matches."),
                       _buildMatchTab(matches: completed, emptyMsg: "No Completed Matches."),
                     ],
                   ),
@@ -308,6 +325,108 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
         return mobileContent;
       },
+    );
+  }
+
+  Widget _buildMyMatchesSection(List<Map<String, dynamic>> allMatches) {
+    // We can't easily watch another provider inside a build-helper if it depends on ref.
+    // However, ref is available in the whole state class.
+    final joinedContests = ref.watch(userContestProvider);
+    final joinedMatchIds = joinedContests.map((c) => c.matchId.toString()).toSet();
+    
+    final myMatches = allMatches.where((m) {
+       final isJoined = joinedMatchIds.contains(m['id'].toString());
+       if (!isJoined) return false;
+       final status = m['status'] ?? '';
+       // Exclude completed matches from "My Matches" top section as per user request
+       final isFinished = status == 'Completed' || status == 'Finished' || status == 'Abandoned';
+       return !isFinished;
+    }).toList();
+    
+    if (myMatches.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("MY MATCHES", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Colors.black87)),
+              Text("View All", style: TextStyle(fontSize: 10, color: Color(0xFF1A237E), fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: myMatches.length,
+            itemBuilder: (context, index) {
+              final m = myMatches[index];
+              return _buildMyMatchItem(m);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMyMatchItem(Map<String, dynamic> m) {
+    final teamA = m['team1ShortName'] ?? m['team_a'] ?? 'T1';
+    final teamB = m['team2ShortName'] ?? m['team_b'] ?? 'T2';
+    final status = m['status'] ?? 'Upcoming';
+    final isLive = status == 'Live' || status == 'In Progress';
+    
+    final t1Img = m['team1Img'] ?? m['team_a_img'] ?? '';
+    final t2Img = m['team2Img'] ?? m['team_b_img'] ?? '';
+
+    return GestureDetector(
+      onTap: () => context.push('/match/${m['id']}', extra: m),
+      child: Container(
+        width: 160,
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 2))]
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                 _buildTeamSmallAvatar(t1Img, teamA),
+                 const Text("vs", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                 _buildTeamSmallAvatar(t2Img, teamB),
+              ],
+            ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isLive)
+                  const Text("● LIVE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 10))
+                else
+                  Text(status, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10)),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeamSmallAvatar(String img, String name) {
+    return CircleAvatar(
+      radius: 12,
+      backgroundColor: Colors.grey.shade100,
+      backgroundImage: img.isNotEmpty ? NetworkImage(img) : null,
+      child: img.isEmpty ? Text(name[0], style: const TextStyle(fontSize: 10)) : null,
     );
   }
 }
@@ -361,9 +480,9 @@ class MatchCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0,4))],
-        border: Border.all(color: Colors.grey.shade200)
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 8))],
+        border: Border.all(color: Colors.grey.withOpacity(0.1))
       ),
       child: Column(
         children: [
@@ -373,7 +492,12 @@ class MatchCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Text(seriesName, style: TextStyle(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
+                  child: Text(seriesName, style: TextStyle(fontSize: 9, color: Colors.grey[800], fontWeight: FontWeight.bold, letterSpacing: 0.5), overflow: TextOverflow.ellipsis),
+                ),
+                const Icon(Icons.notifications_none, size: 14, color: Colors.grey),
               ],
             ),
           ),
@@ -404,23 +528,23 @@ class MatchCard extends StatelessWidget {
             ),
           ),
           
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Footer
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+              color: const Color(0xFFF1F4F9),
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                 const Row(
+                  const Row(
                    children: [
                      Icon(Icons.emoji_events_outlined, color: Colors.grey, size: 16),
                      SizedBox(width: 4),
-                     Text("Mega ₹1 Crore", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 12)),
+                     Text("Voucher Pool: 1M Credits", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 12)),
                    ],
                  ),
                  

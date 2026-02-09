@@ -161,7 +161,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                   _showAddCashModal(context, dynamicUser);
                                 },
                                 icon: const Icon(Icons.add),
-                                label: const Text("BUY COINS"),
+                                label: const Text("BUY CREDITS"),
                                 style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
@@ -179,7 +179,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                   context.push('/redeem');
                                 },
                                 icon: const Icon(Icons.redeem),
-                                label: const Text("WITHDRAW"),
+                                label: const Text("REDEEM"),
                                 style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(
@@ -230,11 +230,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       ),
       child: Column(
         children: [
-          const Text("TOTAL COINS (Live)", style: TextStyle(color: Colors.white70, letterSpacing: 1.2, fontSize: 12)),
+          const Text("TOTAL CREDITS (Live)", style: TextStyle(color: Colors.white70, letterSpacing: 1.2, fontSize: 12)),
           const SizedBox(height: 8),
           Text("${totalBalance.toStringAsFixed(0)}", style: const TextStyle(color: Colors.amber, fontSize: 40, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Text("1 Rs = 1 Axe Coin", style: TextStyle(color: Colors.white30, fontSize: 10)),
+          const Text("1 Rs = 1 Credit", style: TextStyle(color: Colors.white30, fontSize: 10)),
         ],
       ),
     );
@@ -258,7 +258,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Buy Coins", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text("Buy Credits", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
                 
                 // Amount Input
@@ -334,7 +334,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text("PAY & GET COINS")
+                    child: const Text("PAY & GET CREDITS")
                   ),
                 )
               ],

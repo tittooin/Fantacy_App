@@ -7,7 +7,7 @@ abstract class UserRepository {
   Future<void> createUserOrUpdate(User user);
   Future<void> updateUserState(String uid, String state, bool isRestricted);
   Future<UserEntity?> getUser(String uid);
-  Future<void> updateProfile({required String uid, String? bio, String? photoUrl, String? displayName});
+  Future<void> updateProfile({required String uid, String? bio, String? photoUrl, String? displayName, String? phoneNumber});
   Future<void> followUser({required String currentUid, required String targetUid});
   Future<void> unfollowUser({required String currentUid, required String targetUid});
   Future<bool> isFollowing(String currentUid, String targetUid);
@@ -60,11 +60,12 @@ class FirestoreUserRepository implements UserRepository {
   }
 
   @override
-  Future<void> updateProfile({required String uid, String? bio, String? photoUrl, String? displayName}) async {
+  Future<void> updateProfile({required String uid, String? bio, String? photoUrl, String? displayName, String? phoneNumber}) async {
     final Map<String, dynamic> updates = {};
     if (bio != null) updates['bio'] = bio;
     if (photoUrl != null) updates['photoUrl'] = photoUrl;
     if (displayName != null) updates['displayName'] = displayName;
+    if (phoneNumber != null) updates['phoneNumber'] = phoneNumber;
 
     if (updates.isNotEmpty) {
       await _firestore.collection('users').doc(uid).update(updates);

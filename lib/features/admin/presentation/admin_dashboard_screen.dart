@@ -342,6 +342,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
 
       final filtered = _matches.where((m) {
+          // Strict Filter Logic
+          final majorKeywords = [
+             'IPL', 'Indian Premier League', 
+             'World Cup', 'T20 World Cup', '2026'
+          ];
+          bool isMajor = false;
+          final title = m.seriesName.toLowerCase();
+          for (final k in majorKeywords) {
+             if (title.contains(k.toLowerCase())) { isMajor = true; break; }
+          }
+          if (!isMajor) return false;
+
           final isLive = m.status == 'Live' || m.status == 'In Progress';
           final isFinished = m.status == 'Completed' || m.status == 'Finished' || m.status == 'Abandoned';
           final isFuture = m.startDate > now;

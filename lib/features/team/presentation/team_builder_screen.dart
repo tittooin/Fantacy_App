@@ -310,12 +310,26 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-             LinearProgressIndicator(
-               value: _selectedIds.length / 11,
-               backgroundColor: Colors.grey.shade800,
-               color: Colors.green,
-               minHeight: 2,
+            const SizedBox(height: 12),
+             Stack(
+               children: [
+                 Container(
+                   height: 6,
+                   width: double.infinity,
+                   decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(3)),
+                 ),
+                 FractionallySizedBox(
+                   widthFactor: _selectedIds.length / 11,
+                   child: Container(
+                     height: 6,
+                     decoration: BoxDecoration(
+                       gradient: const LinearGradient(colors: [Colors.greenAccent, Colors.green]),
+                       borderRadius: BorderRadius.circular(3),
+                       boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.5), blurRadius: 4)]
+                     ),
+                   ),
+                 ),
+               ],
              )
           ],
         ),
@@ -382,32 +396,38 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
                  ),
               ],
             ),
-            title: Row(
-              children: [
-                Text(player.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
-                if (isPlaying) ...[
-                   const SizedBox(width: 8),
-                   Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(4)),
-                     child: const Text("Playing", style: TextStyle(fontSize: 8, color: Colors.white)),
-                   )
+            title: Text(player.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+             subtitle: Row(
+               children: [
+                 Text("${player.points} pts", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                 if (isPlaying) ...[
+                    const SizedBox(width: 8),
+                    const Text("● Playing", style: TextStyle(fontSize: 9, color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                 ],
+               ],
+             ),
+            trailing: SizedBox(
+              width: 120,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text("${player.credits}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
+                      const Text("CREDITS", style: TextStyle(fontSize: 8, color: Colors.grey)),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    onPressed: () => _toggleSelection(player),
+                    icon: isSelected 
+                      ? const Icon(Icons.check_circle, color: Colors.green, size: 28)
+                      : const Icon(Icons.add_circle_outline, color: Colors.white70, size: 24),
+                  ),
                 ],
-              ],
-            ),
-             subtitle: Text("Team: ${player.teamShortName ?? 'N/A'} • ${player.points} pts", style: const TextStyle(fontSize: 11, color: Colors.grey)),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(player.credits.toString(), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                const SizedBox(width: 16),
-                IconButton(
-                  onPressed: () => _toggleSelection(player),
-                  icon: isSelected 
-                    ? const Icon(Icons.remove_circle_outline, color: Colors.red)
-                    : const Icon(Icons.add_circle_outline, color: Colors.green),
-                ),
-              ],
+              ),
             ),
             onTap: () => _toggleSelection(player),
           ),
@@ -419,59 +439,56 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
   Widget _buildBottomButton() {
      final bool isComplete = _selectedIds.length == 11;
      
-     return Container(
-       padding: const EdgeInsets.all(16),
-       color: Colors.white,
-       child: Row(
-         children: [
+      return Container(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0B1E3C),
+          border: Border(top: BorderSide(color: Colors.white10))
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () {
+                   final selectedPlayers = _allPlayers.where((p) => _selectedIds.contains(p.id)).toList();
+                   context.push('/match/${widget.match.id}/create-team/preview', extra: {
+                     'players': selectedPlayers,
+                     'team1Name': widget.match.team1ShortName,
+                     'team2Name': widget.match.team2ShortName,
+                   });
+                }, 
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: Colors.white54),
+                  foregroundColor: Colors.white
+                ),
+                child: const Text("PREVIEW", style: TextStyle(fontWeight: FontWeight.bold))
+              ),
+            ),
+            const SizedBox(width: 16),
            Expanded(
-             child: OutlinedButton(
-               onPressed: () {
-                  debugPrint("Preview Button Clicked!");
+              child: ElevatedButton(
+                onPressed: isComplete ? () {
+                  if (_wkCount < minWK || _wkCount > maxWK) { _showError("Select $minWK-$maxWK Wicket Keepers"); return; }
+                  if (_batCount < minBAT || _batCount > maxBAT) { _showError("Select $minBAT-$maxBAT Batsmen"); return; }
+                  if (_arCount < minAR || _arCount > maxAR) { _showError("Select $minAR-$maxAR All-Rounders"); return; }
+                  if (_bowlCount < minBOWL || _bowlCount > maxBOWL) { _showError("Select $minBOWL-$maxBOWL Bowlers"); return; }
+
                   final selectedPlayers = _allPlayers.where((p) => _selectedIds.contains(p.id)).toList();
-                  debugPrint("Selected Players: ${selectedPlayers.length}");
-                  
-                  try {
-                    context.push('/match/${widget.match.id}/create-team/preview', extra: {
-                      'players': selectedPlayers,
-                      'team1Name': widget.match.team1ShortName,
-                      'team2Name': widget.match.team2ShortName,
-                    });
-                  } catch (e) {
-                    debugPrint("Navigation Error: $e");
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Nav Error: $e")));
-                  }
-               }, 
-               style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-               child: const Text("TEAM PREVIEW")
-             ),
-           ),
-           const SizedBox(width: 16),
-          Expanded(
-             child: ElevatedButton(
-               onPressed: isComplete ? () {
-                 // Final Role Validation before proceeding
-                 if (_wkCount < minWK || _wkCount > maxWK) { _showError("Select $minWK-$maxWK Wicket Keepers"); return; }
-                 if (_batCount < minBAT || _batCount > maxBAT) { _showError("Select $minBAT-$maxBAT Batsmen"); return; }
-                 if (_arCount < minAR || _arCount > maxAR) { _showError("Select $minAR-$maxAR All-Rounders"); return; }
-                 if (_bowlCount < minBOWL || _bowlCount > maxBOWL) { _showError("Select $minBOWL-$maxBOWL Bowlers"); return; }
-
-                 // Navigate to Captain Selection
-                 final selectedPlayers = _allPlayers.where((p) => _selectedIds.contains(p.id)).toList();
-                 context.push('/match/${widget.match.id}/create-team/captain', extra: selectedPlayers);
-
-               } : null,
-               style: ElevatedButton.styleFrom(
-                 backgroundColor: isComplete ? Colors.green : Colors.grey, 
-                 foregroundColor: Colors.white,
-                 padding: const EdgeInsets.symmetric(vertical: 16),
-                 disabledBackgroundColor: Colors.grey.shade300
-               ),
-               child: const Text("NEXT")
-             ),
-           ),
-         ],
-       ),
-     );
+                  context.push('/match/${widget.match.id}/create-team/captain', extra: selectedPlayers);
+                } : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isComplete ? Colors.green : Colors.grey.shade800, 
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0
+                ),
+                child: const Text("NEXT", style: TextStyle(fontWeight: FontWeight.bold))
+              ),
+            ),
+          ],
+        ),
+      );
   }
 }

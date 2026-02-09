@@ -241,13 +241,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
            ),
            
            const SizedBox(height: 16),
-           // Temporary Admin Button for Testing
-           Center(
-             child: TextButton(
-               onPressed: () => context.push('/admin/dashboard'),
-               child: const Text("Dev: Go to Admin Panel", style: TextStyle(color: Colors.white54)),
-             ),
-           ),
+           // Admin Button Removed - Secured in Profile
+           const SizedBox.shrink(),
            
            const Spacer(),
            

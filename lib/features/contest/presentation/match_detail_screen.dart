@@ -13,6 +13,7 @@ import 'package:axevora11/features/user/presentation/providers/user_provider.dar
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:axevora11/features/cricket_api/presentation/widgets/match_score_header.dart';
+import 'package:axevora11/features/contest/presentation/widgets/scorecard_tab.dart';
 
 class MatchDetailScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -79,7 +80,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
       builder: (context, constraints) {
         final isLargeScreen = constraints.maxWidth > 500;
         final mobileContent = DefaultTabController(
-          length: 3,
+          length: 4,
           initialIndex: isLiveOrCompleted ? 1 : 0, // Default to "My Contests" if Live/Completed
           child: Scaffold(
             appBar: AppBar(
@@ -119,13 +120,17 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                        ),
                      ),
                      TabBar(
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
                       indicatorColor: Colors.white,
                       labelColor: Colors.white,
                       unselectedLabelColor: Colors.white60,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 16),
                       tabs: [
                         const Tab(text: "Contests"),
                         Tab(text: "My Contests (${myContests.length})"),
                         Tab(text: "My Teams (${myTeams.length})"),
+                        const Tab(text: "Scorecard"),
                       ],
                     ),
                    ],
@@ -137,6 +142,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 _buildContestsTab(),
                 _buildMyContestsTab(),
                 _buildMyTeamsTab(myTeams),
+                ScorecardTab(matchId: widget.matchId),
               ],
             ),
           ),
@@ -317,37 +323,52 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           child: InkWell(
             onTap: () {
                // Navigation provided by context.push needs a ContestModel
-               // Since UserContestEntity is different, we either fetch or mock
-               // For now, let's navigate to contest detail 
-               // Note: We might lack full contest data here, so ideally we fetch it.
-               // But usually we just want to see the Leaderboard.
                context.push('/contest/${contest.contestId}', extra: {
                  'contestId': contest.contestId, 
-                 'matchId': contest.matchId, // Pass matchId for fetching
+                 'matchId': contest.matchId,
                }); 
             },
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                  child: Row(
                     children: [
-                      Text(contest.contestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text("Entry: ${contest.entryFee.toStringAsFixed(0)} Axe Coins", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                      Icon(Icons.emoji_events, size: 14, color: Colors.orange.shade800),
+                      const SizedBox(width: 8),
+                      Text("Voucher Pool: 1,000,000 Credits", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange.shade900)),
                     ],
                   ),
-                  const Divider(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Team: ${contest.teamName}", style: const TextStyle(color: Colors.grey)),
-                      Text("Joined: ${_formatDate(contest.joinedAt)}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(contest.contestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A237E))),
+                          Text("Entry: ${contest.entryFee.toStringAsFixed(0)} Credits", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                        ],
+                      ),
+                      const Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("Team: ${contest.teamName}", style: const TextStyle(color: Colors.grey)),
+                          Text("Joined: ${_formatDate(contest.joinedAt)}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -540,7 +561,7 @@ class ContestCard extends ConsumerWidget {
                     child: Text(
                        (match?.status == 'Live' || match?.status == 'Completed') 
                          ? "View" 
-                         : "${contest.entryFee.toStringAsFixed(0)} Axe Coins"
+                         : "${contest.entryFee.toStringAsFixed(0)} Credits"
                     ),
                   ),
                 ],
@@ -686,7 +707,7 @@ class ContestCard extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Low Balance"),
-        content: Text("You need ${deficit.toStringAsFixed(0)} Axe Coins more to join this contest."), // Keep currency consistent
+        content: Text("You need ${deficit.toStringAsFixed(0)} Credits more to join this contest."), // Keep currency consistent
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
@@ -695,7 +716,7 @@ class ContestCard extends ConsumerWidget {
               context.push('/wallet'); // Navigate to Add Cash
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-            child: const Text("ADD COINS"), // Consistent with Wallet
+            child: const Text("ADD CREDITS"), // Consistent with Wallet
           )
         ],
       )
@@ -713,7 +734,7 @@ class ContestCard extends ConsumerWidget {
           children: [
              Text("Join '${contest.category}' with Team '${team.teamName}'?", style: const TextStyle(fontWeight: FontWeight.bold)),
              const SizedBox(height: 8),
-             Text("Entry Fee: ${contest.entryFee} Axe Coins", style: const TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold)),
+             Text("Entry Fee: ${contest.entryFee} Credits", style: const TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold)),
              const Divider(height: 24),
              const Text("• Entry fee is non-refundable.", style: TextStyle(fontSize: 12, color: Colors.grey)),
              const Text("• This is a skill-based contest.", style: TextStyle(fontSize: 12, color: Colors.grey)),

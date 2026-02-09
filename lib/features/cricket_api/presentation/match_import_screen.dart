@@ -77,10 +77,26 @@ class _ImportListState extends ConsumerState<_ImportList> {
       // 2. Client-Side Tab Filter
       if (mounted) {
          setState(() {
+            // Strict Filter Logic
+            final majorKeywords = [
+               'IPL', 'Indian Premier League', 
+               'World Cup', 'T20 World Cup', '2026'
+            ];
+
+            bool isMajorMatch(CricketMatchModel m) {
+               final title = m.seriesName.toLowerCase();
+               for (final k in majorKeywords) {
+                  if (title.contains(k.toLowerCase())) return true;
+               }
+               return false;
+            }
+
+            final filtered = res.where((m) => isMajorMatch(m)).toList();
+
             if (widget.type == 'Live') {
-               _list = res.where((m) => m.status == 'Live' || m.status == 'In Progress').toList();
+               _list = filtered.where((m) => m.status == 'Live' || m.status == 'In Progress').toList();
             } else {
-               _list = res.where((m) => m.status == 'Upcoming' || m.status == 'Scheduled').toList();
+               _list = filtered.where((m) => m.status == 'Upcoming' || m.status == 'Scheduled').toList();
             }
          });
       }

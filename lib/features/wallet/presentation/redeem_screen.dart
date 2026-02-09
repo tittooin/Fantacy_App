@@ -130,7 +130,7 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Redeem Rewards"),
+        title: const Text("Claim Vouchers"),
         backgroundColor: Colors.indigo,
         actions: [
             IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchBalance)
@@ -153,9 +153,9 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
                 const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Redeemable (Winnings)", style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    Text("Redeemable Credits", style: TextStyle(color: Colors.white70, fontSize: 14)),
                     SizedBox(height: 4),
-                    Text("Play Credits (Deposit)", style: TextStyle(color: Colors.white30, fontSize: 12)),
+                    Text("Match Credits", style: TextStyle(color: Colors.white30, fontSize: 12)),
                   ],
                 ),
                 Column(

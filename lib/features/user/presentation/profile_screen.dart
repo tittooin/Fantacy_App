@@ -60,6 +60,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final nameController = TextEditingController(text: user.displayName);
     final bioController = TextEditingController(text: user.bio);
     final photoController = TextEditingController(text: user.photoUrl);
+    final phoneController = TextEditingController(text: user.phoneNumber);
     String? selectedState = user.selectedState;
 
     final List<String> indianStates = [
@@ -87,6 +88,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                    TextField(controller: nameController, decoration: const InputDecoration(labelText: "Display Name")),
                    const SizedBox(height: 12),
                    TextField(controller: bioController, decoration: const InputDecoration(labelText: "Bio", hintText: "Tell us about yourself")),
+                   const SizedBox(height: 12),
+                   TextField(controller: phoneController, decoration: const InputDecoration(labelText: "Mobile Number", hintText: "+91 9876543210")),
                    const SizedBox(height: 12),
                    TextField(controller: photoController, decoration: const InputDecoration(labelText: "Photo URL", hintText: "https://example.com/me.jpg")),
                    const SizedBox(height: 12),
@@ -124,6 +127,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     displayName: nameController.text,
                     bio: bioController.text,
                     photoUrl: photoController.text,
+                    phoneNumber: phoneController.text,
                   );
 
                   // Update State Compliance
@@ -236,6 +240,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
            }
 
            final userData = snapshot.data!.data() as Map<String, dynamic>;
+           userData['uid'] = snapshot.data!.id; // Fix for 'Null is not subtype of String' crash
            final user = UserEntity.fromJson(userData);
 
            return SingleChildScrollView(
@@ -284,18 +289,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
              ),
            const SizedBox(height: 16),
            
-           // --- ADMIN ACCESS (Simplistic Role Check) ---
-           // TODO: Move to real Claims/Role system later
-           if (_isMe && (user.email == 'admin@axevora.com' || user.email == 'test@admin.com' || true)) // FIXME: Remove '|| true' before Prod
-             Padding(
-               padding: const EdgeInsets.only(bottom: 12.0),
-               child: ElevatedButton.icon(
-                 onPressed: () => context.push('/admin/dashboard'),
-                 icon: const Icon(Icons.admin_panel_settings, color: Colors.amber),
-                 label: const Text("Admin Dashboard"),
-                 style: ElevatedButton.styleFrom(backgroundColor: Colors.black87, foregroundColor: Colors.amber),
-               ),
-             ),
            
            if (_isMe) ...[
              ElevatedButton.icon(
@@ -318,7 +311,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   foregroundColor: Colors.black87,
                   shape: const StadiumBorder()
                 )
-             )
+              ),
+              // Restricted Admin Access
+              if (FirebaseAuth.instance.currentUser?.email == 'tittoosss@gmail.com')
+                Padding(
+                  padding: const EdgeInsets.only(top: 12.0),
+                  child: ElevatedButton.icon(
+                    onPressed: () => context.push('/admin/dashboard'),
+                    icon: const Icon(Icons.admin_panel_settings, size: 16),
+                    label: const Text("Admin Panel"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder()
+                    )
+                  ),
+                )
            ] else 
              Row(
                mainAxisAlignment: MainAxisAlignment.center,
