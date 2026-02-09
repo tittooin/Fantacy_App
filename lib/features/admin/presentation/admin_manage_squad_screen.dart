@@ -305,6 +305,12 @@ class _AdminManageSquadScreenState extends ConsumerState<AdminManageSquadScreen>
           )
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _isLoading ? null : _importFromApi,
+        label: const Text("Import from API"),
+        icon: const Icon(Icons.cloud_download),
+        backgroundColor: Colors.blueAccent,
+      ),
       body: (_isSaving || _isLoading)
         ? const Center(child: CircularProgressIndicator()) 
         : TabBarView(
