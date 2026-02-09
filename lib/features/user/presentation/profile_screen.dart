@@ -307,6 +307,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                  foregroundColor: Colors.indigo,
                  shape: const StadiumBorder()
                )
+             ),
+             const SizedBox(height: 12),
+             ElevatedButton.icon(
+                onPressed: () => context.push('/redeem'),
+                icon: const Icon(Icons.card_giftcard, size: 16),
+                label: const Text("Redeem Rewards"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amberAccent,
+                  foregroundColor: Colors.black87,
+                  shape: const StadiumBorder()
+                )
              )
            else 
              Row(

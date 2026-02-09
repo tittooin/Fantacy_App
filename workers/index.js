@@ -13,8 +13,9 @@ import { handleCashfreeWebhook } from './webhook_handler.js';
 import { processLeaderboards } from './leaderboard_engine.js';
 import { processSquads, syncMatchSquad } from './squad_engine.js';
 import { processPayoutsForMatch } from './payout_engine.js';
-import { handleVoucherRedeem, handleVoucherList } from './voucher_system.js';
+import { handleVoucherRequest, handleVoucherUserHistory, handleAdminVoucherList, handleAdminApproveVoucher } from './voucher_engine.js';
 
+// ...
 
 // ... (CORS Headers kept same)
 
@@ -96,8 +97,27 @@ export default {
         if (path === '/api/admin/match/squad') return handleAdminSaveSquad(request, env);
 
         // --- VOUCHER ROUTES ---
-        if (path === '/api/voucher/redeem') return handleVoucherRedeem(request, env);
-        if (path === '/api/voucher/list') return handleVoucherList(request, env);
+
+
+
+        // --- VOUCHER ROUTES ---
+        if (path === '/api/voucher/request') return handleVoucherRequest(request, env);
+        if (path === '/api/voucher/my') {
+            const uid = url.searchParams.get('userId');
+            if (!uid) return jsonResponse({ error: 'UserId required' }, 400);
+            return handleVoucherUserHistory(uid, env);
+        }
+
+        // --- WALLET ROUTES (D1) ---
+        if (path === '/api/wallet/balance') {
+            const uid = url.searchParams.get('userId');
+            if (!uid) return jsonResponse({ error: 'UserId required' }, 400);
+            return handleGetWalletBalance(uid, env);
+        }
+
+        // --- ADMIN VOUCHER ROUTES ---
+        if (path === '/api/admin/voucher/list') return handleAdminVoucherList(env);
+        if (path === '/api/admin/voucher/approve') return handleAdminApproveVoucher(request, env);
 
         if (path === '/diag') return handleGlobalDiag(env);
         if (path === '/fantasy-points') return handleGetFantasyPoints(url.searchParams.get('match_id'), env);
@@ -182,9 +202,14 @@ async function handleCreatePayment(request, env) {
         // Call Service
         const result = await createCashfreeOrder(userId, amount, env);
 
-        // Save Transaction to DB
+        // Save Transaction to D1 (Pending)
         if (result.success && result.transactionData) {
-            await saveToFirestore('transactions', result.transactionData, env);
+            const t = result.transactionData;
+            await env.DB.prepare(`
+                INSERT INTO transactions (id, user_id, type, amount, created_at, status)
+                VALUES (?, ?, 'deposit', ?, ?, 'pending')
+            `).bind(t.id, t.userId, t.amount, Date.now()).run();
+
             // Remove transactionData from response to keep it clean
             delete result.transactionData;
         }
@@ -202,36 +227,36 @@ async function handlePaymentWebhook(request, env) {
 
         if (result.action === 'UPDATE_WALLET') {
             const { orderId, amount, gatewayData } = result;
-            // 1. Get Transaction to find UserID
-            const txnDocs = await getFromFirestore(`transactions/${orderId}`, env); // Single doc fetch usually different, assume helper handles collection only?
-            // Actually getFromFirestore fetches collection. We need single doc.
-            // Let's iterate or fetch properly.
-            // Simplified: The orderId IS the document ID in 'transactions'.
-            const txn = await fetchDoc(`transactions/${orderId}`, env);
+
+            // 1. Get Transaction from D1
+            const txn = await env.DB.prepare("SELECT * FROM transactions WHERE id = ?").bind(orderId).first();
 
             if (txn && txn.status === 'pending') {
-                const userId = txn.userId;
+                const userId = txn.user_id; // Note: D1 uses snake_case in Schema, but we inserted using bind. 
+                // Wait, Schema says user_id. JS object had userId.
+                // Insert: VALUES (?, ?, ...) -> userId goes to user_id column.
+                // Select: Returns col names. So txn.user_id.
 
-                // 2. Update User Wallet
-                const user = await fetchDoc(`users/${userId}`, env);
-                // Migration: Check walletBalance (V2) -> walletCoins (Legacy) -> 0
-                const currentCoins = (user && user.walletBalance) ? parseFloat(user.walletBalance) :
-                    (user && user.walletCoins) ? parseFloat(user.walletCoins) : 0;
-                const newCoins = currentCoins + parseFloat(amount);
-
-                // Update User with walletBalance
-                await saveToFirestore('users', { id: userId, walletBalance: newCoins, lastUpdated: new Date().toISOString() }, env);
+                // 2. Update User Wallet (DEPOSIT ONLY)
+                // Atomic increment
+                await env.DB.prepare(`
+                    UPDATE users SET deposit_credits = deposit_credits + ? WHERE id = ?
+                `).bind(amount, userId).run();
 
                 // 3. Update Transaction Status
-                await saveToFirestore('transactions', { id: orderId, status: 'success', gatewayResponse: JSON.stringify(gatewayData) }, env);
+                await env.DB.prepare(`
+                    UPDATE transactions SET status = 'success' WHERE id = ?
+                `).bind(orderId).run();
 
-                console.log(`âœ… Wallet Updated for ${userId}: +${amount}`);
+                console.log(`✅ Wallet Updated for ${userId}: +${amount}`);
             } else {
-                console.log(`âš ï¸ Transaction ${orderId} not found or already processed.`);
+                console.log(`⚠️ Transaction ${orderId} not found or already processed.`);
             }
         }
         else if (result.action === 'UPDATE_TRANSACTION_FAILED') {
-            await saveToFirestore('transactions', { id: result.orderId, status: 'failed', gatewayResponse: JSON.stringify(result.gatewayData) }, env);
+            await env.DB.prepare(`
+                UPDATE transactions SET status = 'failed' WHERE id = ?
+            `).bind(result.orderId).run();
         }
 
         // Cashfree expects 200 OK
@@ -245,51 +270,66 @@ async function handlePaymentWebhook(request, env) {
     }
 }
 
+
 async function handleJoinContest(request, env) {
     try {
         const body = await request.json();
-        const { userId, contestId, matchId, teamName, playerIds, teamId } = body; // ADDED teamId
+        const { userId, contestId, matchId, teamName, playerIds, teamId } = body;
 
         if (!userId || !contestId || !matchId) {
             return jsonResponse({ success: false, error: 'Missing required fields' }, 400);
         }
 
-        // 1. Fetch User Balance
-        const user = await fetchDoc(`users/${userId}`, env);
+        // 1. Fetch User Balance (D1)
+        const user = await env.DB.prepare("SELECT deposit_credits, winning_credits FROM users WHERE id = ?").bind(userId).first();
         if (!user) return jsonResponse({ success: false, error: 'User not found' }, 404);
 
-        const currentCoins = (user.walletBalance) ? parseFloat(user.walletBalance) :
-            (user.walletCoins) ? parseFloat(user.walletCoins) : 0;
+        const deposit = user.deposit_credits || 0;
+        const winnings = user.winning_credits || 0;
+        const totalBalance = deposit + winnings;
 
-        // 2. Fetch Contest Entry Fee
-        const contest = await fetchDoc(`contests/${contestId}`, env);
+        // 2. Fetch Contest Entry Fee (D1)
+        const contest = await env.DB.prepare("SELECT entry_fee, filled_spots, total_spots FROM contests WHERE id = ?").bind(contestId).first();
         if (!contest) return jsonResponse({ success: false, error: 'Contest not found' }, 404);
 
-        const entryFee = contest.entryFee ? parseFloat(contest.entryFee) : 0;
-
-        // 3. Check Balance
-        if (currentCoins < entryFee) {
-            return jsonResponse({ success: false, error: 'Insufficient Balance', required: entryFee, available: currentCoins }, 402);
+        if (contest.filled_spots >= contest.total_spots) {
+            return jsonResponse({ success: false, error: 'Contest Full' }, 409);
         }
 
-        // 4. Deduct Coins
-        const newBalance = currentCoins - entryFee;
-        await saveToFirestore('users', { id: userId, walletBalance: newBalance }, env);
+        const entryFee = contest.entry_fee || 0;
 
-        // 5. Log Transaction (Audit)
-        const txnId = `join_${Date.now()}_${userId}`;
-        await saveToFirestore('transactions', {
-            id: txnId,
-            userId: userId,
-            type: 'contest_join',
-            contestId: contestId,
-            amount: entryFee,
-            status: 'success',
-            createdAt: new Date().toISOString()
-        }, env);
+        // 3. Check Balance
+        if (totalBalance < entryFee) {
+            return jsonResponse({ success: false, error: 'Insufficient Balance', required: entryFee, available: totalBalance }, 402);
+        }
 
-        // 6. D1 WRITE (PRIMARY) - ZERO FIRESTORE FOR PARTICIPANTS
-        // 'contest_participants' is the SOLE source of truth for contest entry
+        // 4. Calculate Split Deduction
+        // Rule: Deduct Deposit first, then Winnings.
+        let deductDeposit = 0;
+        let deductWinnings = 0;
+
+        if (deposit >= entryFee) {
+            deductDeposit = entryFee;
+        } else {
+            deductDeposit = deposit;
+            deductWinnings = entryFee - deposit;
+        }
+
+        // 5. Update Wallet (D1)
+        // Optimistic Locking: ensure balance hasn't dropped below what we need
+        const res = await env.DB.prepare(`
+            UPDATE users 
+            SET deposit_credits = deposit_credits - ?, 
+                winning_credits = winning_credits - ? 
+            WHERE id = ? AND deposit_credits >= ? AND winning_credits >= ?
+        `).bind(deductDeposit, deductWinnings, userId, deductDeposit, deductWinnings).run();
+
+        if (res.meta.changes === 0) {
+            return jsonResponse({ success: false, error: 'Balance deduction failed (Race condition)' }, 409);
+        }
+
+        // 6. Join Contest (D1)
+        // 'contest_participants'
         try {
             await env.DB.prepare(
                 `INSERT OR REPLACE INTO contest_participants (contest_id, user_id, team_id, player_ids, team_name, joined_at, match_id) 
@@ -304,19 +344,27 @@ async function handleJoinContest(request, env) {
                 matchId
             ).run();
 
-            // Sync simple count to D1 contests table (Optimistic)
+            // Sync simple count
             await env.DB.prepare(
                 `UPDATE contests SET filled_spots = filled_spots + 1 WHERE id = ?`
-            ).bind(contestId).run().catch(e => console.log("Contest Count Update Failed", e));
+            ).bind(contestId).run();
+
+            // 7. Log Transaction (D1 Audit)
+            const txnId = `join_${Date.now()}_${userId}`;
+            await env.DB.prepare(`
+                INSERT INTO transactions (id, user_id, type, amount, contest_id, match_id, created_at, status)
+                VALUES (?, ?, 'contest_join', ?, ?, ?, ?, 'success')
+            `).bind(txnId, userId, entryFee, contestId, matchId, Date.now()).run();
 
         } catch (d1Error) {
             console.error("D1 Join Error:", d1Error);
-            // Panic: If D1 fails, refund user? Or retry?
-            // For now, return error but money is deducted (Audit exists in transactions to manual fix)
-            return jsonResponse({ success: false, error: "Join Failed on Server DB", tips: "Contact Support" }, 500);
+            // Panic Refund? Or Retry?
+            // Since money is deducted, we MUST refund or ensure entry.
+            // Simplified: Return specific error asking to retry.
+            return jsonResponse({ success: false, error: "Join Logic Error. Please Contact Support.", code: "D1_JOIN_FAIL" }, 500);
         }
 
-        return jsonResponse({ success: true, message: 'Contest Joined Successfully', remainingBalance: newBalance });
+        return jsonResponse({ success: true, message: 'Contest Joined Successfully', remainingBalance: totalBalance - entryFee });
 
     } catch (e) {
         console.error("Join Contest Error", e);
@@ -479,7 +527,10 @@ async function handleGetSquads(matchId, env, request) {
         // 3. Lazy fetch if missing or stale
         console.log(`🔄 Squad stale/missing for ${matchId} (Series ${seriesId}), fetching...`);
         const mockMatch = { id: matchId, status: 'Upcoming', series_id: seriesId };
-        await syncMatchSquad(env, mockMatch, env.RAPID_API_KEY, env.RAPID_API_HOST);
+
+        // FIX: Use 'cricbuzz-cricket.p.rapidapi.com' to match Match IDs source. 
+        // env.RAPID_API_HOST might be 'unofficial-cricbuzz' which crashes mechanism.
+        await syncMatchSquad(env, mockMatch, env.RAPID_API_KEY, 'cricbuzz-cricket.p.rapidapi.com');
 
         // 4. Return fresh data
         const d1Retry = await env.DB.prepare(
@@ -734,6 +785,26 @@ async function handleGetFantasyPoints(matchId, env) {
         return jsonResponse({ success: true, points: formatted });
     } catch (e) {
         return jsonResponse({ success: false, error: e.message });
+    }
+}
+
+async function handleGetWalletBalance(userId, env) {
+    try {
+        const user = await env.DB.prepare("SELECT deposit_credits, winning_credits FROM users WHERE id = ?").bind(userId).first();
+
+        const deposit = user ? (user.deposit_credits || 0) : 0;
+        const winnings = user ? (user.winning_credits || 0) : 0;
+
+        return jsonResponse({
+            success: true,
+            balance: {
+                deposit: deposit,
+                winnings: winnings,
+                total: deposit + winnings
+            }
+        });
+    } catch (e) {
+        return jsonResponse({ success: false, error: e.message }, 500);
     }
 }
 

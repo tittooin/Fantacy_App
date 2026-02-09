@@ -255,6 +255,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 _DashboardCard(title: "Contests", value: "$_activeContests", icon: Icons.emoji_events, color: Colors.amber, onTap: () => context.push('/admin/contests')),
                 _DashboardCard(title: "Pending Payouts", value: "$_pendingPayouts", icon: Icons.account_balance_wallet, color: Colors.orange, onTap: () => context.push('/admin/wallet')),
                 _DashboardCard(title: "KYC Requests", value: "$_kycPending", icon: Icons.verified_user, color: Colors.purpleAccent, onTap: () => context.push('/admin/kyc')),
+                _DashboardCard(title: "Voucher Requests", value: "Manage", icon: Icons.card_giftcard, color: Colors.teal, onTap: () => context.push('/admin/vouchers')),
               ],
             ),
 

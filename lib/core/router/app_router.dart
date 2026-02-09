@@ -12,6 +12,7 @@ import 'package:axevora11/features/admin/presentation/admin_users_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_match_contests_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_players_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_manage_squad_screen.dart'; // Added
+import 'package:axevora11/features/admin/presentation/admin_voucher_screen.dart'; // Added
 import 'package:axevora11/features/legal/presentation/contact_us_screen.dart';
 import 'package:axevora11/features/legal/presentation/faq_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
@@ -37,6 +38,7 @@ import 'package:axevora11/features/team/presentation/team_preview_screen.dart';
 import 'package:axevora11/features/team/presentation/captain_selection_screen.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:axevora11/features/wallet/presentation/wallet_screen.dart';
+import 'package:axevora11/features/wallet/presentation/redeem_screen.dart'; // Added
 import 'package:axevora11/features/user/presentation/profile_screen.dart';
 import 'package:axevora11/features/legal/presentation/legal_pages.dart';
 import 'package:axevora11/features/kyc/presentation/kyc_screen.dart';
@@ -144,6 +146,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/wallet', // Wallet acts as a modal/fullscreen usually
         builder: (context, state) => const WalletScreen(),
+      ),
+      GoRoute(
+        path: '/redeem',
+        builder: (context, state) => const RedeemScreen(),
       ),
       GoRoute(
         path: '/location-verify',
@@ -403,6 +409,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/leagues',
             builder: (context, state) => const LeagueManagementScreen(),
+          ),
+          GoRoute(
+            path: '/admin/vouchers',
+            builder: (context, state) => const AdminVoucherScreen(),
           ),
         ],
       ),

@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS leaderboards (
 );
 CREATE INDEX IF NOT EXISTS idx_lb_contest ON leaderboards(contest_id, rank);
 
--- 7. Vouchers (Reward Credits Redemption)
+-- 7. Vouchers (Legacy - Keep for record)
 CREATE TABLE IF NOT EXISTS vouchers (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -78,4 +78,43 @@ CREATE TABLE IF NOT EXISTS vouchers (
     redeemed_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_voucher_user ON vouchers(user_id);
-CREATE INDEX IF NOT EXISTS idx_voucher_status ON vouchers(status);
+
+-- 8. Voucher Requests (New Manual Redemption)
+CREATE TABLE IF NOT EXISTS voucher_requests (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    brand TEXT NOT NULL,
+    credits INTEGER NOT NULL,
+    status TEXT DEFAULT 'pending', -- pending, approved, rejected
+    voucher_code TEXT,             -- Filled by Admin
+    created_at INTEGER NOT NULL,
+    approved_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_vr_user ON voucher_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_vr_status ON voucher_requests(status);
+
+-- 9. Users Table (D1 Wallet Master)
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    email TEXT,
+    photo_url TEXT,
+    deposit_credits REAL DEFAULT 0,  -- For Joining Contests
+    winning_credits REAL DEFAULT 0,  -- For Redemption
+    joined_at INTEGER,
+    last_active INTEGER,
+    is_restricted BOOLEAN DEFAULT 0
+);
+
+-- 10. Transactions (Audit Trail)
+CREATE TABLE IF NOT EXISTS transactions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    type TEXT NOT NULL,              -- 'deposit', 'contest_join', 'winnings', 'refund', 'withdrawal_request'
+    amount REAL NOT NULL,
+    match_id INTEGER,
+    contest_id TEXT,
+    created_at INTEGER NOT NULL,
+    status TEXT DEFAULT 'success'
+);
+CREATE INDEX IF NOT EXISTS idx_txn_user ON transactions(user_id);
