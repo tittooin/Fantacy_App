@@ -37,8 +37,14 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     
+    final url = '$_workerUrl/api/wallet/balance?userId=${user.uid}';
+    print("DEBUG Redeem: Fetching balance from $url");
+    
     try {
-      final response = await http.get(Uri.parse('$_workerUrl/api/wallet/balance?userId=${user.uid}'));
+      final response = await http.get(Uri.parse(url));
+      print("DEBUG Redeem: Response Status: ${response.statusCode}");
+      print("DEBUG Redeem: Response Body: ${response.body}");
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true && data['balance'] != null) {
@@ -52,7 +58,7 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
         }
       }
     } catch (e) {
-      print("Error fetching balance: $e");
+      print("DEBUG Redeem: Error fetching balance: $e");
     }
   }
 

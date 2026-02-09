@@ -37,8 +37,13 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     try {
       // Worker URL from constants or similar
       const workerUrl = 'https://fantasy-cricket-api.moremagical4.workers.dev';
-      final response = await http.get(Uri.parse('$workerUrl/api/wallet/balance?userId=$userId'));
+      final url = '$workerUrl/api/wallet/balance?userId=$userId';
+      print("DEBUG Wallet: Fetching balance from $url");
       
+      final response = await http.get(Uri.parse(url));
+      print("DEBUG Wallet: Balance Response Code: ${response.statusCode}");
+      print("DEBUG Wallet: Balance Response Body: ${response.body}");
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true && data['balance'] != null) {
@@ -51,7 +56,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         }
       }
     } catch (e) {
-      print("Error fetching d1 balance: $e");
+      print("DEBUG Wallet: Error fetching d1 balance: $e");
       if (mounted) setState(() => _isLoadingBalance = false);
     }
   }
