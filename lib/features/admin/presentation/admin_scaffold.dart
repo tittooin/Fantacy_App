@@ -33,6 +33,7 @@ class _AdminScaffoldState extends State<AdminScaffold> {
     {'label': 'Contests', 'icon': Icons.emoji_events_rounded, 'route': '/admin/contests'},
     {'label': 'Users', 'icon': Icons.people_alt_rounded, 'route': '/admin/users'},
     {'label': 'Payouts', 'icon': Icons.payments_rounded, 'route': '/admin/wallet'},
+    {'label': 'Vouchers', 'icon': Icons.card_giftcard, 'route': '/admin/vouchers'},
   ];
 
   void _onDestinationSelected(int index) {
