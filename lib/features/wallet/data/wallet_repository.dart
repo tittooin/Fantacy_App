@@ -64,9 +64,17 @@ class WalletRepository {
         .snapshots();
   }
 
-  /// Get Transaction History (Future - Optimized)
+  /// Get Transaction History (Future - Optimized using D1)
   Future<List<Map<String, dynamic>>> getTransactions(String userId) async {
     try {
+      // Fetch from D1 Worker
+      final response = await _dio.get('/api/transactions/my', queryParameters: {'userId': userId});
+      
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return List<Map<String, dynamic>>.from(response.data['transactions'] ?? []);
+      }
+
+      // Fallback: Try Firestore if Worker fails or returns empty (for legacy data)
       final snapshot = await _firestore
           .collection('transactions')
           .where('userId', isEqualTo: userId)

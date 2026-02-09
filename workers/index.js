@@ -114,6 +114,11 @@ export default {
             if (!uid) return jsonResponse({ error: 'UserId required' }, 400);
             return handleGetWalletBalance(uid, env);
         }
+        if (path === '/api/transactions/my') {
+            const uid = url.searchParams.get('userId');
+            if (!uid) return jsonResponse({ error: 'UserId required' }, 400);
+            return handleGetTransactions(uid, env);
+        }
 
         // --- ADMIN VOUCHER ROUTES ---
         if (path === '/api/admin/voucher/list') return handleAdminVoucherList(env);
@@ -980,4 +985,19 @@ function handleStaticPage(type) {
     return new Response(html, {
         headers: { 'Content-Type': 'text/html' }
     });
+}
+
+async function handleGetTransactions(userId, env) {
+    try {
+        const { results } = await env.DB.prepare(
+            "SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50"
+        ).bind(userId).all();
+
+        return jsonResponse({
+            success: true,
+            transactions: results
+        });
+    } catch (e) {
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
 }
