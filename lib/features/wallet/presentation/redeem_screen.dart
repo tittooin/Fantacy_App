@@ -24,8 +24,13 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _fetchBalance();
-    _fetchHistory();
+    // Listen for auth changes to trigger fetch
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null && mounted) {
+        _fetchBalance();
+        _fetchHistory();
+      }
+    });
   }
 
   Future<void> _fetchBalance() async {
@@ -37,10 +42,13 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true && data['balance'] != null) {
-            setState(() {
-                _winningBalance = (data['balance']['winnings'] ?? 0).toDouble();
-                _depositBalance = (data['balance']['deposit'] ?? 0).toDouble();
-            });
+            if (mounted) {
+              setState(() {
+                  _winningBalance = (data['balance']['winnings'] ?? 0).toDouble();
+                  _depositBalance = (data['balance']['deposit'] ?? 0).toDouble();
+                  _isLoading = false;
+              });
+            }
         }
       }
     } catch (e) {
@@ -57,9 +65,11 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true && data['history'] != null) {
-          setState(() {
-            _history = List<Map<String, dynamic>>.from(data['history']);
-          });
+          if (mounted) {
+            setState(() {
+              _history = List<Map<String, dynamic>>.from(data['history']);
+            });
+          }
         }
       }
     } catch (e) {

@@ -23,7 +23,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchD1Balance();
+    // Fetch if user is already available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fetchD1Balance();
+    });
   }
 
   Future<void> _fetchD1Balance() async {
@@ -92,6 +95,13 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   Widget build(BuildContext context) {
     // We listen to the User Stream here.
     final userAsync = ref.watch(userEntityProvider);
+
+    // Auto-fetch when user arrives
+    ref.listen(userEntityProvider, (previous, next) {
+      if (next.hasValue && next.value != null && _isLoadingBalance) {
+        _fetchD1Balance();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
