@@ -54,7 +54,7 @@ export default {
             return handleGetScorecard(matchId, env);
         }
 
-        if (path === '/squads' || path === '/api/squads') return handleGetSquads(url.searchParams.get('matchId'), env);
+        if (path === '/squads' || path === '/api/squads') return handleGetSquads(url.searchParams.get('matchId'), env, request);
 
         // --- PAYMENT ROUTES ---
         if (path === '/pay') return handlePaymentRedirect(url.searchParams, env);
@@ -423,7 +423,7 @@ async function handleGetScorecard(matchId, env) {
     }
 }
 
-async function handleGetSquads(matchId, env) {
+async function handleGetSquads(matchId, env, request) {
     try {
         if (!matchId) return jsonResponse({ success: false, error: 'matchId required' });
 
@@ -435,20 +435,29 @@ async function handleGetSquads(matchId, env) {
         const now = Date.now();
         const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
 
-        // Fetch Team IDs from matches table
-        const matchInfo = await env.DB.prepare("SELECT team_a_id, team_b_id FROM matches WHERE id = ?").bind(matchId).first();
+        // Fetch Team IDs & Series ID from matches table
+        let matchInfo;
+        try {
+            matchInfo = await env.DB.prepare("SELECT team_a_id, team_b_id, series_id FROM matches WHERE id = ?").bind(matchId).first();
+        } catch (e) {
+            console.error("SQL Error fetching series_id, falling back to basic query:", e);
+            matchInfo = await env.DB.prepare("SELECT team_a_id, team_b_id FROM matches WHERE id = ?").bind(matchId).first();
+        }
+
         const team1Id = matchInfo?.team_a_id || 0;
         const team2Id = matchInfo?.team_b_id || 0;
+        const seriesId = matchInfo?.series_id || 0;
 
-        // 2. Return cached if fresh
-        if (d1Squad && d1Squad.team_a_roster) {
+        const force = new URL(request.url).searchParams.get('force') === 'true';
+
+        // 2. Return cached if fresh AND not forced
+        if (d1Squad && d1Squad.team_a_roster && !force) {
             const age = now - (d1Squad.last_updated || 0);
-            if (age < staleThreshold) {
-                const teamA = JSON.parse(d1Squad.team_a_roster || '[]');
-                const teamB = JSON.parse(d1Squad.team_b_roster || '[]');
-                const team1Id = matchInfo?.team_a_id || 0;
-                const team2Id = matchInfo?.team_b_id || 0;
+            const teamA = JSON.parse(d1Squad.team_a_roster || '[]');
+            const teamB = JSON.parse(d1Squad.team_b_roster || '[]');
 
+            // Fix: Treat empty squad as stale/invalid
+            if (age < staleThreshold && (teamA.length > 0 || teamB.length > 0)) {
                 return jsonResponse({
                     success: true,
                     source: 'D1_CACHE',
@@ -460,14 +469,16 @@ async function handleGetSquads(matchId, env) {
                     team1Id: team1Id,
                     team2Id: team2Id
                 });
+            } else {
+                console.log(`⚠️ Cache Exists but is EMPTY or Stale. forcing refresh for ${matchId}`);
             }
         }
 
         // Fetch Team IDs Logic already executed above
 
         // 3. Lazy fetch if missing or stale
-        console.log(`🔄 Squad stale/missing for ${matchId}, fetching...`);
-        const mockMatch = { id: matchId, status: 'Upcoming' };
+        console.log(`🔄 Squad stale/missing for ${matchId} (Series ${seriesId}), fetching...`);
+        const mockMatch = { id: matchId, status: 'Upcoming', series_id: seriesId };
         await syncMatchSquad(env, mockMatch, env.RAPID_API_KEY, env.RAPID_API_HOST);
 
         // 4. Return fresh data

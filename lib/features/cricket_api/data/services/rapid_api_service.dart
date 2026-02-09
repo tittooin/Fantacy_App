@@ -121,9 +121,9 @@ class RapidApiService {
   /// Hindi: Worker se squad laata hai aur Firestore mein save karta hai
   Future<void> fetchAndSaveSquad(String matchId, String cricbuzzId) async {
     try {
-      debugPrint("📡 [Worker] GET /api/squads?matchId=$cricbuzzId");
+      debugPrint("📡 [Worker] GET /api/squads?matchId=$cricbuzzId&force=true");
       final response = await _dio.get(
-        '$_workerUrl/api/squads?matchId=$cricbuzzId',
+        '$_workerUrl/api/squads?matchId=$cricbuzzId&force=true',
       );
       
       if (response.statusCode == 200) {
