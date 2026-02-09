@@ -89,7 +89,12 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> with SingleTick
             const SizedBox(height: 16),
             TextField(
               controller: codeController,
-              decoration: const InputDecoration(labelText: "Paste Voucher Code", border: OutlineInputBorder()),
+              style: const TextStyle(color: Colors.black),
+              decoration: const InputDecoration(
+                labelText: "Paste Voucher Code", 
+                labelStyle: TextStyle(color: Colors.black54),
+                border: OutlineInputBorder()
+              ),
             ),
           ],
         ),
@@ -166,12 +171,12 @@ class _AdminVoucherScreenState extends State<AdminVoucherScreen> with SingleTick
           elevation: 2,
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
-            title: Text("${item['brand']} Voucher - ${item['credits']} Credits"),
+            title: Text("${item['brand']} Voucher - ${item['credits']} Credits", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("User: ${item['user_id']}", style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
-                Text("Requested: ${date.toString().split('.')[0]}"),
+                Text("User: ${item['user_id']}", style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.black54)),
+                Text("Requested: ${date.toString().split('.')[0]}", style: const TextStyle(color: Colors.black87)),
                 if (!isPending) 
                   Text(
                     "Status: ${item['status'].toString().toUpperCase()}", 
