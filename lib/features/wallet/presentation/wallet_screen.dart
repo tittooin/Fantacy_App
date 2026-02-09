@@ -5,6 +5,8 @@ import 'package:axevora11/features/wallet/data/wallet_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
@@ -15,6 +17,41 @@ class WalletScreen extends ConsumerStatefulWidget {
 
 class _WalletScreenState extends ConsumerState<WalletScreen> {
   bool _isProcessing = false;
+  double _d1TotalBalance = 0.0;
+  bool _isLoadingBalance = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchD1Balance();
+  }
+
+  Future<void> _fetchD1Balance() async {
+    final user = ref.read(userEntityProvider).value;
+    if (user == null) return;
+    final userId = (user as dynamic).uid;
+    
+    try {
+      // Worker URL from constants or similar
+      const workerUrl = 'https://fantasy-cricket-api.moremagical4.workers.dev';
+      final response = await http.get(Uri.parse('$workerUrl/api/wallet/balance?userId=$userId'));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['balance'] != null) {
+          if (mounted) {
+            setState(() {
+              _d1TotalBalance = (data['balance']['total'] ?? 0).toDouble();
+              _isLoadingBalance = false;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("Error fetching d1 balance: $e");
+      if (mounted) setState(() => _isLoadingBalance = false);
+    }
+  }
 
   Future<void> _initiateAddCash(String amountStr, dynamic user) async {
     final amount = double.tryParse(amountStr);
@@ -51,129 +88,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     if (mounted) setState(() => _isProcessing = false);
   }
   
-  void _showWithdrawModal(BuildContext context, dynamic user) {
-    final TextEditingController amountController = TextEditingController();
-    final TextEditingController detailsController = TextEditingController();
-    String selectedMethod = 'UPI';
-    final List<String> methods = ['UPI', 'Bank Transfer', 'Amazon Pay Gift Card', 'Flipkart Gift Card', 'Google Play Code'];
-
-    showModalBottomSheet(
-      context: context, 
-      backgroundColor: Colors.grey[900],
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      isScrollControlled: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Withdraw Funds", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text("Manual Payout (Processed within 24 Hours)", style: TextStyle(color: Colors.white54, fontSize: 12)),
-                const SizedBox(height: 20),
-                
-                // Amount Field
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: "Amount (Min ₹100)",
-                    labelStyle: TextStyle(color: Colors.white70),
-                    prefixText: "₹ ",
-                    prefixStyle: TextStyle(color: Colors.white),
-                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
-                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Method Dropdown
-                DropdownButtonFormField<String>(
-                  value: selectedMethod,
-                  dropdownColor: Colors.grey[800],
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: "Payout Method",
-                    labelStyle: TextStyle(color: Colors.white70),
-                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
-                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
-                  ),
-                  items: methods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                  onChanged: (val) => setModalState(() => selectedMethod = val!),
-                ),
-                const SizedBox(height: 16),
-
-                // Details Field
-                TextField(
-                  controller: detailsController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: selectedMethod == 'UPI' ? "Enter UPI ID" : 
-                               selectedMethod == 'Bank Transfer' ? "Acc No, IFSC, Name" : "Enter Email Address for Voucher",
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
-                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
-                    hintText: selectedMethod == 'UPI' ? "e.g. 9876543210@upi" : "e.g. user@gmail.com",
-                    hintStyle: const TextStyle(color: Colors.white30),
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                       final double? amount = double.tryParse(amountController.text);
-                       if (amount == null || amount < 100) {
-                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Min withdrawal is ₹100")));
-                         return;
-                       }
-                       if (detailsController.text.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter details")));
-                          return;
-                       }
-
-                       Navigator.pop(context);
-                       
-                       try {
-                         // Call Repository
-                         await ref.read(walletRepositoryProvider).requestWithdrawal(
-                           userId: user.uid,
-                           amount: amount,
-                           method: selectedMethod,
-                           details: detailsController.text,
-                           currentBalance: (user.walletBalance as num).toDouble(),
-                         );
-                         
-                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Withdrawal Request Submitted!"), backgroundColor: Colors.green));
-                       } catch (e) {
-                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed: $e"), backgroundColor: Colors.red));
-                       }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text("REQUEST WITHDRAWAL")
-                  ),
-                )
-              ],
-            ),
-          ),
-        ),
-      )
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // We listen to the User Stream here. If Webhook updates DB, this Stream should trigger rebuild.
+    // We listen to the User Stream here.
     final userAsync = ref.watch(userEntityProvider);
 
     return Scaffold(
@@ -181,6 +98,15 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         title: const Text("My Wallet"),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh), 
+            onPressed: () {
+              setState(() => _isLoadingBalance = true);
+              _fetchD1Balance();
+            }
+          )
+        ],
       ),
       extendBodyBehindAppBar: true,
       body: Container(
@@ -196,9 +122,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             if (user == null) return const Center(child: Text("User not found"));
             final dynamicUser = user as dynamic;
             
-            // Safe Access to Fields
-            final double balance = (dynamicUser.walletBalance is num) ? (dynamicUser.walletBalance as num).toDouble() : 0.0;
-            // Unused variables removed for build stability
+            // Use D1 Balance if available, else fallback nicely (or show 0)
+            final double displayBalance = _d1TotalBalance; 
 
             return Stack(
               children: [
@@ -206,19 +131,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   children: [
                     const SizedBox(height: kToolbarHeight + 20),
                     // 1. Total Balance Card
-                    _buildTotalBalanceCard(context, balance),
-
-                    // 2. Breakdown (Optional, if we have these fields)
-                    /*
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                         children: [
-                            Expanded(child: _buildBalanceItem("Coins", balance, Icons.monetization_on, isHighlight: true)),
-                         ],
-                      ),
-                    ),
-                    */
+                    _buildTotalBalanceCard(context, displayBalance),
 
                     const SizedBox(height: 16),
                     
@@ -247,39 +160,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             Expanded(
                                 child: OutlinedButton.icon(
                                 onPressed: () {
-                                  // KYC CHECK
-                                  String kycStatus = 'unverified';
-                                  try { kycStatus = dynamicUser.kycStatus ?? 'unverified'; } catch (_) {}
-                                  
-                                  if (kycStatus == 'verified') {
-                                     _showWithdrawModal(context, dynamicUser);
-                                  } else {
-                                     showDialog(
-                                       context: context, 
-                                       builder: (ctx) => AlertDialog(
-                                         backgroundColor: Colors.grey[900],
-                                         title: Text(kycStatus == 'pending' ? "Verification Pending" : "Identity Verification Required", style: const TextStyle(color: Colors.white)),
-                                         content: Text(
-                                           kycStatus == 'pending' 
-                                            ? "Your KYC documents are under review. You can withdraw once approved."
-                                            : "To ensure safety, please verify your identity to withdraw funds.",
-                                           style: const TextStyle(color: Colors.white70)
-                                         ),
-                                         actions: [
-                                           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-                                           if (kycStatus != 'pending')
-                                              ElevatedButton(
-                                                onPressed: () {
-                                                  Navigator.pop(ctx);
-                                                  context.push('/kyc');
-                                                },
-                                                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                                                child: const Text("VERIFY NOW")
-                                              )
-                                         ],
-                                       )
-                                     );
-                                  }
+                                  // DIRECT NAVIGATION TO REDEEM SCREEN - BYPASS OLD KYC
+                                  context.push('/redeem');
                                 },
                                 icon: const Icon(Icons.redeem),
                                 label: const Text("WITHDRAW"),
@@ -306,7 +188,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     Expanded(child: _buildLiveTransactionList(dynamicUser.uid)),
                   ],
                 ),
-                if (_isProcessing)
+                if (_isProcessing || _isLoadingBalance)
                    Container(
                      color: Colors.black54,
                      child: const Center(child: CircularProgressIndicator(color: Colors.green)),
@@ -333,7 +215,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       ),
       child: Column(
         children: [
-          const Text("TOTAL COINS", style: TextStyle(color: Colors.white70, letterSpacing: 1.2, fontSize: 12)),
+          const Text("TOTAL COINS (Live)", style: TextStyle(color: Colors.white70, letterSpacing: 1.2, fontSize: 12)),
           const SizedBox(height: 8),
           Text("${totalBalance.toStringAsFixed(0)}", style: const TextStyle(color: Colors.amber, fontSize: 40, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
