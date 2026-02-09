@@ -190,15 +190,32 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: _selectedBrand,
-                      decoration: const InputDecoration(labelText: "Select Brand", border: OutlineInputBorder()),
-                      items: ['Amazon', 'Flipkart', 'Myntra', 'Zomato'].map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                      style: const TextStyle(color: Colors.black, fontSize: 16),
+                      dropdownColor: Colors.white,
+                      decoration: const InputDecoration(
+                        labelText: "Select Brand", 
+                        labelStyle: TextStyle(color: Colors.black54),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.indigo)),
+                        border: OutlineInputBorder()
+                      ),
+                      items: ['Amazon', 'Flipkart', 'Myntra', 'Zomato'].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(color: Colors.black)))).toList(),
                       onChanged: (v) => setState(() => _selectedBrand = v!),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _amountController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: "Enter Credits (Min 50)", border: OutlineInputBorder(), suffixText: "Credits"),
+                      style: const TextStyle(color: Colors.black),
+                      decoration: const InputDecoration(
+                        labelText: "Enter Credits (Min 50)", 
+                        labelStyle: TextStyle(color: Colors.black54),
+                        suffixText: "Credits",
+                        suffixStyle: TextStyle(color: Colors.black54),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.indigo)),
+                        border: OutlineInputBorder()
+                      ),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
@@ -252,11 +269,11 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
                             color: isApproved ? Colors.green : (status=='rejected' ? Colors.red : Colors.orange),
                           ),
                         ),
-                        title: Text("${item['brand']} Voucher"), // User Input.
+                        title: Text("${item['brand']} Voucher", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), // User Input.
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text("${item['credits']} Credits â€¢ ${date.day}/${date.month}/${date.year}"),
+                            Text("${item['credits']} Credits • ${date.day}/${date.month}/${date.year}", style: const TextStyle(color: Colors.black54)),
                             if (isApproved && item['voucher_code'] != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),

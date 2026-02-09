@@ -112,12 +112,16 @@ export default {
         if (path === '/api/wallet/balance') {
             const uid = url.searchParams.get('userId');
             if (!uid) return jsonResponse({ error: 'UserId required' }, 400);
-            return handleGetWalletBalance(uid, env);
+            return handleGetWalletBalance(uid.trim(), env);
         }
         if (path === '/api/transactions/my') {
             const uid = url.searchParams.get('userId');
             if (!uid) return jsonResponse({ error: 'UserId required' }, 400);
-            return handleGetTransactions(uid, env);
+            return handleGetTransactions(uid.trim(), env);
+        }
+        if (path === '/api/debug/all-users') {
+            const { results } = await env.DB.prepare("SELECT * FROM users").all();
+            return jsonResponse({ users: results });
         }
 
         // --- ADMIN VOUCHER ROUTES ---
@@ -795,7 +799,14 @@ async function handleGetFantasyPoints(matchId, env) {
 
 async function handleGetWalletBalance(userId, env) {
     try {
-        const user = await env.DB.prepare("SELECT deposit_credits, winning_credits FROM users WHERE id = ?").bind(userId).first();
+        console.log(`D1: Fetching balance for [${userId}]`);
+        const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+
+        if (!user) {
+            console.log(`D1: User NOT found for [${userId}]`);
+        } else {
+            console.log(`D1: Found user, winnings: ${user.winning_credits}`);
+        }
 
         const deposit = user ? (user.deposit_credits || 0) : 0;
         const winnings = user ? (user.winning_credits || 0) : 0;
@@ -809,6 +820,7 @@ async function handleGetWalletBalance(userId, env) {
             }
         });
     } catch (e) {
+        console.error("D1 Error:", e);
         return jsonResponse({ success: false, error: e.message }, 500);
     }
 }
@@ -816,7 +828,13 @@ async function handleGetWalletBalance(userId, env) {
 export function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
         status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        }
     });
 }
 
