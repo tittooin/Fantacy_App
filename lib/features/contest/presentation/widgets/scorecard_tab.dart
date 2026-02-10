@@ -305,18 +305,13 @@ class _ScorecardTabState extends State<ScorecardTab> with SingleTickerProviderSt
     final isBatting = status.toLowerCase() == 'not out' || status.toLowerCase() == 'batting';
     final isYetToBat = status.isEmpty;
 
-    final runs = b['runs'] ?? 0; // API returns string or int
-    final balls = b['balls'] ?? b['ballnbr'] ?? 0;
+    final runs = int.tryParse(b['runs']?.toString() ?? '0') ?? 0;
+    final balls = int.tryParse(b['balls']?.toString() ?? b['ballnbr']?.toString() ?? '0') ?? 0;
     final fours = b['fours'] ?? 0;
     final sixes = b['sixes'] ?? 0;
     
-    // Use API SR if available, else calc
-    String sr = b['strkrate'] ?? b['strikeRate'] ?? '';
-    if (sr.isEmpty) {
-       final r = int.tryParse(runs.toString()) ?? 0;
-       final bl = int.tryParse(balls.toString()) ?? 0;
-       sr = (bl > 0) ? ((r / bl) * 100).toStringAsFixed(1) : "0.0";
-    }
+    // Safety: Calculate Locally to avoid API dependency/issues
+    final sr = (balls > 0) ? ((runs / balls) * 100).toStringAsFixed(1) : "0.0";
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
