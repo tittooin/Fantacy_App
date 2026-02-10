@@ -68,7 +68,7 @@ class WalletRepository {
   Future<List<Map<String, dynamic>>> getTransactions(String userId) async {
     try {
       // Fetch from D1 Worker
-      final response = await _dio.get('/api/transactions/my', queryParameters: {'userId': userId});
+      final response = await _dio.get('$_workerUrl/api/transactions/my', queryParameters: {'userId': userId});
       
       if (response.statusCode == 200 && response.data['success'] == true) {
         return List<Map<String, dynamic>>.from(response.data['transactions'] ?? []);

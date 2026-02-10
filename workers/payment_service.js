@@ -79,7 +79,7 @@ export async function createCashfreeOrder(userId, amount, env) {
 }
 
 async function savePendingTransaction(userId, orderId, amount, env) {
-    if (!env.FIREBASE_PROJECT_ID) return; // Skip if no DB
+    // if (!env.FIREBASE_PROJECT_ID) return; // REMOVED Legacy check preventing D1 Save
 
     const transaction = {
         id: orderId, // Vital: This ensures Firestore Doc ID matches Order ID
