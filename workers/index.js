@@ -494,17 +494,124 @@ async function handleGetMatches(env) {
 
 async function handleGetScorecard(matchId, env) {
     try {
+        // 1. Check D1 Cache (30 seconds freshness)
         const score = await env.DB.prepare('SELECT * FROM live_scores WHERE match_id = ?').bind(matchId).first();
-        if (score) {
-            return jsonResponse({ success: true, scorecard: score, source: 'D1' });
+        const now = Date.now();
+        const cacheTime = 120 * 1000; // 2 minutes (Reduces API hits to ~150 per match)
+
+        if (score && (now - (score.updated_at || 0)) < cacheTime) {
+            return jsonResponse({ success: true, scorecard: score, source: 'D1_CACHE' });
         }
 
-        // 2. Fallback: Return empty/status
-        return jsonResponse({ success: false, message: 'Scorecard not available in D1' });
+        // 2. Fetch from RapidAPI if stale or missing
+        console.log(`🔄 Fetching fresh scorecard for ${matchId}...`);
+        const apiKey = env.RAPID_API_KEY;
+        const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
+
+        try {
+            const resp = await fetch(`https://${apiHost}/mcenter/v1/${matchId}/scard`, {
+                headers: {
+                    'x-rapidapi-key': apiKey,
+                    'x-rapidapi-host': apiHost
+                }
+            });
+
+            if (!resp.ok) {
+                // If API fails, return stale cache if available
+                if (score) return jsonResponse({ success: true, scorecard: score, source: 'D1_STALE_API_FAIL' });
+                throw new Error(`API Error ${resp.status}`);
+            }
+
+            const data = await resp.json();
+
+            // 3. Process & Save to D1
+            const details = processScorecardData(data);
+
+            await env.DB.prepare(`
+                INSERT INTO live_scores (match_id, status_note, team_a_score, team_b_score, current_over, score_details, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(match_id) DO UPDATE SET
+                    status_note = excluded.status_note,
+                    team_a_score = excluded.team_a_score,
+                    team_b_score = excluded.team_b_score,
+                    current_over = excluded.current_over,
+                    score_details = excluded.score_details,
+                    updated_at = excluded.updated_at
+            `).bind(
+                matchId,
+                details.status,
+                details.team1Score,
+                details.team2Score,
+                details.overs,
+                JSON.stringify(details.fullData),
+                now
+            ).run();
+
+            // 4. Return Fresh Data (mapped to DB structure)
+            return jsonResponse({
+                success: true,
+                scorecard: {
+                    match_id: matchId,
+                    status_note: details.status,
+                    team_a_score: details.team1Score,
+                    team_b_score: details.team2Score,
+                    current_over: details.overs,
+                    score_details: JSON.stringify(details.fullData), // Return stringified as app expects
+                    updated_at: now
+                },
+                source: 'API_FRESH'
+            });
+
+        } catch (apiError) {
+            console.error("ScoreAPI Error:", apiError);
+            if (score) return jsonResponse({ success: true, scorecard: score, source: 'D1_STALE_ERROR' });
+            return jsonResponse({ success: false, error: 'Failed to fetch scorecard' });
+        }
 
     } catch (error) {
         return jsonResponse({ success: false, error: error.message });
     }
+}
+
+function processScorecardData(data) {
+    // Determine structure of response and extract summary
+    // data.scorecard -> innings[] -> batsman[], bowler[]...
+    // We need simplistic summary: "150/4 (18.2)"
+
+    let status = data.status || ''; // Often just match status string
+    let t1Score = '';
+    let t2Score = '';
+    let overs = '';
+
+    const innings = data.scorecard || [];
+    const t1Inning = innings.find(i => i.inningsId === 1 || i.inningsid === 1);
+    const t2Inning = innings.find(i => i.inningsId === 2 || i.inningsid === 2);
+    // Note: This logic assumes Innings 1 = Team 1. Real logic needs to check team IDs but strict mapping is complex without team metadata.
+    // For now, mapping by innings order.
+
+    if (t1Inning) {
+        t1Score = `${t1Inning.runs || 0}/${t1Inning.wickets || 0} (${t1Inning.overs || 0})`;
+    }
+    if (t2Inning) {
+        t2Score = `${t2Inning.runs || 0}/${t2Inning.wickets || 0} (${t2Inning.overs || 0})`;
+        status = "2nd Innings";
+    }
+
+    // Construct "details" object for Frontend (Team 1, Team 2 objects)
+    // Frontend expects: team1: { runs, wickets, overs }, team2: { ... }
+    const fullData = {
+        team1: t1Inning ? { runs: t1Inning.runs, wickets: t1Inning.wickets, overs: t1Inning.overs } : {},
+        team2: t2Inning ? { runs: t2Inning.runs, wickets: t2Inning.wickets, overs: t2Inning.overs } : {},
+        status: status
+    };
+
+    return {
+        status: status,
+        team1Score: t1Score,
+        team2Score: t2Score,
+        overs: overs,
+        fullData: fullData
+    };
 }
 
 async function handleGetSquads(matchId, env, request) {

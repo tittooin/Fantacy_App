@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS live_scores (
     batsman_striker TEXT,
     batsman_non_striker TEXT,
     bowler TEXT,
+    score_details TEXT,              -- JSON Full Scorecard
     updated_at INTEGER
 );
 
