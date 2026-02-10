@@ -15,7 +15,7 @@ class WalletScreen extends ConsumerStatefulWidget {
   ConsumerState<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends ConsumerState<WalletScreen> {
+class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBindingObserver {
   bool _isProcessing = false;
   double _d1TotalBalance = 0.0;
   bool _isLoadingBalance = true;
@@ -23,10 +23,26 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Fetch if user is already available
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _fetchD1Balance();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      print("DEBUG Wallet: App Resumed, Refreshing Balance...");
+      _fetchD1Balance();
+      setState(() {}); // Trigger FutureBuilder refresh too
+    }
   }
 
   Future<void> _fetchD1Balance() async {
