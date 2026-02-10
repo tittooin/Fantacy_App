@@ -123,7 +123,15 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(player.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      Text("${player.points} pts", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          if (player.teamShortName != null)
+                            Text("${player.teamShortName}  •  ", style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                          Text(player.role, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        ],
+                      ),
+                      Text("${player.points} pts", style: const TextStyle(color: Colors.grey, fontSize: 11)),
                     ],
                   ),
                 ),

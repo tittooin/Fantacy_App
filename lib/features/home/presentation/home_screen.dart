@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
+import 'package:axevora11/core/utils/team_utils.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -380,8 +382,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final status = m['status'] ?? 'Upcoming';
     final isLive = status == 'Live' || status == 'In Progress';
     
-    final t1Img = m['team1Img'] ?? m['team_a_img'] ?? '';
-    final t2Img = m['team2Img'] ?? m['team_b_img'] ?? '';
+    final t1Img = TeamUtils.getFlagUrl(teamA, fallbackUrl: m['team1Img'] ?? m['team_a_img']);
+    final t2Img = TeamUtils.getFlagUrl(teamB, fallbackUrl: m['team2Img'] ?? m['team_b_img']);
 
     return GestureDetector(
       onTap: () => context.push('/match/${m['id']}', extra: m),
@@ -400,9 +402,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                 _buildTeamSmallAvatar(t1Img, teamA),
-                 const Text("vs", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                 _buildTeamSmallAvatar(t2Img, teamB),
+                  _buildTeamSmallAvatarWithText(t1Img, teamA),
+                  const Text("vs", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  _buildTeamSmallAvatarWithText(t2Img, teamB),
               ],
             ),
             const Spacer(),
@@ -425,9 +427,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return CircleAvatar(
       radius: 12,
       backgroundColor: Colors.grey.shade100,
-      backgroundImage: img.isNotEmpty ? NetworkImage(img) : null,
-      child: img.isEmpty ? Text(name[0], style: const TextStyle(fontSize: 10)) : null,
+      backgroundImage: img.isNotEmpty ? CachedNetworkImageProvider(img) : null,
+      child: img.isEmpty && name.isNotEmpty ? Text(name[0], style: const TextStyle(fontSize: 10)) : null,
     );
+  }
+
+  // Helper inside HomeScreen for Small Team Avatar with Name
+  Widget _buildTeamSmallAvatarWithText(String img, String name) {
+     return Column(
+       children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.grey.shade100,
+            backgroundImage: img.isNotEmpty ? CachedNetworkImageProvider(img) : null,
+            child: img.isEmpty && name.isNotEmpty ? Text(name[0], style: const TextStyle(fontSize: 10)) : null,
+          ),
+          const SizedBox(height: 4),
+          Text(name, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+       ],
+     );
   }
 }
 
@@ -460,19 +478,11 @@ class MatchCard extends StatelessWidget {
     required this.onTap
   });
 
-  String _getFlagUrl(String teamName) {
-    // Basic mapping
-    final lower = teamName.toLowerCase();
-    if (lower.contains('ind')) return 'https://flagcdn.com/w80/in.png';
-    if (lower.contains('aus')) return 'https://flagcdn.com/w80/au.png';
-    if (lower.contains('eng')) return 'https://flagcdn.com/w80/gb-eng.png';
-    return '';
-  }
 
   @override
   Widget build(BuildContext context) {
-    String t1Img = teamAImg.isNotEmpty ? teamAImg : _getFlagUrl(teamA);
-    String t2Img = teamBImg.isNotEmpty ? teamBImg : _getFlagUrl(teamB);
+    String t1Img = TeamUtils.getFlagUrl(teamA, fallbackUrl: teamAImg);
+    String t2Img = TeamUtils.getFlagUrl(teamB, fallbackUrl: teamBImg);
 
     return GestureDetector(
       onTap: onTap,
@@ -538,68 +548,71 @@ class MatchCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                  const Row(
-                   children: [
-                     Icon(Icons.emoji_events_outlined, color: Colors.grey, size: 16),
-                     SizedBox(width: 4),
-                     Text("Voucher Pool: 1M Credits", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 12)),
-                   ],
-                 ),
-                 
-                 Row(
-                   children: [
-                     // Join
-                     SizedBox(
-                       height: 28,
-                       child: ElevatedButton(
-                         onPressed: onTap,
-                         style: ElevatedButton.styleFrom(
-                           backgroundColor: const Color(0xFF43A047),
-                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
-                         ),
-                         child: const Text("Join", style: TextStyle(fontSize: 10, color: Colors.white)),
-                       ),
-                     ),
-                     const SizedBox(width: 8),
-                     // Private
-                     SizedBox(
-                       height: 28,
-                       child: OutlinedButton(
-                         onPressed: onPrivateContest,
-                         style: OutlinedButton.styleFrom(
-                           side: BorderSide(color: Colors.indigo.shade200),
-                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
-                         ),
-                         child: const Text("Create Private", style: TextStyle(fontSize: 10, color: Colors.indigo)),
-                       ),
-                     )
-                   ],
-                 )
-              ],
+                  const Spacer(), // Replaces Voucher Pool
+                  
+                  Row(
+                    children: [
+                      // Join
+                      SizedBox(
+                        height: 28,
+                        child: ElevatedButton(
+                          onPressed: onTap,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF43A047),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
+                          ),
+                          child: const Text("Join", style: TextStyle(fontSize: 10, color: Colors.white)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Private
+                      SizedBox(
+                        height: 28,
+                        child: OutlinedButton(
+                          onPressed: onPrivateContest,
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.indigo.shade200),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
+                          ),
+                          child: const Text("Create Private", style: TextStyle(fontSize: 10, color: Colors.indigo)),
+                        ),
+                      )
+                    ],
+                  )
+               ],
+             ),
+           )
+         ],
+       ),
+     ));
+   }
+ 
+   Widget _buildTeamCircle(String name, String img) {
+     // Show full name if short enough, else truncate gracefully or use short name if available?
+     // User wants "India vs Pakistan". 
+     // We will use the name as is, but handle overflow.
+     return Column(
+       children: [
+         CircleAvatar(
+           radius: 28,
+           backgroundColor: Colors.grey.shade100,
+           backgroundImage: (img.isNotEmpty) ? CachedNetworkImageProvider(img) : null,
+           child: img.isEmpty ? Text(name.isNotEmpty ? name[0] : '?', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)) : null,
+         ),
+         const SizedBox(height: 8),
+         SizedBox(
+            width: 80,
+            child: Text(
+              name, 
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              maxLines: 1,
             ),
-          )
-        ],
-      ),
-    ));
-  }
-
-  Widget _buildTeamCircle(String name, String img) {
-    String short = name.length > 3 ? name.substring(0,3).toUpperCase() : name;
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: Colors.grey.shade100,
-          backgroundImage: (img.isNotEmpty) ? NetworkImage(img) : null,
-          child: img.isEmpty ? Text(short[0], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)) : null,
-        ),
-        const SizedBox(height: 8),
-        Text(short, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 14)),
-      ],
-    );
-  }
+         ),
+       ],
+     );
+   }
 }

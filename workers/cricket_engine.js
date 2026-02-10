@@ -237,8 +237,8 @@ function formatCricbuzzMatch(info) {
 
         teamA: t1.teamName || 'Team A',
         teamB: t2.teamName || 'Team B',
-        teamAImg: t1.imageId ? `https://i.cricketcb.com/stats/img/faceImages/${t1.imageId}.jpg` : '',
-        teamBImg: t2.imageId ? `https://i.cricketcb.com/stats/img/faceImages/${t2.imageId}.jpg` : '',
+        teamAImg: t1.imageId ? `https://static.cricbuzz.com/a/img/v1/i1/c${t1.imageId}/i.jpg` : '',
+        teamBImg: t2.imageId ? `https://static.cricbuzz.com/a/img/v1/i1/c${t2.imageId}/i.jpg` : '',
 
         team1Id: (t1.teamId || '0').toString(),
         team2Id: (t2.teamId || '0').toString(),

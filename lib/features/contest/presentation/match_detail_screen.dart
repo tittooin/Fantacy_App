@@ -92,7 +92,12 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(matchTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(
+                    _effectiveMatch != null 
+                        ? "${_effectiveMatch!.team1Name} vs ${_effectiveMatch!.team2Name}" 
+                        : "Match Contests", 
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+                  ),
                   if (_effectiveMatch != null) ...[
                      Text("${_effectiveMatch!.seriesName} • ${_effectiveMatch!.venue}", style: const TextStyle(fontSize: 11, color: Colors.white70)),
                      if (_effectiveMatch!.lineupStatus == 'Confirmed')
@@ -330,21 +335,6 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
             },
             child: Column(
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade100,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.emoji_events, size: 14, color: Colors.orange.shade800),
-                      const SizedBox(width: 8),
-                      Text("Voucher Pool: 1,000,000 Credits", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange.shade900)),
-                    ],
-                  ),
-                ),
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(

@@ -9,11 +9,8 @@ if ($LASTEXITCODE -eq 0) {
     
     # 2. Deploy to Cloudflare
     Write-Host "Uploading to Cloudflare Pages..." -ForegroundColor Yellow
-<<<<<<< HEAD
-    npx wrangler pages deploy build/web --project-name fantasy-cricket-app
-=======
+    # Deploy to 'main' branch alias
     npx wrangler pages deploy build/web --project-name fantasy-cricket-app --branch main
->>>>>>> dev-update
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Deployment Complete! Your app should be live shortly." -ForegroundColor Green
@@ -27,4 +24,4 @@ else {
     Write-Host "Tip: Try running 'flutter clean' if issues persist." -ForegroundColor Gray
 }
 
-Read-Host -Prompt "Press Enter to exit"
+# Read-Host -Prompt "Press Enter to exit"
