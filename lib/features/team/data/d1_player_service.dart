@@ -14,59 +14,81 @@ class D1PlayerService {
     try {
       final data = await _apiClient.getSquads(matchId);
       if (data == null || data['success'] != true) {
+        print("⚠️ D1 Service: No data or success=false for match $matchId");
         return [];
       }
 
       List<dynamic> allPlayers = [];
       
-      // Handle Team A
-      if (data['teamA'] != null) {
+      // Safe Extract Team A
+      if (data['teamA'] is Iterable) {
         allPlayers.addAll(data['teamA']);
+      } else if (data['team1_players'] is Iterable) {
+        allPlayers.addAll(data['team1_players']);
       }
       
-      // Handle Team B
-      if (data['teamB'] != null) {
+      // Safe Extract Team B
+      if (data['teamB'] is Iterable) {
         allPlayers.addAll(data['teamB']);
+      } else if (data['team2_players'] is Iterable) {
+        allPlayers.addAll(data['team2_players']);
       }
 
-      // Handle Flat List (fallback)
-      if (allPlayers.isEmpty && data['players'] != null) {
+      // Safe Extract Flat List
+      if (allPlayers.isEmpty && data['players'] is Iterable) {
         allPlayers = List.from(data['players']);
       }
 
+      print("🔍 D1 Service: Found ${allPlayers.length} total players for match $matchId");
+
       return allPlayers.map((item) {
-        final json = Map<String, dynamic>.from(item);
-        
-        // 1. Extremely Robust Double Parser (Credits/Points)
-        double parseDouble(dynamic val) {
-          if (val == null) return 0.0;
-          if (val is num) return val.toDouble();
-          return double.tryParse(val.toString()) ?? 0.0;
+        try {
+          if (item == null) return null;
+          final json = Map<String, dynamic>.from(item);
+          
+          // 1. Double Parser
+          double parseDouble(dynamic val) {
+            if (val == null) return 0.0;
+            if (val is num) return val.toDouble();
+            final parsed = double.tryParse(val.toString());
+            return parsed ?? 0.0;
+          }
+
+          // 2. Role Normalization (Translate full names to codes)
+          String normalizeRole(dynamic r) {
+            final role = (r ?? 'BAT').toString().toUpperCase();
+            if (role == 'WK' || role.contains('WICKET') || role.contains('KEEPER')) return 'WK';
+            if (role == 'BAT' || role.contains('BATS')) return 'BAT';
+            if (role == 'AR' || role.contains('ALL') || role.contains('ROUND')) return 'AR';
+            if (role == 'BOWL' || role.contains('BOWL')) return 'BOWL';
+            return 'BAT';
+          }
+
+          // 3. Sanitizaton
+          final sanitized = {
+            'id': (json['id'] ?? json['player_id'] ?? json['uid'] ?? DateTime.now().millisecondsSinceEpoch.toString()).toString(),
+            'name': (json['name'] ?? json['player_name'] ?? 'Unknown Player').toString(),
+            'role': normalizeRole(json['role'] ?? json['player_role']),
+            'credits': parseDouble(json['credits']),
+            'points': parseDouble(json['fantasy_points'] ?? json['points']),
+            'imageUrl': (json['imageUrl'] ?? json['image_url'] ?? json['player_image'] ?? '').toString(),
+            'isPlaying': json['isPlaying'] == true || json['is_playing'] == true || json['in_starting_lineup'] == true,
+            'teamId': (json['teamId'] ?? json['team_id'] ?? '').toString(),
+            'teamShortName': (json['teamShortName'] ?? json['team_short_name'] ?? json['team_name'] ?? '').toString(),
+          };
+
+          if (sanitized['teamShortName'] == 'null') sanitized['teamShortName'] = '';
+
+          return PlayerModel.fromJson(sanitized);
+        } catch (e) {
+          print("⚠️ D1 Service: Failed to parse individual player: $e");
+          return null;
         }
+      }).whereType<PlayerModel>().toList();
 
-        // 2. Sanitization & Mapping
-        final sanitized = {
-          'id': (json['id'] ?? json['player_id'] ?? DateTime.now().millisecondsSinceEpoch.toString()).toString(),
-          'name': (json['name'] ?? json['player_name'] ?? 'Unknown Player').toString(),
-          'role': (json['role'] ?? json['player_role'] ?? 'BAT').toString().toUpperCase(),
-          'credits': parseDouble(json['credits']),
-          'points': parseDouble(json['points'] ?? json['fantasy_points']),
-          'imageUrl': (json['imageUrl'] ?? json['image_url'] ?? json['player_image'] ?? '').toString(),
-          'isPlaying': json['isPlaying'] == true || json['is_playing'] == true || json['in_starting_lineup'] == true,
-          'teamId': (json['teamId'] ?? json['team_id'] ?? '').toString(),
-          'teamShortName': json['teamShortName'] ?? json['team_short_name'] ?? json['team_name'],
-        };
-
-        // DEBUG: Log if crucial fields are missing or suspicious
-        if (sanitized['credits'] == 0.0) {
-           print("⚠️ D1 Service: Player ${sanitized['name']} has 0.0 credits. Raw: ${json['credits']}");
-        }
-
-        return PlayerModel.fromJson(sanitized);
-      }).toList();
-
-    } catch (e) {
-      print("Error fetching players from D1 for match $matchId: $e");
+    } catch (e, stack) {
+      print("❌ D1 Service Error: $e");
+      print(stack);
       return [];
     }
   }
