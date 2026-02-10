@@ -77,7 +77,7 @@ class FantasyApiClient {
   /// 4. Fetch Squads (Optional Helper)
   Future<Map<String, dynamic>?> getSquads(String matchId) async {
     try {
-       final response = await _dio.get('/squads', queryParameters: {'matchId': matchId});
+       final response = await _dio.get('/api/squads', queryParameters: {'matchId': matchId});
        // D1 worker might implement this later, or we fallback to existing logic if needed
        // Assuming Worker has /squads or similar endpoint wrapper
        if (response.statusCode == 200) {

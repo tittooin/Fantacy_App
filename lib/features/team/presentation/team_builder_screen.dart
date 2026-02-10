@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
-import 'package:axevora11/features/team/data/firestore_player_service.dart';
+import 'package:axevora11/features/team/data/d1_player_service.dart';
 import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart'; // Added
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -82,8 +82,8 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
       debugPrint("⚠️ Failed to refresh match data: $e");
     }
 
-    // 2. Load Players
-    final fetched = await FirestorePlayerService().getPlayers(widget.match.id.toString());
+    // 2. Load Players from D1 (Cloudflare Worker)
+    final fetched = await ref.read(d1PlayerServiceProvider).getPlayers(widget.match.id.toString());
     
     if (mounted) {
        setState(() {
