@@ -325,6 +325,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     
     // Watch the Match List Provider
     final matchesAsync = ref.watch(matchListProvider);
+    final joinedContests = ref.watch(userContestProvider);
+    final joinedMatchIds = joinedContests.map((c) => c.matchId.toString()).toSet();
 
     final mobileContent = Scaffold(
       backgroundColor: Colors.grey.shade100,
@@ -507,8 +509,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildMyMatchesSection(List<Map<String, dynamic>> allMatches) {
-    // We can't easily watch another provider inside a build-helper if it depends on ref.
-    // However, ref is available in the whole state class.
+    // Already defined in build()
     final joinedContests = ref.watch(userContestProvider);
     final joinedMatchIds = joinedContests.map((c) => c.matchId.toString()).toSet();
     
