@@ -12,17 +12,19 @@ class ScorecardTab extends StatefulWidget {
   State<ScorecardTab> createState() => _ScorecardTabState();
 }
 
-class _ScorecardTabState extends State<ScorecardTab> {
+class _ScorecardTabState extends State<ScorecardTab> with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   Map<String, dynamic>? _scoreData;
   Timer? _timer;
   String? _error;
+  late TabController _tabController;
 
   final String _workerUrl = 'https://fantasy-cricket-api.moremagical4.workers.dev';
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _fetchScore();
     // Poll every 30 seconds to save quota, but keep it "fresh"
     _timer = Timer.periodic(const Duration(seconds: 30), (timer) => _fetchScore(isBackground: true));
@@ -31,6 +33,7 @@ class _ScorecardTabState extends State<ScorecardTab> {
   @override
   void dispose() {
     _timer?.cancel();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -100,124 +103,235 @@ class _ScorecardTabState extends State<ScorecardTab> {
        );
     }
 
-    // Parse D1 Data
-    // D1 'live_scores' table likely has columns: score_data (JSON), status, etc.
-    // Or it might have flattened columns. 
-    // Based on `handleGetScorecard` doing `SELECT *`, we get whatever columns exist.
-    // Let's assume 'score_details' or similar JSON column, or just the raw row IS the score structure.
-    
-    // For safety, let's dump the data in a debug card if we are in dev mode, 
-    // but effectively we try to find the score map.
-    
-    final details = _scoreData!['score_details'] != null 
-        ? (_scoreData!['score_details'] is String ? json.decode(_scoreData!['score_details']) : _scoreData!['score_details']) 
+    // Parse Data
+    final detailsStr = _scoreData!['score_details'];
+    final details = detailsStr != null 
+        ? (detailsStr is String ? json.decode(detailsStr) : detailsStr) 
         : _scoreData;
+        
+    final List<dynamic> innings = details['innings'] ?? [];
+    
+    // Sort innings to show latest first or strict Match order?
+    // Usually user wants T1 vs T2 tabs.
+    // Let's deduce teams from innings data if available
+    
+    if (innings.isEmpty) {
+      return const Center(child: Text("No detailed scorecard available yet."));
+    }
 
-    final t1 = details['team1'] ?? {};
-    final t2 = details['team2'] ?? {};
-    final status = _scoreData!['status'] ?? 'Live';
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return Column(
       children: [
-        // Source Badge (to reassure user)
-        Center(child: Text("Live from D1 • Auto-refresh 30s", style: TextStyle(color: Colors.grey.shade400, fontSize: 10))),
-        const SizedBox(height: 8),
-
-        // Match Status Banner
+        // Match Header Status
         Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.indigo.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.indigo.shade100)
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+           color: Colors.blueGrey.shade50,
+           child: Row(
+             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+             children: [
+               Text("Live from D1 • Auto-refresh 30s", style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+               Text(_scoreData!['status_note'] ?? 'Live', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+             ],
+           ),
+        ),
+        
+        // Tabs
+        TabBar(
+          controller: _tabController,
+          labelColor: Colors.black,
+          unselectedLabelColor: Colors.grey,
+          indicatorColor: Colors.blue,
+          tabs: [
+            Tab(text: innings.isNotEmpty ? (innings[0]['batteamname'] ?? 'Innings 1') : 'Innings 1'),
+            Tab(text: innings.length > 1 ? (innings[1]['batteamname'] ?? 'Innings 2') : 'Innings 2'),
+          ],
+        ),
+        
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
             children: [
-              if (status == 'Live') 
-                 const Padding(padding: EdgeInsets.only(right: 8), child: Icon(Icons.circle, size: 10, color: Colors.red)),
-              Text(
-                status == 'Live' ? "LIVE NOW" : status,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: status == 'Live' ? Colors.red : Colors.indigo, fontWeight: FontWeight.bold, letterSpacing: 1.5)
-              ),
+              _buildInningsView(innings.isNotEmpty ? innings[0] : null),
+              _buildInningsView(innings.length > 1 ? innings[1] : null),
             ],
           ),
         ),
-        
-        const SizedBox(height: 16),
-        
-        // Team 1 Score
-        _buildTeamScoreCard(
-          "Team 1", // Names might be missing in D1 score table if not joined, use placeholders or fetch from match logic if needed
-          "", 
-          t1,
-          isBatting: true // Simple logic for now
-        ),
-        
-        const SizedBox(height: 12),
-        
-        // Team 2 Score
-        _buildTeamScoreCard("Team 2", "", t2),
-        
-        const SizedBox(height: 24),
-        
-        // Refresh Button
-        Center(
-          child: IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.blue),
-            onPressed: () => _fetchScore(),
-            tooltip: "Refresh Score",
-          ),
-        )
       ],
     );
   }
 
-  Widget _buildTeamScoreCard(String name, String img, dynamic scoreData, {bool isBatting = false}) {
-    String runs = "0", wickets = "0", overs = "0.0";
+  Widget _buildInningsView(Map<String, dynamic>? inning) {
+    if (inning == null) return const Center(child: Text("Yet to Bat"));
+
+    final score = inning['score'] ?? 0;
+    final wickets = inning['wickets'] ?? 0;
+    final overs = inning['overs'] ?? 0.0;
+    final runrate = inning['runrate'] ?? 0.0;
+
+    final batters = inning['batsman'] ?? inning['scorecard'] ?? [];
+    final bowlers = inning['bowler'] ?? [];
+
+    // Filter bowlers from different source or same?
+    // Cricbuzz API structure: innings -> scorecard (batters) AND likely 'bowlers' array separate?
+    // Wait, debug structure showed:
+    // innings[] -> scorecard[] (looks like batters)
+    // We need to check if bowlers are in 'card' or separate.
+    // Looking at debug log: 
+    // "scorecard": [ { "batsmanid": ... } ]
+    // Wait, where is bowler data? 
+    // Usually Cricbuzz has a separate "bowlcard" or it is mixed.
+    // Debug log above only showed "scorecard" with batsman entries.
+    // Let's check debug output again for "bowlers"?
+    // The previous debug output ended at "Alice Ikuzwe".
+    // I need to assume standard structure or handle missing. 
+    // If 'bowlers' key exists in inning, use it.
     
-    if (scoreData is Map) {
-       runs = "${scoreData['r'] ?? scoreData['runs'] ?? 0}";
-       wickets = "${scoreData['w'] ?? scoreData['wickets'] ?? 0}";
-       overs = "${scoreData['o'] ?? scoreData['overs'] ?? 0.0}";
-       // Try catching mapped names if available
-       if (scoreData['name'] != null) name = scoreData['name'];
-    } 
+    // Fallback: If no bowler key, we might be only getting batting card.
+    // Let's implement Batting Table first.
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Innings Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("${score}/${wickets}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                Text("(${overs} Ov) RR: $runrate", style: const TextStyle(color: Colors.grey)),
+              ],
+            ),
+          ],
+        ),
+        const Divider(),
+        
+        // Batting Table
+        const Text("Batting", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 8),
+        _buildBattingHeader(),
+        ...batters.map<Widget>((b) => _buildBatterRow(b)).toList(),
+        
+        const SizedBox(height: 24),
+
+        // Bowling Table
+        if (bowlers.isNotEmpty) ...[
+          const Text("Bowling", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 8),
+          _buildBowlingHeader(),
+          ...bowlers.map<Widget>((b) => _buildBowlerRow(b)).toList(),
+        ],
+        
+        const SizedBox(height: 16),
+        const Text("Details usually include Extras/FOW but simplified API might lack them.", style: TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
+    );
+  }
+
+  Widget _buildBowlingHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      color: Colors.grey.shade100,
+      child: Row(
+        children: const [
+          Expanded(flex: 3, child: Text("Bowler", style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("O", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("M", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("R", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("W", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("ER", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBowlerRow(Map<String, dynamic> b) {
+    // "bowlerid": "...", "bowlernames": "..."
+    // Keys might vary: 'name', 'bowlernames', 'o', 'm', 'r', 'w', 'economy'
+    final name = b['bowlernames'] ?? b['name'] ?? 'Unknown';
+    final overs = b['o'] ?? b['overs'] ?? '0';
+    final maidens = b['m'] ?? b['maidens'] ?? '0';
+    final runs = b['r'] ?? b['runs'] ?? '0';
+    final wickets = b['w'] ?? b['wickets'] ?? '0';
+    final eco = b['economy'] ?? '0.0';
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0,2))],
-        border: isBatting ? Border.all(color: Colors.green, width: 2) : null
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.black12, width: 0.5))
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: Colors.grey.shade200,
-            radius: 24,
-            child: Text(name.substring(0,1)),
-          ),
-          const SizedBox(width: 16),
           Expanded(
+            flex: 3,
+            child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          ),
+          Expanded(flex: 1, child: Text("$overs", textAlign: TextAlign.center)),
+          Expanded(flex: 1, child: Text("$maidens", textAlign: TextAlign.center)),
+          Expanded(flex: 1, child: Text("$runs", textAlign: TextAlign.center)),
+          Expanded(flex: 1, child: Text("$wickets", textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold))),
+          Expanded(flex: 1, child: Text("$eco", textAlign: TextAlign.center, style: const TextStyle(fontSize: 11))),
+        ],
+      ),
+    );
+  }
+  Widget _buildBattingHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      color: Colors.grey.shade100,
+      child: Row(
+        children: const [
+          Expanded(flex: 3, child: Text("Batter", style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("R", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("B", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("4s", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("6s", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("SR", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBatterRow(Map<String, dynamic> b) {
+    // "batsmanid": "38559", "batsmanname": "Geovanis Uwase", "runs": "109", "ballnbr": "101", "fours": "0", "sixes": "0", "strikeRate": ...
+    final name = b['names'] ?? b['batsmanname'] ?? b['name'] ?? 'Unknown';
+    // Dismissal status?
+    final outDesc = b['dismissal'] ?? b['outDesc'] ?? ''; 
+    final isOut = outDesc.isNotEmpty;
+    
+    // Calculate SR if missing
+    final runs = int.tryParse(b['runs']?.toString() ?? '0') ?? 0;
+    final balls = int.tryParse(b['balls']?.toString() ?? b['ballnbr']?.toString() ?? '0') ?? 1;
+    final fours = b['fours'] ?? 0;
+    final sixes = b['sixes'] ?? 0;
+    
+    final sr = (balls > 0) ? ((runs / balls) * 100).toStringAsFixed(1) : "0.0";
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.black12, width: 0.5))
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text("Overs: $overs", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                if (outDesc.isNotEmpty)
+                  Text(outDesc, style: const TextStyle(color: Colors.grey, fontSize: 10))
+                else if (!isOut)
+                  const Text("Batting", style: TextStyle(color: Colors.green, fontSize: 10))
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-               Text("$runs/$wickets", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.black87)),
-            ],
-          )
+          Expanded(flex: 1, child: Text("$runs", textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold))),
+          Expanded(flex: 1, child: Text("$balls", textAlign: TextAlign.center)),
+          Expanded(flex: 1, child: Text("$fours", textAlign: TextAlign.center)),
+          Expanded(flex: 1, child: Text("$sixes", textAlign: TextAlign.center)),
+          Expanded(flex: 1, child: Text(sr, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11))),
         ],
       ),
     );

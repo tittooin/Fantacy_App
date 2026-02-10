@@ -598,10 +598,13 @@ function processScorecardData(data) {
     }
 
     // Construct "details" object for Frontend (Team 1, Team 2 objects)
-    // Frontend expects: team1: { runs, wickets, overs }, team2: { ... }
+    // Updated: Return FULL innings data for Scorecard UI
     const fullData = {
-        team1: t1Inning ? { runs: t1Inning.runs, wickets: t1Inning.wickets, overs: t1Inning.overs } : {},
-        team2: t2Inning ? { runs: t2Inning.runs, wickets: t2Inning.wickets, overs: t2Inning.overs } : {},
+        summary: {
+            team1: t1Inning ? { runs: t1Inning.runs, wickets: t1Inning.wickets, overs: t1Inning.overs } : {},
+            team2: t2Inning ? { runs: t2Inning.runs, wickets: t2Inning.wickets, overs: t2Inning.overs } : {},
+        },
+        innings: innings, // Pass full innings array (batsmen, bowlers)
         status: status
     };
 
