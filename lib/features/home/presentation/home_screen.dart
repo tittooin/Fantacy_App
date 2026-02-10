@@ -729,6 +729,7 @@ class MatchCard extends StatelessWidget {
               children: [
                   const Spacer(), // Replaces Voucher Pool
                   
+                  if (status != 'Completed' && status != 'Finished' && status != 'Abandoned')
                   Row(
                     children: [
                       // Join
@@ -760,6 +761,11 @@ class MatchCard extends StatelessWidget {
                       )
                     ],
                   )
+                  else
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8.0),
+                      child: Text("Completed", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                    )
                ],
              ),
            )
