@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:axevora11/features/team/data/firestore_player_service.dart';
+import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart'; // Added
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TeamBuilderScreen extends ConsumerStatefulWidget {
@@ -55,6 +56,19 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
   }
 
   Future<void> _loadData() async {
+    // 0. Auto-Sync Squad (Toss Update Fix)
+    // We check if match is active or near start to avoid unnecessary calls
+    if (widget.match.status == 'Upcoming' || widget.match.status == 'Live') {
+       try {
+         // Silently update Firestore from Worker (D1)
+         // uniqueId/cricbuzzId use matchId as per current logic
+         await ref.read(rapidApiServiceProvider).fetchAndSaveSquad(widget.match.id.toString(), widget.match.id.toString());
+         debugPrint("✅ Auto-Synced Squad for Team Builder");
+       } catch (e) {
+         debugPrint("⚠️ Auto-Sync Squad Failed: $e");
+       }
+    }
+
     // 1. Fetch Fresh Match Data to ensure ShortNames are correct
     try {
       final doc = await FirebaseFirestore.instance.collection('matches').doc(widget.match.id.toString()).get();

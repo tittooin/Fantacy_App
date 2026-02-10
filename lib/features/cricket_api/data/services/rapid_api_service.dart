@@ -236,6 +236,26 @@ class RapidApiService {
     return [];
   }
 
+  /// Endpoint 9: Join Contest (D1 Wallet Logic)
+  Future<Map<String, dynamic>> joinContest(Map<String, dynamic> payload) async {
+    try {
+      debugPrint("📡 [Worker] POST /api/join-contest");
+      final response = await _dio.post(
+        '$_workerUrl/api/join-contest',
+        data: payload,
+      );
+      
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        return {'success': false, 'error': "Server Error: ${response.statusCode}"};
+      }
+    } catch (e) {
+      debugPrint("❌ Join Contest Error: $e");
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   /// Endpoint 8: Admin Stats (D1 Aggregation)
   Future<Map<String, dynamic>> fetchAdminStats() async {
     try {
@@ -247,6 +267,21 @@ class RapidApiService {
       debugPrint("❌ Admin Stats Error: $e");
     }
     return {};
+  }
+
+  /// Endpoint 10: Participant Audit (Admin)
+  Future<List<Map<String, dynamic>>> getParticipantsForMatch(String matchId) async {
+    try {
+      debugPrint("📡 [Worker] GET /api/admin/match/participants?matchId=$matchId");
+      final response = await _dio.get('$_workerUrl/api/admin/match/participants?matchId=$matchId');
+      
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return List<Map<String, dynamic>>.from(response.data['participants']);
+      }
+    } catch (e) {
+      debugPrint("❌ Audit Error: $e");
+    }
+    return [];
   }
 }
 

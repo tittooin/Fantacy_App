@@ -85,15 +85,15 @@ class CricketMatchModel {
       seriesName: map['seriesName'] as String? ?? '',
       matchDesc: map['matchDesc'] as String? ?? '',
       matchFormat: map['matchFormat'] as String? ?? '',
-      team1Name: (map['team1Name'] as String?)?.isNotEmpty == true ? map['team1Name'] as String : map['teamA'] as String? ?? '',
+      team1Name: _getString(map, ['team1Name', 'teamA', 'team1ShortName', 'teamSName']) ?? 'Team 1',
       team1ShortName: (map['team1ShortName'] as String?)?.isNotEmpty == true 
           ? map['team1ShortName'] as String 
-          : _generateShortName((map['team1Name'] as String?)?.isNotEmpty == true ? map['team1Name'] as String : map['teamA'] as String? ?? ''),
+          : _generateShortName(_getString(map, ['team1Name', 'teamA']) ?? ''),
       team1Img: map['team1Img'] as String? ?? '',
-      team2Name: (map['team2Name'] as String?)?.isNotEmpty == true ? map['team2Name'] as String : map['teamB'] as String? ?? '',
+      team2Name: _getString(map, ['team2Name', 'teamB', 'team2ShortName', 'teamSName']) ?? 'Team 2',
       team2ShortName: (map['team2ShortName'] as String?)?.isNotEmpty == true 
           ? map['team2ShortName'] as String 
-          : _generateShortName((map['team2Name'] as String?)?.isNotEmpty == true ? map['team2Name'] as String : map['teamB'] as String? ?? ''),
+          : _generateShortName(_getString(map, ['team2Name', 'teamB']) ?? ''),
       team2Img: map['team2Img'] as String? ?? '',
       startDate: map['startDate'] as int? ?? 0,
       endDate: map['endDate'] as int? ?? 0,
@@ -185,5 +185,15 @@ class CricketMatchModel {
     
     // Fallback: Take first 3 letters
     return fullName.substring(0, fullName.length >= 3 ? 3 : fullName.length).toUpperCase();
+  }
+
+  /// Helper to safely get the first non-empty string from a list of keys
+  static String? _getString(Map<String, dynamic> map, List<String> keys) {
+    for (var key in keys) {
+      if (map[key] != null && map[key].toString().isNotEmpty) {
+        return map[key].toString();
+      }
+    }
+    return null;
   }
 }

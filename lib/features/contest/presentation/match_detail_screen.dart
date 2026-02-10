@@ -61,7 +61,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     final displayMatch = _effectiveMatch;
     
     final matchTitle = displayMatch != null 
-        ? "${displayMatch.team1ShortName} vs ${displayMatch.team2ShortName}"
+        ? "${displayMatch.team1Name} vs ${displayMatch.team2Name}"
         : "Match Contests";
         
     final isLiveOrCompleted = displayMatch?.status == 'Live' || displayMatch?.status == 'Completed';

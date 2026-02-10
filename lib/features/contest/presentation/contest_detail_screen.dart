@@ -11,6 +11,7 @@ import 'package:axevora11/features/team/domain/team_entity.dart';
 import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
 import 'package:axevora11/features/contest/domain/user_contest_entity.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:axevora11/features/user/domain/user_entity.dart'; // Added
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:axevora11/features/cricket_api/data/providers/fantasy_points_provider.dart';
@@ -378,9 +379,20 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                            final name = data['displayName'] ?? 'User'; // D1 might store userId lookup or name
                            // Note: Worker stores 'userId', 'teamName'.
                            // If display name is missing in D1 leaderboard JSON, we might show teamName
-                           final display = name; // Show displayName instead of teamName
-                           final points = data['points'] ?? 0;
                            final isCurrentUser = data['userId'] == FirebaseAuth.instance.currentUser?.uid;
+                           
+                           // Correction: Use local User Provider for current user to show latest name
+                           String display = name;
+                           if (isCurrentUser) {
+                              final currentUser = ref.read(userEntityProvider).value;
+                              if (currentUser != null && currentUser.displayName != null && currentUser.displayName!.isNotEmpty) {
+                                 display = currentUser.displayName!;
+                              }
+                           } else if (name.startsWith("Player ")) {
+                              // Optional: Ensure we don't show "Player User" if possible
+                           }
+                           
+                           final points = data['points'] ?? 0;
 
                            return Container(
                              color: isCurrentUser ? Colors.indigo.withOpacity(0.05) : Colors.white,
@@ -390,7 +402,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                                  child: Text("$rank", style: TextStyle(color: isCurrentUser ? Colors.white : Colors.black)),
                                ),
                                title: Text(display, style: TextStyle(fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal)),
-                               subtitle: Text("${data['teamName'] ?? 'Team'} • $points pts"),
+                               subtitle: Text("${data['teamName'] ?? 'Team'} • ${points.toStringAsFixed(0)} pts"), // Format points
                                trailing: isCurrentUser ? const Icon(Icons.star, color: Colors.orange, size: 16) : null,
                              ),
                            );

@@ -31,7 +31,7 @@ class FAQScreen extends StatelessWidget {
         ),
         LegalSection(
           title: "6. Contact Support / सहायता संपर्क",
-          content: "For any issues, email us at admin@axevora.com. We are happy to help!\n\nकिसी भी समस्या के लिए, हमें admin@axevora.com पर ईमेल करें। हमें आपकी मदद करने में खुशी होगी!",
+          content: "For any issues, email us at admin@axevoralabs.com. We are happy to help!\n\nकिसी भी समस्या के लिए, हमें admin@axevoralabs.com पर ईमेल करें। हमें आपकी मदद करने में खुशी होगी!",
         ),
       ],
     );

@@ -180,6 +180,53 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
   }
 
 
+  Future<void> _viewParticipants(String matchId) async {
+    setState(() => _isLoading = true);
+    try {
+      // 1. Fetch from Worker API
+      final workerUrl = 'https://fantasy-cricket-api.moremagical4.workers.dev'; // From debug_d1
+      final res = await ref.read(rapidApiServiceProvider).getParticipantsForMatch(matchId);
+      
+      if (!mounted) return;
+      
+      if (res.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No users joined yet.")));
+        return;
+      }
+      
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          title: Text("Joined Users ($matchId)", style: const TextStyle(color: Colors.white)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: res.length,
+              itemBuilder: (context, i) {
+                final u = res[i];
+                return ListTile(
+                  dense: true,
+                  title: Text(u['email'] ?? u['user_id'] ?? 'Unknown User', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: Text("Team: ${u['team_name'] ?? 'N/A'}", style: const TextStyle(color: Colors.white60)),
+                  trailing: const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close")),
+          ],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Audit Error: $e")));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   late Stream<QuerySnapshot> _matchesStream;
 
   @override
@@ -294,6 +341,11 @@ class _MatchControlScreenState extends ConsumerState<MatchControlScreen> {
                         runSpacing: 8,
                         children: [
                           // Manage Lineups (Always needed)
+                          _buildActionButton(
+                            "Audit", Icons.admin_panel_settings, Colors.blueGrey, 
+                            () => _viewParticipants(apiId)
+                          ),
+
                           _buildActionButton(
                             "Squad", Icons.people, Colors.purpleAccent, 
                             () => context.push('/admin/matches/$apiId/manage-squad', extra: match)

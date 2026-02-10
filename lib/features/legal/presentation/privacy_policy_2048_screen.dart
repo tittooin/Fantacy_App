@@ -40,7 +40,7 @@ class PrivacyPolicy2048Screen extends StatelessWidget {
             _buildSection("6. Changes to This Privacy Policy", 
                 "We may update our Privacy Policy from time to time. Thus, you are advised to review this page periodically for any changes. We will notify you of any changes by posting the new Privacy Policy on this page."),
             _buildSection("7. Contact Us", 
-                "If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact us at: admin@axevora.com"),
+                "If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact us at: admin@axevoralabs.com"),
             const SizedBox(height: 40),
           ],
         ),

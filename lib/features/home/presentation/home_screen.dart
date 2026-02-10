@@ -1,14 +1,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Added for Nickname update
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:axevora11/features/user/domain/user_entity.dart'; // Added
 import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
 import 'package:axevora11/core/utils/team_utils.dart';
+
+import 'package:shared_preferences/shared_preferences.dart'; // Added
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +22,170 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+
+  bool _isCheckingNickname = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkTutorial());
+  }
+
+  Future<void> _checkTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('has_seen_tutorial') ?? false;
+
+    if (!seen && mounted) {
+       _showTutorialDialog();
+       await prefs.setBool('has_seen_tutorial', true);
+    }
+  }
+
+  void _showTutorialDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.white,
+          title: const Row(
+            children: [
+               Icon(Icons.help_outline, color: Colors.indigo),
+               SizedBox(width: 8),
+               Text("How to Play?", style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _tutorialStep("1. Select a Match", "Choose an upcoming match from the home screen.", Icons.sports_cricket),
+              _tutorialStep("2. Create Team", "Pick your best 11 players. Use your cricket knowledge!", Icons.group_add),
+              _tutorialStep("3. Join Contest", "Join a contest with your team to win prizes.", Icons.emoji_events),
+              const SizedBox(height: 12),
+              const Center(child: Text("Good Luck!", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo))),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
+              ),
+              child: const Text("Let's Play"),
+            )
+          ],
+        );
+      }
+    );
+  }
+
+  Widget _tutorialStep(String title, String desc, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Colors.orange),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(desc, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _checkNickname(UserEntity? user) {
+    if (user == null || _isCheckingNickname) return;
+    
+    final name = user.displayName;
+    // Check if name implies default/missing
+    // We check for "Player User" explicitly as that seems to be the default set by current logic
+    if (name == null || name.isEmpty || name.trim() == 'Player User' || name.startsWith('Player ')) {
+       _isCheckingNickname = true;
+       // Schedule dialog to avoid "setState during build"
+       WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showNicknameDialog(user.uid);
+       });
+    }
+  }
+
+  void _showNicknameDialog(String uid) {
+    final TextEditingController _nameController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Force them to set it
+      builder: (context) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: AlertDialog(
+            title: const Text("Set Your Nickname"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Welcome to Axe11! Choose a unique nickname to stand out on the leaderboard."),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _nameController,
+                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  decoration: const InputDecoration(
+                    labelText: "Nickname",
+                    labelStyle: TextStyle(color: Colors.indigo),
+                    border: OutlineInputBorder(),
+                    hintText: "e.g. CricketKing7",
+                    hintStyle: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () async {
+                   final name = _nameController.text.trim();
+                   if (name.isEmpty) {
+                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nickname cannot be empty")));
+                     return;
+                   }
+                   if (name.length < 3) {
+                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nickname too short")));
+                     return;
+                   }
+                   
+                   // Update Firestore
+                   /* 
+                      Ideal: Use a UserNotifier method. 
+                      MVP: Direct Firestore update here to ensure it works immediately.
+                   */
+                   try {
+                     await   // We need 'firebase_auth' and 'cloud_firestore' which are imported or available
+                     FirebaseFirestore.instance.collection('users').doc(uid).update({
+                       'displayName': name
+                     });
+                     
+                     if (context.mounted) Navigator.pop(context);
+                   } catch (e) {
+                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                   }
+                },
+                child: const Text("Save & Continue"),
+              )
+            ],
+          ),
+        );
+      }
+    );
+  }
 
   Future<void> _refreshMatches() async {
     // Manual Refresh triggers provider update
@@ -144,6 +312,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen for User Changes to trigger Nickname Popup
+    ref.listen(userEntityProvider, (previous, next) {
+       final user = next.value;
+       if (user != null) {
+          _checkNickname(user);
+       }
+    });
+
     final userAsync = ref.watch(userEntityProvider);
     final walletBalance = userAsync.value?.walletBalance ?? 0.0;
     
@@ -229,7 +405,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             final live = allMatches.where((m) {
               final status = m['status'];
               final isLive = status == 'Live' || status == 'In Progress';
-              if (!isMajorMatch(m)) return false;
+              
+              // NEW: If user has joined this match, ALWAYS show it in tabs
+              final isJoined = joinedMatchIds.contains(m['id'].toString());
+              if (!isJoined && !isMajorMatch(m)) return false;
+              
               return isLive;
            }).toList();
 
@@ -237,13 +417,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               final status = m['status'];
               final start = m['start_time'] ?? m['startDate'] ?? 0;
               
-              // DEBUG PRINT
-              debugPrint("Checking Match: ${m['title']} | Series: ${m['seriesName']} | Status: $status | Start: $start");
-
-              if (!isMajorMatch(m)) {
-                 debugPrint("-> Rejected by Major Filter: ${m['title']}");
-                 return false; 
-              }
+              final isJoined = joinedMatchIds.contains(m['id'].toString());
+              if (!isJoined && !isMajorMatch(m)) return false;
 
               return status == 'Upcoming' && start > now;
            }).toList();
@@ -254,7 +429,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               final isFinished = status == 'Completed' || status == 'Finished' || status == 'Abandoned';
               final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
               
-              if (!isMajorMatch(m)) return false;
+              final isJoined = joinedMatchIds.contains(m['id'].toString());
+              if (!isJoined && !isMajorMatch(m)) return false;
 
               return isFinished && start > sevenDaysAgo;
            }).toList();
@@ -377,8 +553,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildMyMatchItem(Map<String, dynamic> m) {
-    final teamA = m['team1ShortName'] ?? m['team_a'] ?? 'T1';
-    final teamB = m['team2ShortName'] ?? m['team_b'] ?? 'T2';
+    final teamA = m['team1Name'] ?? m['team1ShortName'] ?? m['team_a'] ?? 'T1';
+    final teamB = m['team2Name'] ?? m['team2ShortName'] ?? m['team_b'] ?? 'T2';
     final status = m['status'] ?? 'Upcoming';
     final isLive = status == 'Live' || status == 'In Progress';
     
@@ -548,6 +724,8 @@ class MatchCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                   const Spacer(), // Replaces Voucher Pool
                   
                   Row(

@@ -96,6 +96,13 @@ export default {
         // --- MANUAL SQUAD ENTRY (Admin) ---
         if (path === '/api/admin/match/squad') return handleAdminSaveSquad(request, env);
 
+        // --- ADMIN PARTICIPANT AUDIT ---
+        if (path === '/api/admin/match/participants') {
+            const matchId = url.searchParams.get('matchId');
+            if (!matchId) return jsonResponse({ success: false, error: 'matchId required' }, 400);
+            return handleGetMatchParticipants(matchId, env);
+        }
+
         // --- VOUCHER ROUTES ---
 
 
@@ -132,7 +139,9 @@ export default {
         if (path === '/fantasy-points') return handleGetFantasyPoints(url.searchParams.get('match_id'), env);
         if (path === '/debug-api' || path === '/api/debug-api') return handleDebugApi(env);
 
-        return new Response("Fantasy Cricket Worker (D1-Core) - Unknown Route: " + path, { status: 404, headers: corsHeaders });
+        // --- Safety Logging for unknown routes ---
+        console.log(`⚠️ Unhandled route: ${path} [${request.method}]`);
+        return new Response("Fantasy Cricket Worker (D1-Core) - Access Denied", { status: 403, headers: corsHeaders });
     }
 };
 
@@ -235,31 +244,29 @@ async function handlePaymentWebhook(request, env) {
         const result = await handleCashfreeWebhook(request, env);
 
         if (result.action === 'UPDATE_WALLET') {
-            const { orderId, amount, gatewayData } = result;
+            const { orderId, amount } = result;
 
-            // 1. Get Transaction from D1
-            const txn = await env.DB.prepare("SELECT * FROM transactions WHERE id = ?").bind(orderId).first();
+            // Atomic status update to prevent double processing (Race Condition Fix)
+            const updateRes = await env.DB.prepare(`
+                UPDATE transactions 
+                SET status = 'success' 
+                WHERE id = ? AND status = 'pending'
+            `).bind(orderId).run();
 
-            if (txn && txn.status === 'pending') {
-                const userId = txn.user_id; // Note: D1 uses snake_case in Schema, but we inserted using bind. 
-                // Wait, Schema says user_id. JS object had userId.
-                // Insert: VALUES (?, ?, ...) -> userId goes to user_id column.
-                // Select: Returns col names. So txn.user_id.
+            if (updateRes.meta.changes > 0) {
+                // This worker instance won the race
+                // 1. Get User ID from this transaction
+                const txn = await env.DB.prepare("SELECT user_id FROM transactions WHERE id = ?").bind(orderId).first();
+                const userId = txn.user_id;
 
-                // 2. Update User Wallet (DEPOSIT ONLY)
-                // Atomic increment
+                // 2. Update User Wallet
                 await env.DB.prepare(`
                     UPDATE users SET deposit_credits = deposit_credits + ? WHERE id = ?
                 `).bind(amount, userId).run();
 
-                // 3. Update Transaction Status
-                await env.DB.prepare(`
-                    UPDATE transactions SET status = 'success' WHERE id = ?
-                `).bind(orderId).run();
-
                 console.log(`✅ Wallet Updated for ${userId}: +${amount}`);
             } else {
-                console.log(`⚠️ Transaction ${orderId} not found or already processed.`);
+                console.log(`⚠️ Transaction ${orderId} already processed or not found.`);
             }
         }
         else if (result.action === 'UPDATE_TRANSACTION_FAILED') {
@@ -405,6 +412,20 @@ async function handleAdminStats(env) {
                 kycPending: 0
             }
         });
+    } catch (e) {
+        return jsonResponse({ success: false, error: e.message });
+    }
+}
+
+async function handleGetMatchParticipants(matchId, env) {
+    try {
+        const { results } = await env.DB.prepare(`
+            SELECT p.user_id, p.team_name, p.match_id, u.email 
+            FROM contest_participants p 
+            JOIN users u ON p.user_id = u.id 
+            WHERE p.match_id = ?
+        `).bind(matchId.toString()).all();
+        return jsonResponse({ success: true, participants: results });
     } catch (e) {
         return jsonResponse({ success: false, error: e.message });
     }

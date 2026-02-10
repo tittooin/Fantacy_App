@@ -30,7 +30,7 @@ class ContactUsScreen extends StatelessWidget {
               child: ListTile(
                 leading: const Icon(Icons.email, color: Colors.indigo),
                 title: const Text("Email Support"),
-                subtitle: const Text("admin@axevora.com"),
+                subtitle: const Text("admin@axevoralabs.com"),
               ),
             ),
             const SizedBox(height: 16),
