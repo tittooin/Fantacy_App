@@ -590,6 +590,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 if (isLive)
                   const Text("● LIVE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 10))
+                else if (status == 'Upcoming')
+                   Text(
+                      "${DateFormat('d MMM').format(DateTime.fromMillisecondsSinceEpoch(m['startDate'] ?? m['startTime'] ?? 0))}, ${DateFormat('h:mm a').format(DateTime.fromMillisecondsSinceEpoch(m['startDate'] ?? m['startTime'] ?? 0))}",
+                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10)
+                   )
                 else
                   Text(status, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10)),
               ],
@@ -704,7 +709,10 @@ class MatchCard extends StatelessWidget {
                      if (isLive) 
                         const Text("● LIVE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12))
                      else
-                        Text(DateFormat('h:mm a').format(date), style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold)),
+                        Text(
+                          "${DateFormat('d MMM').format(date)}, ${DateFormat('h:mm a').format(date)}", 
+                          style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.bold)
+                        ),
                      
                      const SizedBox(height: 4),
                      const Text("vs", style: TextStyle(fontSize: 12, color: Colors.grey)),
