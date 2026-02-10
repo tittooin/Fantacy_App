@@ -28,6 +28,12 @@ const corsHeaders = {
 // ...
 
 export default {
+    async scheduled(event, env, ctx) {
+        console.log("⏰ Scheduled Event Triggered");
+        ctx.waitUntil(processCricketData(env));
+        ctx.waitUntil(processLeaderboards(env));
+    },
+
     async fetch(request, env, ctx) {
         if (request.method === 'OPTIONS') {
             return new Response(null, { headers: corsHeaders });

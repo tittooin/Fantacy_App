@@ -22,3 +22,6 @@ WORKER_URL = "https://fantasy-cricket-api.moremagical4.workers.dev"
 binding = "DB"
 database_name = "fantasy-db"
 database_id = "63832775-2a84-428c-9120-9258c3aaf226"
+
+[triggers]
+crons = ["*/5 * * * *"]
