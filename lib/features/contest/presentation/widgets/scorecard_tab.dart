@@ -293,19 +293,30 @@ class _ScorecardTabState extends State<ScorecardTab> with SingleTickerProviderSt
   }
 
   Widget _buildBatterRow(Map<String, dynamic> b) {
-    // "batsmanid": "38559", "batsmanname": "Geovanis Uwase", "runs": "109", "ballnbr": "101", "fours": "0", "sixes": "0", "strikeRate": ...
+    // "batsmanid": "...", "batsmanname": "..."
     final name = b['names'] ?? b['batsmanname'] ?? b['name'] ?? 'Unknown';
-    // Dismissal status?
-    final outDesc = b['dismissal'] ?? b['outDesc'] ?? ''; 
-    final isOut = outDesc.isNotEmpty;
     
-    // Calculate SR if missing
-    final runs = int.tryParse(b['runs']?.toString() ?? '0') ?? 0;
-    final balls = int.tryParse(b['balls']?.toString() ?? b['ballnbr']?.toString() ?? '0') ?? 1;
+    // Fix: Use correct key 'outdec' (lowercase) from API
+    String status = b['outdec'] ?? b['outDesc'] ?? b['dismissal'] ?? '';
+    status = status.trim();
+
+    // Determine Status Type
+    // API returns "not out" for current batters
+    final isBatting = status.toLowerCase() == 'not out' || status.toLowerCase() == 'batting';
+    final isYetToBat = status.isEmpty;
+
+    final runs = b['runs'] ?? 0; // API returns string or int
+    final balls = b['balls'] ?? b['ballnbr'] ?? 0;
     final fours = b['fours'] ?? 0;
     final sixes = b['sixes'] ?? 0;
     
-    final sr = (balls > 0) ? ((runs / balls) * 100).toStringAsFixed(1) : "0.0";
+    // Use API SR if available, else calc
+    String sr = b['strkrate'] ?? b['strikeRate'] ?? '';
+    if (sr.isEmpty) {
+       final r = int.tryParse(runs.toString()) ?? 0;
+       final bl = int.tryParse(balls.toString()) ?? 0;
+       sr = (bl > 0) ? ((r / bl) * 100).toStringAsFixed(1) : "0.0";
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
@@ -320,10 +331,13 @@ class _ScorecardTabState extends State<ScorecardTab> with SingleTickerProviderSt
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                if (outDesc.isNotEmpty)
-                  Text(outDesc, style: const TextStyle(color: Colors.grey, fontSize: 10))
-                else if (!isOut)
-                  const Text("Batting", style: TextStyle(color: Colors.green, fontSize: 10))
+                const SizedBox(height: 2),
+                if (isBatting)
+                  const Text("Batting", style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold))
+                else if (isYetToBat)
+                   const Text("Yet to Bat", style: TextStyle(color: Colors.grey, fontSize: 10))
+                else
+                   Text(status, style: const TextStyle(color: Colors.redAccent, fontSize: 10))
               ],
             ),
           ),
