@@ -200,6 +200,11 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     }
   }
 
+class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
+  String _selectedFilter = "All"; // Track selected filter
+
+  // ... (existing code)
+
   Widget _buildContestsTab() {
     final showScore = _effectiveMatch?.status == 'Live' || _effectiveMatch?.status == 'Completed';
     
@@ -219,13 +224,17 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildFilterChip("All", true),
+                  _buildFilterChip("All", _selectedFilter == "All"),
                   const SizedBox(width: 8),
-                  _buildFilterChip("Mega", false),
+                  _buildFilterChip("Mega", _selectedFilter == "Mega"),
                   const SizedBox(width: 8),
-                  _buildFilterChip("Hot", false),
+                  _buildFilterChip("Hot", _selectedFilter == "Hot"),
                   const SizedBox(width: 8),
-                  _buildFilterChip("Head 2 Head", false),
+                  _buildFilterChip("Head 2 Head", _selectedFilter == "Head 2 Head"),
+                   const SizedBox(width: 8),
+                  _buildFilterChip("Winner Takes All", _selectedFilter == "Winner Takes All"),
+                   const SizedBox(width: 8),
+                  _buildFilterChip("Practice", _selectedFilter == "Practice"),
                 ],
               ),
             ),
@@ -238,15 +247,27 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
                 if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
   
-                final contests = snapshot.data ?? [];
+                var contests = snapshot.data ?? [];
+                
+                // Client-side Filtering
+                if (_selectedFilter != "All") {
+                    contests = contests.where((c) {
+                        // Loose matching for broader categories
+                        if (_selectedFilter == "Mega") return c.category.contains("Mega");
+                        if (_selectedFilter == "Hot") return c.category.contains("Hot") || c.totalSpots > 100;
+                        if (_selectedFilter == "Head 2 Head") return c.category.contains("Head") || c.totalSpots == 2;
+                        return c.category == _selectedFilter;
+                    }).toList();
+                }
+
                 if (contests.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.emoji_events_outlined, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text("No Contests Active", style: TextStyle(color: Colors.grey)),
+                        const Icon(Icons.filter_list_off, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text("No $_selectedFilter Contests Found", style: const TextStyle(color: Colors.grey)),
                       ],
                     ),
                   );
@@ -254,7 +275,6 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
   
                 return ListView.builder(
                   padding: const EdgeInsets.only(bottom: 80), // Space for FAB if needed
-                  // Ensure scrollable for RefreshIndicator
                   physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: contests.length,
                   itemBuilder: (context, index) {
@@ -270,11 +290,16 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
   }
 
   Widget _buildFilterChip(String label, bool isSelected) {
-    return Chip(
+    return ActionChip(
       label: Text(label),
       backgroundColor: isSelected ? Colors.black87 : Colors.grey.shade200,
       labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
       padding: const EdgeInsets.symmetric(horizontal: 12),
+      onPressed: () {
+          setState(() {
+              _selectedFilter = label;
+          });
+      },
     );
   }
 
