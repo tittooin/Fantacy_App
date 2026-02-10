@@ -9,7 +9,7 @@ part of 'contest_model.dart';
 _ContestModel _$ContestModelFromJson(Map<String, dynamic> json) =>
     _ContestModel(
       id: json['id'] as String,
-      matchId: (json['matchId'] as num).toInt(),
+      matchId: json['matchId'] as String,
       entryFee: (json['entryFee'] as num).toDouble(),
       totalSpots: (json['totalSpots'] as num).toInt(),
       filledSpots: (json['filledSpots'] as num).toInt(),

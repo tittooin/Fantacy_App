@@ -22,7 +22,7 @@ import { handleVoucherRequest, handleVoucherUserHistory, handleAdminVoucherList,
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-rapidapi-key, x-rapidapi-host',
+    'Access-Control-Allow-Headers': '*',
 };
 
 // ...
@@ -36,11 +36,20 @@ export default {
 
     async fetch(request, env, ctx) {
         if (request.method === 'OPTIONS') {
-            return new Response(null, { headers: corsHeaders });
+            return new Response(null, {
+                status: 204,
+                headers: {
+                    ...corsHeaders,
+                    'Access-Control-Max-Age': '86400',
+                }
+            });
         }
 
         const url = new URL(request.url);
-        const path = url.pathname;
+        const path = url.pathname.replace(/\/$/, ''); // Normalize: strip trailing slash
+
+        // --- CONTEST JOIN ---
+        if (path === '/api/join-contest') return handleJoinContest(request, env);
 
         // --- ROOT & COMPLIANCE (For Domain Verification) ---
         if (path === '/') return handleStaticPage('home');
@@ -68,8 +77,7 @@ export default {
         if (path === '/api/create-payment') return handleCreatePayment(request, env);
         if (path === '/api/payment-webhook') return handlePaymentWebhook(request, env);
 
-        // --- CONTEST ROUTES ---
-        if (path === '/api/join-contest') return handleJoinContest(request, env);
+        // Contest routes moved to section below
 
         // --- LEADERBOARD ROUTES ---
         if (path === '/api/leaderboard') {
@@ -141,9 +149,26 @@ export default {
         if (path === '/api/admin/voucher/list') return handleAdminVoucherList(env);
         if (path === '/api/admin/voucher/approve') return handleAdminApproveVoucher(request, env);
 
+        // --- CONTEST ROUTES (D1-Only) ---
+        if (path === '/api/admin/contests/create') return handleAdminCreateContest(request, env);
+        if (path === '/api/contests' || path === '/api/contests/list') {
+            const matchId = url.searchParams.get('matchId');
+            if (!matchId) return jsonResponse({ success: false, error: 'matchId required' }, 400);
+            return handleGetContests(matchId, env);
+        }
+        if (path === '/api/user/contests') {
+            const userId = url.searchParams.get('userId');
+            if (!userId) return jsonResponse({ success: false, error: 'userId required' }, 400);
+            return handleGetUserContests(userId, env);
+        }
+
         if (path === '/diag') return handleGlobalDiag(env);
         if (path === '/fantasy-points') return handleGetFantasyPoints(url.searchParams.get('match_id'), env);
         if (path === '/debug-api' || path === '/api/debug-api') return handleDebugApi(env);
+
+        if (path.startsWith('/api/')) {
+            return jsonResponse({ success: false, error: `API Route Not Found: ${path}` }, 404);
+        }
 
         // --- Safety Logging for unknown routes ---
         console.log(`⚠️ Unhandled route: ${path} [${request.method}]`);
@@ -304,7 +329,7 @@ async function handleJoinContest(request, env) {
 
         // 1. Fetch User Balance (D1)
         const user = await env.DB.prepare("SELECT deposit_credits, winning_credits FROM users WHERE id = ?").bind(userId).first();
-        if (!user) return jsonResponse({ success: false, error: 'User not found' }, 404);
+        if (!user) return jsonResponse({ success: false, error: 'USER_NOT_FOUND' }, 200);
 
         const deposit = user.deposit_credits || 0;
         const winnings = user.winning_credits || 0;
@@ -312,17 +337,17 @@ async function handleJoinContest(request, env) {
 
         // 2. Fetch Contest Entry Fee (D1)
         const contest = await env.DB.prepare("SELECT entry_fee, filled_spots, total_spots FROM contests WHERE id = ?").bind(contestId).first();
-        if (!contest) return jsonResponse({ success: false, error: 'Contest not found' }, 404);
+        if (!contest) return jsonResponse({ success: false, error: 'CONTEST_NOT_FOUND' }, 200);
 
         if (contest.filled_spots >= contest.total_spots) {
-            return jsonResponse({ success: false, error: 'Contest Full' }, 409);
+            return jsonResponse({ success: false, error: 'CONTEST_FULL' }, 200);
         }
 
         const entryFee = contest.entry_fee || 0;
 
         // 3. Check Balance
         if (totalBalance < entryFee) {
-            return jsonResponse({ success: false, error: 'Insufficient Balance', required: entryFee, available: totalBalance }, 402);
+            return jsonResponse({ success: false, error: 'INSUFFICIENT_BALANCE', required: entryFee, available: totalBalance }, 200);
         }
 
         // 4. Calculate Split Deduction
@@ -347,7 +372,7 @@ async function handleJoinContest(request, env) {
         `).bind(deductDeposit, deductWinnings, userId, deductDeposit, deductWinnings).run();
 
         if (res.meta.changes === 0) {
-            return jsonResponse({ success: false, error: 'Balance deduction failed (Race condition)' }, 409);
+            return jsonResponse({ success: false, error: 'BALANCE_DEDUCTION_FAILED' }, 200);
         }
 
         // 6. Join Contest (D1)
@@ -383,13 +408,76 @@ async function handleJoinContest(request, env) {
             // Panic Refund? Or Retry?
             // Since money is deducted, we MUST refund or ensure entry.
             // Simplified: Return specific error asking to retry.
-            return jsonResponse({ success: false, error: "Join Logic Error. Please Contact Support.", code: "D1_JOIN_FAIL" }, 500);
+            return jsonResponse({ success: false, error: "D1_JOIN_FAIL" }, 200);
         }
 
         return jsonResponse({ success: true, message: 'Contest Joined Successfully', remainingBalance: totalBalance - entryFee });
 
     } catch (e) {
         console.error("Join Contest Error", e);
+        return jsonResponse({ success: false, error: e.message }, 200);
+    }
+}
+
+async function handleAdminCreateContest(request, env) {
+    if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
+    try {
+        const body = await request.json();
+        const { id, matchId, entryFee, totalSpots, prizePool, category, isGuaranteed, isFlexible, winningBreakdown } = body;
+
+        if (!id || !matchId) return jsonResponse({ success: false, error: 'id and matchId required' }, 400);
+
+        // Save to D1
+        // We use INSERT OR REPLACE to align with sync logic
+        await env.DB.prepare(`
+            INSERT OR REPLACE INTO contests (
+                id, match_id, entry_fee, total_spots, filled_spots, prize_pool, 
+                category, is_guaranteed, is_flexible, winning_breakdown, status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+            id,
+            matchId.toString(),
+            entryFee,
+            totalSpots,
+            0, // filled_spots starts at 0
+            prizePool,
+            category,
+            isGuaranteed ? 1 : 0,
+            isFlexible ? 1 : 0,
+            JSON.stringify(winningBreakdown || []),
+            'Upcoming',
+            Date.now()
+        ).run();
+
+        console.log(`✅ D1 Contest Created: ${id} for Match ${matchId}`);
+        return jsonResponse({ success: true, message: 'Contest Created in D1' });
+    } catch (e) {
+        console.error("D1 Create Contest Error:", e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+async function handleGetContests(matchId, env) {
+    try {
+        const { results } = await env.DB.prepare(
+            "SELECT * FROM contests WHERE match_id = ? ORDER BY created_at DESC"
+        ).bind(matchId.toString()).all();
+
+        // Map D1 boolean/json fields back to expected formats
+        const contests = results.map(c => ({
+            ...c,
+            matchId: c.match_id,
+            entryFee: c.entry_fee,
+            totalSpots: c.total_spots,
+            filledSpots: c.filled_spots,
+            prizePool: c.prize_pool,
+            isGuaranteed: !!c.is_guaranteed,
+            isFlexible: !!c.is_flexible,
+            winningBreakdown: JSON.parse(c.winning_breakdown || '[]')
+        }));
+
+        return jsonResponse({ success: true, contests });
+    } catch (e) {
         return jsonResponse({ success: false, error: e.message }, 500);
     }
 }
@@ -453,26 +541,6 @@ async function handleGetLeaderboard(contestId, env) {
 }
 
 
-// Helper: Fetch Single Doc (Since getFromFirestore returns List)
-async function fetchDoc(path, env) {
-    const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}?key=${env.FIREBASE_API_KEY}`;
-    try {
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const doc = await res.json();
-
-        const item = { id: doc.name.split('/').pop() };
-        for (const [key, value] of Object.entries(doc.fields || {})) {
-            if (value.stringValue) item[key] = value.stringValue;
-            else if (value.integerValue) item[key] = parseInt(value.integerValue);
-            else if (value.doubleValue) item[key] = parseFloat(value.doubleValue);
-            else if (value.booleanValue) item[key] = value.booleanValue;
-        }
-        return item;
-    } catch (e) {
-        return null;
-    }
-}
 
 
 // Legacy processLiveMatches removed. Using cricket_engine.js (D1)
@@ -699,10 +767,10 @@ async function handleGetSquads(matchId, env, request) {
             });
         }
 
-        return jsonResponse({ success: false, error: 'Squad unavailable' });
+        return jsonResponse({ success: false, error: 'Squad unavailable' }, 200);
     } catch (e) {
         console.error('Squad Error:', e);
-        return jsonResponse({ success: false, error: e.message }, 500);
+        return jsonResponse({ success: false, error: 'Internal error: ' + e.message }, 200);
     }
 }
 
@@ -1156,3 +1224,21 @@ async function handleGetTransactions(userId, env) {
         return jsonResponse({ success: false, error: e.message }, 500);
     }
 }
+async function handleGetUserContests(userId, env) {
+    try {
+        const { results } = await env.DB.prepare(`
+            SELECT cp.*, c.category, c.entry_fee, c.prize_pool, m.title as match_title
+            FROM contest_participants cp
+            JOIN contests c ON cp.contest_id = c.id
+            LEFT JOIN matches m ON cp.match_id = m.id
+            WHERE cp.user_id = ?
+            ORDER BY cp.created_at DESC
+        `).bind(userId).all();
+
+        return jsonResponse({ success: true, contests: results });
+    } catch (e) {
+        console.error("D1 Get User Contests Error:", e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+

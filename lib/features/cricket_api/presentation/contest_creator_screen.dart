@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/core/api/fantasy_api_client.dart';
+
 
 class ContestCreatorScreen extends ConsumerStatefulWidget {
   final CricketMatchModel match;
@@ -292,7 +294,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
       final contestId = const Uuid().v4();
       final contest = ContestModel(
         id: contestId,
-        matchId: widget.match.id,
+        matchId: widget.match.id.toString(),
         entryFee: double.parse(_entryFeeController.text),
         totalSpots: int.parse(_spotsController.text),
         filledSpots: 0,
@@ -304,22 +306,25 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
         createdAt: DateTime.now(),
       );
 
-      debugPrint("🎯 Creating contest: ID=$contestId, matchId=${widget.match.id}, category=$_category");
+      debugPrint("🎯 Creating contest (D1-Only): ID=$contestId, matchId=${widget.match.id}, category=$_category");
       final contestData = contest.toJson();
-      debugPrint("🎯 Contest JSON: $contestData");
+      
+      // Convert matchId to string for Worker API
+      contestData['matchId'] = contestData['matchId'].toString();
+      
+      // Zero Firestore Writes: Using Worker API (D1)
+      final result = await ref.read(fantasyApiClientProvider).createContest(contestData);
 
-      await FirebaseFirestore.instance
-          .collection('contests') // Root collection to align with Worker
-          .doc(contestId)
-          .set(contestData);
-
-      debugPrint("✅ Contest saved to Firestore successfully!");
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Contest Created Successfully!'), backgroundColor: Colors.green),
-        );
-        context.pop();
+      if (result['success'] == true) {
+        debugPrint("✅ Contest saved to D1 successfully!");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Contest Created in D1! 🎉'), backgroundColor: Colors.green),
+          );
+          context.pop();
+        }
+      } else {
+        throw Exception(result['error'] ?? 'Worker API Error');
       }
     } catch (e) {
       if (mounted) {

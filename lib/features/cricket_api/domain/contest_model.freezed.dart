@@ -15,7 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ContestModel {
 
- String get id; int get matchId; double get entryFee; int get totalSpots; int get filledSpots; double get prizePool; String get category;// e.g., "Mega Contest", "Head 2 Head"
+ String get id; String get matchId;// Changed from int to String to match D1
+ double get entryFee; int get totalSpots; int get filledSpots; double get prizePool; String get category;// e.g., "Mega Contest", "Head 2 Head"
  bool get isGuaranteed; bool get isFlexible;// List of payout tiers: [{'rankStart': 1, 'rankEnd': 1, 'amount': 1000}, ...]
  List<Map<String, dynamic>> get winningBreakdown; DateTime get createdAt;
 /// Create a copy of ContestModel
@@ -50,7 +51,7 @@ abstract mixin class $ContestModelCopyWith<$Res>  {
   factory $ContestModelCopyWith(ContestModel value, $Res Function(ContestModel) _then) = _$ContestModelCopyWithImpl;
 @useResult
 $Res call({
- String id, int matchId, double entryFee, int totalSpots, int filledSpots, double prizePool, String category, bool isGuaranteed, bool isFlexible, List<Map<String, dynamic>> winningBreakdown, DateTime createdAt
+ String id, String matchId, double entryFee, int totalSpots, int filledSpots, double prizePool, String category, bool isGuaranteed, bool isFlexible, List<Map<String, dynamic>> winningBreakdown, DateTime createdAt
 });
 
 
@@ -71,7 +72,7 @@ class _$ContestModelCopyWithImpl<$Res>
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,matchId: null == matchId ? _self.matchId : matchId // ignore: cast_nullable_to_non_nullable
-as int,entryFee: null == entryFee ? _self.entryFee : entryFee // ignore: cast_nullable_to_non_nullable
+as String,entryFee: null == entryFee ? _self.entryFee : entryFee // ignore: cast_nullable_to_non_nullable
 as double,totalSpots: null == totalSpots ? _self.totalSpots : totalSpots // ignore: cast_nullable_to_non_nullable
 as int,filledSpots: null == filledSpots ? _self.filledSpots : filledSpots // ignore: cast_nullable_to_non_nullable
 as int,prizePool: null == prizePool ? _self.prizePool : prizePool // ignore: cast_nullable_to_non_nullable
@@ -165,7 +166,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  int matchId,  double entryFee,  int totalSpots,  int filledSpots,  double prizePool,  String category,  bool isGuaranteed,  bool isFlexible,  List<Map<String, dynamic>> winningBreakdown,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String matchId,  double entryFee,  int totalSpots,  int filledSpots,  double prizePool,  String category,  bool isGuaranteed,  bool isFlexible,  List<Map<String, dynamic>> winningBreakdown,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ContestModel() when $default != null:
 return $default(_that.id,_that.matchId,_that.entryFee,_that.totalSpots,_that.filledSpots,_that.prizePool,_that.category,_that.isGuaranteed,_that.isFlexible,_that.winningBreakdown,_that.createdAt);case _:
@@ -186,7 +187,7 @@ return $default(_that.id,_that.matchId,_that.entryFee,_that.totalSpots,_that.fil
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  int matchId,  double entryFee,  int totalSpots,  int filledSpots,  double prizePool,  String category,  bool isGuaranteed,  bool isFlexible,  List<Map<String, dynamic>> winningBreakdown,  DateTime createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String matchId,  double entryFee,  int totalSpots,  int filledSpots,  double prizePool,  String category,  bool isGuaranteed,  bool isFlexible,  List<Map<String, dynamic>> winningBreakdown,  DateTime createdAt)  $default,) {final _that = this;
 switch (_that) {
 case _ContestModel():
 return $default(_that.id,_that.matchId,_that.entryFee,_that.totalSpots,_that.filledSpots,_that.prizePool,_that.category,_that.isGuaranteed,_that.isFlexible,_that.winningBreakdown,_that.createdAt);case _:
@@ -206,7 +207,7 @@ return $default(_that.id,_that.matchId,_that.entryFee,_that.totalSpots,_that.fil
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  int matchId,  double entryFee,  int totalSpots,  int filledSpots,  double prizePool,  String category,  bool isGuaranteed,  bool isFlexible,  List<Map<String, dynamic>> winningBreakdown,  DateTime createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String matchId,  double entryFee,  int totalSpots,  int filledSpots,  double prizePool,  String category,  bool isGuaranteed,  bool isFlexible,  List<Map<String, dynamic>> winningBreakdown,  DateTime createdAt)?  $default,) {final _that = this;
 switch (_that) {
 case _ContestModel() when $default != null:
 return $default(_that.id,_that.matchId,_that.entryFee,_that.totalSpots,_that.filledSpots,_that.prizePool,_that.category,_that.isGuaranteed,_that.isFlexible,_that.winningBreakdown,_that.createdAt);case _:
@@ -225,7 +226,8 @@ class _ContestModel implements ContestModel {
   factory _ContestModel.fromJson(Map<String, dynamic> json) => _$ContestModelFromJson(json);
 
 @override final  String id;
-@override final  int matchId;
+@override final  String matchId;
+// Changed from int to String to match D1
 @override final  double entryFee;
 @override final  int totalSpots;
 @override final  int filledSpots;
@@ -278,7 +280,7 @@ abstract mixin class _$ContestModelCopyWith<$Res> implements $ContestModelCopyWi
   factory _$ContestModelCopyWith(_ContestModel value, $Res Function(_ContestModel) _then) = __$ContestModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, int matchId, double entryFee, int totalSpots, int filledSpots, double prizePool, String category, bool isGuaranteed, bool isFlexible, List<Map<String, dynamic>> winningBreakdown, DateTime createdAt
+ String id, String matchId, double entryFee, int totalSpots, int filledSpots, double prizePool, String category, bool isGuaranteed, bool isFlexible, List<Map<String, dynamic>> winningBreakdown, DateTime createdAt
 });
 
 
@@ -299,7 +301,7 @@ class __$ContestModelCopyWithImpl<$Res>
   return _then(_ContestModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,matchId: null == matchId ? _self.matchId : matchId // ignore: cast_nullable_to_non_nullable
-as int,entryFee: null == entryFee ? _self.entryFee : entryFee // ignore: cast_nullable_to_non_nullable
+as String,entryFee: null == entryFee ? _self.entryFee : entryFee // ignore: cast_nullable_to_non_nullable
 as double,totalSpots: null == totalSpots ? _self.totalSpots : totalSpots // ignore: cast_nullable_to_non_nullable
 as int,filledSpots: null == filledSpots ? _self.filledSpots : filledSpots // ignore: cast_nullable_to_non_nullable
 as int,prizePool: null == prizePool ? _self.prizePool : prizePool // ignore: cast_nullable_to_non_nullable

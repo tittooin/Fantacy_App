@@ -78,14 +78,62 @@ class FantasyApiClient {
   Future<Map<String, dynamic>?> getSquads(String matchId) async {
     try {
        final response = await _dio.get('/api/squads', queryParameters: {'matchId': matchId});
-       // D1 worker might implement this later, or we fallback to existing logic if needed
-       // Assuming Worker has /squads or similar endpoint wrapper
        if (response.statusCode == 200) {
           return response.data;
        }
        return null;
     } catch (e) {
        return null;
+    }
+  }
+
+  /// 5. Fetch Contests for a Match (D1)
+  Future<List<Map<String, dynamic>>> getContests(String matchId) async {
+    try {
+      final response = await _dio.get('/api/contests', queryParameters: {'matchId': matchId});
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return List<Map<String, dynamic>>.from(response.data['contests'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      print('❌ Error fetching contests for $matchId: $e');
+      return [];
+    }
+  }
+
+  /// 6. Create Contest (Admin Only - D1)
+  Future<Map<String, dynamic>> createContest(Map<String, dynamic> contestData) async {
+    try {
+      final response = await _dio.post('/api/admin/contests/create', data: contestData);
+      return response.data;
+    } catch (e) {
+      print('❌ Error creating contest: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// 7. Join Contest (D1)
+  Future<Map<String, dynamic>> joinContest(Map<String, dynamic> payload) async {
+    try {
+      final response = await _dio.post('/api/join-contest', data: payload);
+      return response.data;
+    } catch (e) {
+      print('❌ Error joining contest: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+  
+  /// 8. Fetch User Joined Contests (D1)
+  Future<List<Map<String, dynamic>>> getUserContests(String userId) async {
+    try {
+      final response = await _dio.get('/api/user/contests', queryParameters: {'userId': userId});
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return List<Map<String, dynamic>>.from(response.data['contests'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      print('❌ Error fetching user contests for $userId: $e');
+      return [];
     }
   }
 }

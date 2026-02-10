@@ -1,10 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart'; // Added
 import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/core/api/fantasy_api_client.dart';
 import 'package:axevora11/features/team/domain/team_entity.dart';
 import 'package:axevora11/features/team/presentation/providers/team_provider.dart';
 import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
@@ -100,7 +101,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
                   ),
                   if (_effectiveMatch != null) ...[
-                     Text("${_effectiveMatch!.seriesName} â€¢ ${_effectiveMatch!.venue}", style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                     Text("${_effectiveMatch!.seriesName} • ${_effectiveMatch!.venue}", style: const TextStyle(fontSize: 11, color: Colors.white70)),
                      if (_effectiveMatch!.lineupStatus == 'Confirmed')
                        Container(
                          margin: const EdgeInsets.only(top: 2),
@@ -120,7 +121,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                        color: Colors.black26,
                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
                        child: const Text(
-                         "âš  Only players in the Playing XI earn fantasy points.",
+                         "⚠ Only players in the Playing XI earn fantasy points.",
                          style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
                          textAlign: TextAlign.center,
                        ),
@@ -180,23 +181,18 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     try {
       // Convert String matchId to int for Firestore query
       final int matchIdInt = int.parse(widget.matchId);
-      debugPrint("ðŸ” Fetching contests for matchId: $matchIdInt (converted from String '${widget.matchId}')");
+      debugPrint("🔍 Fetching contests for matchId: $matchIdInt (converted from String '${widget.matchId}')");
       
-      final snapshot = await FirebaseFirestore.instance
-          .collection('contests')
-          .where('matchId', isEqualTo: matchIdInt)
-          .get();
+      final contestsData = await ref.read(fantasyApiClientProvider).getContests(widget.matchId);
       
-      debugPrint("ðŸ” Found ${snapshot.docs.length} contests");
+      final contestsList = contestsData
+          .map((json) => ContestModel.fromJson(json))
+          .toList();
       
-      final contests = snapshot.docs.map((doc) {
-        debugPrint("ðŸ” Contest doc: ${doc.id}, data: ${doc.data()}");
-        return ContestModel.fromJson(doc.data());
-      }).toList();
-      
-      return contests;
+      debugPrint("Found ${contestsList.length} contests from D1");
+      return contestsList;
     } catch (e) {
-      debugPrint("âŒ Error fetching contests: $e");
+      debugPrint("❌ Error fetching contests: $e");
       return [];
     }
   }
@@ -514,3 +510,4 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     );
   }
 }
+
