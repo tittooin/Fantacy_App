@@ -82,6 +82,7 @@ async function syncMatchToD1(match, env) {
                 series_id = ?,
                 series_name = ?,
                 start_time = ?,
+                status = ?,
                 team_a_img = ?,
                 team_b_img = ?,
                 team_a_id = ?,
@@ -89,7 +90,7 @@ async function syncMatchToD1(match, env) {
                 last_updated = ?
                 WHERE id = ?
             `).bind(
-                match.title, match.shortTitle, match.seriesId, match.seriesName || '', match.startTime,
+                match.title, match.shortTitle, match.seriesId, match.seriesName || '', match.startTime, match.status,
                 match.teamAImg, match.teamBImg, match.team1Id, match.team2Id, Date.now(), match.id
             ).run();
 

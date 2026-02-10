@@ -514,12 +514,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final joinedMatchIds = joinedContests.map((c) => c.matchId.toString()).toSet();
     
     final myMatches = allMatches.where((m) {
-       final isJoined = joinedMatchIds.contains(m['id'].toString());
-       if (!isJoined) return false;
-       final status = m['status'] ?? '';
-       // Exclude completed matches from "My Matches" top section as per user request
-       final isFinished = status == 'Completed' || status == 'Finished' || status == 'Abandoned';
-       return !isFinished;
+      final id = m['id'].toString();
+      final status = m['status'] ?? 'Upcoming';
+      // Only show if user joined AND match is NOT completed
+      return joinedMatchIds.contains(id) && status != 'Completed' && status != 'Finished' && status != 'Abandoned';
     }).toList();
     
     if (myMatches.isEmpty) return const SizedBox.shrink();
