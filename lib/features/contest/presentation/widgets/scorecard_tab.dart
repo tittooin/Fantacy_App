@@ -316,6 +316,7 @@ class _ScorecardTabState extends State<ScorecardTab> with SingleTickerProviderSt
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       decoration: const BoxDecoration(
+        color: Colors.white, // Fix: Forced White background for visibility
         border: Border(bottom: BorderSide(color: Colors.black12, width: 0.5))
       ),
       child: Row(
@@ -325,22 +326,69 @@ class _ScorecardTabState extends State<ScorecardTab> with SingleTickerProviderSt
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87)),
                 const SizedBox(height: 2),
                 if (isBatting)
                   const Text("Batting", style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold))
                 else if (isYetToBat)
                    const Text("Yet to Bat", style: TextStyle(color: Colors.grey, fontSize: 10))
                 else
-                   Text(status, style: const TextStyle(color: Colors.redAccent, fontSize: 10))
+                   Text(status, style: const TextStyle(color: Colors.red, fontSize: 10))
               ],
             ),
           ),
-          Expanded(flex: 1, child: Text("$runs", textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold))),
-          Expanded(flex: 1, child: Text("$balls", textAlign: TextAlign.center)),
-          Expanded(flex: 1, child: Text("$fours", textAlign: TextAlign.center)),
-          Expanded(flex: 1, child: Text("$sixes", textAlign: TextAlign.center)),
-          Expanded(flex: 1, child: Text(sr, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11))),
+          Expanded(flex: 1, child: Text("$runs", textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black))),
+          Expanded(flex: 1, child: Text("$balls", textAlign: TextAlign.center, style: const TextStyle(color: Colors.black87))),
+          Expanded(flex: 1, child: Text("$fours", textAlign: TextAlign.center, style: const TextStyle(color: Colors.black87))),
+          Expanded(flex: 1, child: Text("$sixes", textAlign: TextAlign.center, style: const TextStyle(color: Colors.black87))),
+          Expanded(flex: 1, child: Text(sr, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: Colors.black54))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBowlingHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      color: Colors.grey.shade100,
+      child: Row(
+        children: const [
+          Expanded(flex: 3, child: Text("Bowler", style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("O", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("M", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("R", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("W", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Expanded(flex: 1, child: Text("ER", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBowlerRow(Map<String, dynamic> b) {
+    final name = b['bowlernames'] ?? b['name'] ?? 'Unknown';
+    final overs = b['o'] ?? b['overs'] ?? '0';
+    final maidens = b['m'] ?? b['maidens'] ?? '0';
+    final runs = b['r'] ?? b['runs'] ?? '0';
+    final wickets = b['w'] ?? b['wickets'] ?? '0';
+    final eco = b['economy'] ?? '0.0';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+      decoration: const BoxDecoration(
+        color: Colors.white, // FIX: White Background
+        border: Border(bottom: BorderSide(color: Colors.black12, width: 0.5))
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87)),
+          ),
+          Expanded(flex: 1, child: Text("$overs", textAlign: TextAlign.center, style: const TextStyle(color: Colors.black87))),
+          Expanded(flex: 1, child: Text("$maidens", textAlign: TextAlign.center, style: const TextStyle(color: Colors.black87))),
+          Expanded(flex: 1, child: Text("$runs", textAlign: TextAlign.center, style: const TextStyle(color: Colors.black87))),
+          Expanded(flex: 1, child: Text("$wickets", textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black))),
+          Expanded(flex: 1, child: Text("$eco", textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: Colors.black54))),
         ],
       ),
     );
