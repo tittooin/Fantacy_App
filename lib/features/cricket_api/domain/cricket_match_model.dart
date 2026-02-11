@@ -103,8 +103,8 @@ class CricketMatchModel {
       playingXI: (map['playingXI'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       leagueId: map['leagueId'] as String?,
       seriesId: map['seriesId'] is int ? map['seriesId'] : int.tryParse(map['seriesId']?.toString() ?? '0') ?? 0,
-      team1Id: map['team1Id'] is int ? map['team1Id'] : int.tryParse(map['team1Id']?.toString() ?? '0') ?? 0,
-      team2Id: map['team2Id'] is int ? map['team2Id'] : int.tryParse(map['team2Id']?.toString() ?? '0') ?? 0,
+      team1Id: _getInt(map, ['team1Id', 'team_a_id', 'team_1_id']) ?? 0,
+      team2Id: _getInt(map, ['team2Id', 'team_b_id', 'team_2_id']) ?? 0,
       score: map['score'] as Map<String, dynamic>?,
       isArchived: map['isArchived'] as bool? ?? false,
     );
@@ -192,6 +192,17 @@ class CricketMatchModel {
     for (var key in keys) {
       if (map[key] != null && map[key].toString().isNotEmpty) {
         return map[key].toString();
+      }
+    }
+    return null;
+  }
+  /// Helper to safely get the first non-null integer from a list of keys
+  static int? _getInt(Map<String, dynamic> map, List<String> keys) {
+    for (var key in keys) {
+      final val = map[key];
+      if (val != null) {
+        if (val is int) return val;
+        return int.tryParse(val.toString());
       }
     }
     return null;

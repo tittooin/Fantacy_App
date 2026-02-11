@@ -40,6 +40,8 @@ export async function processCricketData(env) {
             seriesName: m.series_name || m.title, // Use DB Series Name, Fallback to Title
             team1ShortName: m.short_title ? m.short_title.split(' vs ')[0] : (m.team_a ? m.team_a.substring(0, 3).toUpperCase() : 'T1'),
             team2ShortName: m.short_title ? m.short_title.split(' vs ')[1] : (m.team_b ? m.team_b.substring(0, 3).toUpperCase() : 'T2'),
+            team1Id: m.team_a_id,
+            team2Id: m.team_b_id,
             startDate: m.start_time,
             status: m.status
         }));

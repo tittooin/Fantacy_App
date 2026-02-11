@@ -117,14 +117,25 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
     // PRIMARY Check: Team IDs (Robust)
     final pTeamId = (player.teamId ?? '').trim();
     final mTeam1Id = _activeMatch!.team1Id.toString().trim();
-    if (pTeamId.isNotEmpty && mTeam1Id.isNotEmpty) {
-      return pTeamId == mTeam1Id;
+    final mTeam2Id = _activeMatch!.team2Id.toString().trim();
+
+    if (pTeamId.isNotEmpty) {
+      if (mTeam1Id != '0' && pTeamId == mTeam1Id) return true;
+      if (mTeam2Id != '0' && pTeamId == mTeam2Id) return false;
     }
 
-    // FALLBACK Check: Team Names (Legacy)
+    // FALLBACK Check: Team Names (Fuzzy)
     final pTeam = (player.teamShortName ?? '').trim().toUpperCase();
     final mTeam1 = _activeMatch!.team1ShortName.trim().toUpperCase();
-    return pTeam == mTeam1; 
+    final mTeam1Full = _activeMatch!.team1Name.trim().toUpperCase();
+
+    // Direct match or partial match (e.g., 'SL' in 'SRI LANKA' or 'SRI LANKA' in 'SRI LANKA')
+    if (pTeam.isNotEmpty) {
+      if (pTeam == mTeam1 || mTeam1.contains(pTeam) || pTeam.contains(mTeam1)) return true;
+      if (pTeam == mTeam1Full || mTeam1Full.contains(pTeam) || pTeam.contains(mTeam1Full)) return true;
+    }
+    
+    return false; 
   }
 
   void _toggleSelection(PlayerModel player) {
