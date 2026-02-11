@@ -214,7 +214,7 @@ function mapPlayers(players, teamId, teamShortName) {
         id: (p.id || '').toString(),
         name: p.name || 'Unknown',
         role: mapRole(p.role),
-        image: p.imageId ? `https://static.cricbuzz.com/a/img/v1/i1/c${p.imageId}/i.jpg` : '',
+        imageUrl: p.imageId ? `https://static.cricbuzz.com/a/img/v1/i1/c${p.imageId}/i.jpg` : '', // Changed from 'image' to 'imageUrl'
         isCaptain: p.captain || false,
         isWicketKeeper: (p.role || '').toLowerCase().includes('wk') || (p.role || '').toLowerCase().includes('keeper'),
         teamId: teamId ? teamId.toString() : '0', // Inject Team ID

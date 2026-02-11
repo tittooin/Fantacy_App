@@ -56,18 +56,9 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
   }
 
   Future<void> _loadData() async {
-    // 0. Auto-Sync Squad (Toss Update Fix)
-    // We check if match is active or near start to avoid unnecessary calls
-    if (widget.match.status == 'Upcoming' || widget.match.status == 'Live') {
-       try {
-         // Silently update Firestore from Worker (D1)
-         // uniqueId/cricbuzzId use matchId as per current logic
-         await ref.read(rapidApiServiceProvider).fetchAndSaveSquad(widget.match.id.toString(), widget.match.id.toString());
-         debugPrint("✅ Auto-Synced Squad for Team Builder");
-       } catch (e) {
-         debugPrint("⚠️ Auto-Sync Squad Failed: $e");
-       }
-    }
+    // NOTE: We removed the Firestore auto-sync step here because we now use D1 database exclusively.
+    // Squad data is managed by Cloudflare Workers and stored in D1, not Firestore.
+    // The Worker API automatically syncs squad data when needed.
 
     // 1. Fetch Fresh Match Data to ensure ShortNames are correct
     try {
