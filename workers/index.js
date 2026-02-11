@@ -1302,9 +1302,9 @@ async function handleUserSync(request, env) {
 
         // Create new user with default balance
         await env.DB.prepare(`
-            INSERT INTO users (id, email, display_name, deposit_credits, winning_credits, created_at)
-            VALUES (?, ?, ?, 0, 0, ?)
-        `).bind(userId, email || '', displayName || 'User', Date.now()).run();
+            INSERT INTO users (id, email, display_name, deposit_credits, winning_credits, joined_at, last_active)
+            VALUES (?, ?, ?, 0, 0, ?, ?)
+        `).bind(userId, email || '', displayName || 'User', Date.now(), Date.now()).run();
 
         return jsonResponse({ success: true, message: 'User created successfully', userId });
     } catch (e) {
@@ -1347,9 +1347,9 @@ async function ensureUserInD1(userId, env) {
     // 3. Create in D1 (Skeleton or with Metadata)
     try {
         await env.DB.prepare(`
-            INSERT INTO users (id, email, display_name, deposit_credits, winning_credits, created_at)
-            VALUES (?, ?, ?, 0, 0, ?)
-        `).bind(userId, email, displayName, Date.now()).run();
+            INSERT INTO users (id, email, display_name, deposit_credits, winning_credits, joined_at, last_active)
+            VALUES (?, ?, ?, 0, 0, ?, ?)
+        `).bind(userId, email, displayName, Date.now(), Date.now()).run();
 
         console.log(`✅ User [${userId}] record created in D1.`);
         return await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
