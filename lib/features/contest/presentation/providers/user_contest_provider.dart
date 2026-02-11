@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:axevora11/features/contest/domain/user_contest_entity.dart';
 import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
+import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
 
 class UserContestNotifier extends Notifier<List<UserContestEntity>> {
   @override
@@ -159,6 +160,9 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
 
       // Update local state
       state = [...state, contest];
+
+      // Refresh Global Balance after deduction
+      ref.read(walletBalanceProvider.notifier).refresh();
 
     } catch (e) {
       print("❌ Join Contest Failed: $e");

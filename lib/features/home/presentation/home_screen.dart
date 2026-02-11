@@ -11,6 +11,7 @@ import 'package:axevora11/features/user/presentation/providers/user_provider.dar
 import 'package:axevora11/features/user/domain/user_entity.dart'; // Added
 import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
 import 'package:axevora11/core/utils/team_utils.dart';
+import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
 
 import 'package:shared_preferences/shared_preferences.dart'; // Added
 
@@ -321,7 +322,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     final userAsync = ref.watch(userEntityProvider);
-    final walletBalance = userAsync.value?.walletBalance ?? 0.0;
+    final walletBalance = ref.watch(walletBalanceProvider);
     
     // Watch the Match List Provider
     final matchesAsync = ref.watch(matchListProvider);

@@ -13,6 +13,20 @@ class WalletRepository {
   // Worker URL
   static const String _workerUrl = "https://fantasy-cricket-api.moremagical4.workers.dev";
 
+  /// Fetch Live Balance from Cloudflare Worker
+  Future<Map<String, dynamic>> getBalance(String userId) async {
+    try {
+      final response = await _dio.get('$_workerUrl/api/wallet/balance', queryParameters: {'userId': userId});
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['balance'] ?? {'deposit': 0, 'winnings': 0, 'total': 0};
+      }
+      return {'deposit': 0, 'winnings': 0, 'total': 0};
+    } catch (e) {
+      debugPrint("WalletRepository: Get Balance Failed: $e");
+      return {'deposit': 0, 'winnings': 0, 'total': 0};
+    }
+  }
+
   /// Realtime Listener for User Wallet Data
   Stream<DocumentSnapshot> listenToUserData(String userId) {
     return _firestore.collection('users').doc(userId).snapshots();

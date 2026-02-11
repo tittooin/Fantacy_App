@@ -10,6 +10,7 @@ import 'package:axevora11/features/team/presentation/providers/team_provider.dar
 import 'package:axevora11/features/contest/domain/user_contest_entity.dart';
 import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
 
 class ContestCard extends StatefulWidget {
   final ContestModel contest;
@@ -132,8 +133,7 @@ class _ContestCardState extends State<ContestCard> {
   }
 
   void _handleContestJoin(BuildContext context, WidgetRef ref) {
-     final userAsync = ref.read(userEntityProvider);
-     final currentBalance = userAsync.value?.walletBalance ?? 0.0;
+     final currentBalance = ref.read(walletBalanceProvider);
 
      if (currentBalance < widget.contest.entryFee) {
        _showLowBalanceDialog(context, widget.contest.entryFee - currentBalance);

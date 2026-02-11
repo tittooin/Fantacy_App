@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
@@ -17,17 +18,11 @@ class WalletScreen extends ConsumerStatefulWidget {
 
 class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBindingObserver {
   bool _isProcessing = false;
-  double _d1TotalBalance = 0.0;
-  bool _isLoadingBalance = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Fetch if user is already available
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _fetchD1Balance();
-    });
   }
 
   @override
@@ -40,40 +35,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       print("DEBUG Wallet: App Resumed, Refreshing Balance...");
-      _fetchD1Balance();
-      setState(() {}); // Trigger FutureBuilder refresh too
-    }
-  }
-
-  Future<void> _fetchD1Balance() async {
-    final user = ref.read(userEntityProvider).value;
-    if (user == null) return;
-    final userId = (user as dynamic).uid;
-    
-    try {
-      // Worker URL from constants or similar
-      const workerUrl = 'https://fantasy-cricket-api.moremagical4.workers.dev';
-      final url = '$workerUrl/api/wallet/balance?userId=$userId';
-      print("DEBUG Wallet: Fetching balance from $url");
-      
-      final response = await http.get(Uri.parse(url));
-      print("DEBUG Wallet: Balance Response Code: ${response.statusCode}");
-      print("DEBUG Wallet: Balance Response Body: ${response.body}");
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true && data['balance'] != null) {
-          if (mounted) {
-            setState(() {
-              _d1TotalBalance = (data['balance']['total'] ?? 0).toDouble();
-              _isLoadingBalance = false;
-            });
-          }
-        }
-      }
-    } catch (e) {
-      print("DEBUG Wallet: Error fetching d1 balance: $e");
-      if (mounted) setState(() => _isLoadingBalance = false);
+      ref.read(walletBalanceProvider.notifier).refresh();
     }
   }
 
@@ -153,8 +115,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
             if (user == null) return const Center(child: Text("User not found"));
             final dynamicUser = user as dynamic;
             
-            // Use D1 Balance if available, else fallback nicely (or show 0)
-            final double displayBalance = _d1TotalBalance; 
+            // Use Live D1 Balance from Provider
+            final double displayBalance = walletBalance; 
 
             return Stack(
               children: [
@@ -219,7 +181,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
                     Expanded(child: _buildLiveTransactionList(dynamicUser.uid)),
                   ],
                 ),
-                if (_isProcessing || _isLoadingBalance)
+                if (_isProcessing)
                    Container(
                      color: Colors.black54,
                      child: const Center(child: CircularProgressIndicator(color: Colors.green)),
