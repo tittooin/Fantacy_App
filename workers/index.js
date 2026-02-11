@@ -1321,37 +1321,40 @@ async function ensureUserInD1(userId, env) {
     const existing = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
     if (existing) return existing;
 
-    console.log(`🔍 User [${userId}] missing from D1. Attempting Firestore Sync...`);
+    console.log(`🔍 User [${userId}] missing from D1. Attempting Sync...`);
 
-    // 2. Fetch from Firestore if missing in D1
+    let email = '';
+    let displayName = 'User';
+
+    // 2. Fetch from Firestore (Best-effort)
     try {
         const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}?key=${env.FIREBASE_API_KEY}`;
         const res = await fetch(url);
 
-        if (!res.ok) {
-            console.error(`❌ Firestore Fetch Failed for [${userId}]: ${res.status}`);
-            return null;
+        if (res.ok) {
+            const doc = await res.json();
+            const fields = doc.fields || {};
+            email = fields.email?.stringValue || '';
+            displayName = fields.displayName?.stringValue || fields.name?.stringValue || 'User';
+            console.log(`✅ User metadata fetched from Firestore for [${userId}]`);
+        } else {
+            console.warn(`⚠️ Firestore sync failed (Code: ${res.status}). Creating skeleton record.`);
         }
-
-        const doc = await res.json();
-        const fields = doc.fields || {};
-
-        const email = fields.email?.stringValue || '';
-        const displayName = fields.displayName?.stringValue || fields.name?.stringValue || 'User';
-        const phone = fields.phoneNumber?.stringValue || '';
-
-        // 3. Create in D1 with 0 balance (or whatever logic you want)
-        // Note: Deposits/Winnings in D1 are source-of-truth from now on.
-        await env.DB.prepare(`
-            INSERT INTO users (id, email, display_name, deposit_credits, winning_credits, phone, created_at)
-            VALUES (?, ?, ?, 0, 0, ?, ?)
-        `).bind(userId, email, displayName, phone, Date.now()).run();
-
-        console.log(`✅ User [${userId}] synced from Firestore to D1.`);
-        return await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
-
     } catch (e) {
-        console.error(`❌ ensureUserInD1 Error: ${e.message}`);
+        console.warn(`⚠️ Firestore sync fetch error: ${e.message}. Creating skeleton record.`);
+    }
+
+    // 3. Create in D1 (Skeleton or with Metadata)
+    try {
+        await env.DB.prepare(`
+            INSERT INTO users (id, email, display_name, deposit_credits, winning_credits, created_at)
+            VALUES (?, ?, ?, 0, 0, ?)
+        `).bind(userId, email, displayName, Date.now()).run();
+
+        console.log(`✅ User [${userId}] record created in D1.`);
+        return await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+    } catch (dbError) {
+        console.error(`❌ DB Insert failed for [${userId}]: ${dbError.message}`);
         return null;
     }
 }
