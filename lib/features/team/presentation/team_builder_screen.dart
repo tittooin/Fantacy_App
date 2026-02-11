@@ -376,11 +376,13 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
         }
         
         final isTeam1 = _isTeam1(player);
+        
+        // Use player's teamShortName directly from D1 data (most reliable)
+        // Fallback to match data only if player data is missing
+        final teamBadgeText = (player.teamShortName?.isNotEmpty == true) 
+            ? player.teamShortName! 
+            : (isTeam1 ? (_activeMatch?.team1ShortName ?? 'T1') : (_activeMatch?.team2ShortName ?? 'T2'));
         final teamBadgeColor = isTeam1 ? Colors.blue : Colors.red;
-        // Use active match names or fallbacks
-        final t1Name = _activeMatch?.team1ShortName ?? 'T1';
-        final t2Name = _activeMatch?.team2ShortName ?? 'T2';
-        final teamBadgeText = isTeam1 ? t1Name : t2Name;
         
         return Container(
           decoration: BoxDecoration(
