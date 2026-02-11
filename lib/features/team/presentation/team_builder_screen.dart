@@ -76,6 +76,18 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
     // 2. Load Players from D1 (Cloudflare Worker)
     final fetched = await ref.read(d1PlayerServiceProvider).getPlayers(widget.match.id.toString());
     
+    // DEBUG: Print first few players to verify teamShortName and imageUrl
+    if (fetched.isNotEmpty) {
+      debugPrint("🔍 DEBUG: First 3 players from D1:");
+      for (var i = 0; i < (fetched.length > 3 ? 3 : fetched.length); i++) {
+        final p = fetched[i];
+        debugPrint("  Player ${i + 1}: ${p.name}");
+        debugPrint("    - teamShortName: '${p.teamShortName}'");
+        debugPrint("    - imageUrl: '${p.imageUrl}'");
+        debugPrint("    - teamId: '${p.teamId}'");
+      }
+    }
+    
     if (mounted) {
        setState(() {
          _allPlayers = fetched;
