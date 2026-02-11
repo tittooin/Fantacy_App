@@ -17,6 +17,7 @@ import 'package:uuid/uuid.dart';
 import 'package:axevora11/features/cricket_api/data/providers/fantasy_points_provider.dart';
 import 'package:axevora11/features/cricket_api/data/providers/scorecard_provider.dart';
 import 'package:axevora11/features/cricket_api/data/providers/leaderboard_provider.dart';
+import 'package:axevora11/features/contest/presentation/widgets/team_pitch_view_sheet.dart';
 
 
 
@@ -393,8 +394,14 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                            }
                            
                            final points = data['points'] ?? 0;
+                            final teamIdFromData = data['teamId'] ?? '';
+                            
 
-                           return Container(
+                            return InkWell(
+                              onTap: teamIdFromData.isNotEmpty 
+                                ? () => _showTeamPitchView(context, ref, data)
+                                : null,
+                              child: Container(
                              color: isCurrentUser ? Colors.indigo.withOpacity(0.05) : Colors.white,
                              child: ListTile(
                                leading: CircleAvatar(
@@ -403,9 +410,20 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                                ),
                                title: Text(display, style: TextStyle(fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal)),
                                subtitle: Text("${data['teamName'] ?? 'Team'} • ${points.toStringAsFixed(0)} pts"), // Format points
-                               trailing: isCurrentUser ? const Icon(Icons.star, color: Colors.orange, size: 16) : null,
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (isCurrentUser) const Icon(Icons.star, color: Colors.orange, size: 16),
+                                      if (teamIdFromData.isNotEmpty) ...[
+                                        const SizedBox(width: 8),
+                                        Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                                      ],
+                                    ],
+                                  ),
                              ),
                            );
+                            ),
+                            );
                          }
                        ),
                      );
@@ -624,6 +642,32 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
           )
         ],
       )
+    );
+  }
+
+  void _showTeamPitchView(BuildContext context, WidgetRef ref, Map<String, dynamic> leaderboardEntry) {
+    final teamId = leaderboardEntry['teamId'] ?? '';
+    final teamName = leaderboardEntry['teamName'] ?? 'Team';
+    final totalPoints = (leaderboardEntry['points'] ?? 0).toDouble();
+    final matchId = _resolvedMatchId ?? contest.matchId;
+    
+    if (teamId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Team data not available')),
+      );
+      return;
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => TeamPitchViewSheet(
+        teamId: teamId,
+        teamName: teamName,
+        totalPoints: totalPoints,
+        matchId: matchId,
+      ),
     );
   }
 
