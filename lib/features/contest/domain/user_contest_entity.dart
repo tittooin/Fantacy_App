@@ -37,15 +37,15 @@ class UserContestEntity {
 
   factory UserContestEntity.fromMap(Map<String, dynamic> map) {
     return UserContestEntity(
-      id: map['id'] ?? '',
-      userId: map['userId'] ?? '',
-      contestId: map['contestId'] ?? '',
-      matchId: map['matchId'] ?? '',
-      teamId: map['teamId'] ?? '',
-      teamName: map['teamName'] ?? '',
+      id: (map['id'] ?? '').toString(),
+      userId: (map['userId'] ?? '').toString(),
+      contestId: (map['contestId'] ?? '').toString(),
+      matchId: (map['matchId'] ?? '').toString(),
+      teamId: (map['teamId'] ?? '').toString(),
+      teamName: (map['teamName'] ?? '').toString(),
       entryFee: (map['entryFee'] ?? 0.0).toDouble(),
       joinedAt: DateTime.fromMillisecondsSinceEpoch(map['joinedAt'] ?? 0),
-      contestName: map['contestName'] ?? 'Contest',
+      contestName: (map['contestName'] ?? 'Contest').toString(),
     );
   }
 }

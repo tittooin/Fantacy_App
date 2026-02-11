@@ -266,9 +266,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               }
           }
           
-          final matchId = extras?['matchId'] as String?;
+          final matchId = extras?['matchId']?.toString();
+          final contestIdParsed = extras?['contestId']?.toString() ?? contestId;
 
-          return ContestDetailScreen(contestId: contestId, contest: contest, match: match, matchId: matchId);
+          return ContestDetailScreen(contestId: contestIdParsed, contest: contest, match: match, matchId: matchId);
         },
       ),
       GoRoute(

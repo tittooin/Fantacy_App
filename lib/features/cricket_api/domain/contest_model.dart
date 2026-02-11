@@ -38,13 +38,13 @@ abstract class ContestModel with _$ContestModel {
     }
     
     return ContestModel(
-      id: json['id'] as String,
+      id: json['id'].toString(),
       matchId: (json['matchId'] ?? json['match_id']).toString(),
       entryFee: (json['entryFee'] ?? json['entry_fee'] ?? 0).toDouble(),
       totalSpots: (json['totalSpots'] ?? json['total_spots'] ?? 0) as int,
       filledSpots: (json['filledSpots'] ?? json['filled_spots'] ?? 0) as int,
       prizePool: (json['prizePool'] ?? json['prize_pool'] ?? 0).toDouble(),
-      category: (json['category'] ?? 'Contest') as String,
+      category: (json['category'] ?? 'Contest').toString(),
       isGuaranteed: (json['isGuaranteed'] ?? json['is_guaranteed'] == 1 || json['is_guaranteed'] == true) as bool? ?? false,
       isFlexible: (json['isFlexible'] ?? json['is_flexible'] == 1 || json['is_flexible'] == true) as bool? ?? false,
       winningBreakdown: ((json['winningBreakdown'] ?? json['winning_breakdown'] ?? []) as List<dynamic>)

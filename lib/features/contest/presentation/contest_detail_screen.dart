@@ -220,6 +220,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
           Consumer(
             builder: (context, ref, child) {
               final matchId = _resolvedMatchId ?? contest.id;
+              if (matchId.isEmpty) return const SizedBox.shrink();
               final scoreAsync = ref.watch(scorecardProvider(matchId));
               
               return scoreAsync.when(

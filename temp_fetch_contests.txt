@@ -1,0 +1,23 @@
+  Future<List<ContestModel>> _fetchContests() async {
+    try {
+      debugPrint("Fetching contests for matchId: ${widget.matchId} (D1-Only)");
+      
+      // Use D1 API instead of Firestore
+      final response = await ref.read(fantasyApiClientProvider).getContests(widget.matchId);
+      
+      if (response['success'] == true && response['contests'] != null) {
+        final contestsList = (response['contests'] as List)
+            .map((json) => ContestModel.fromJson(json as Map<String, dynamic>))
+            .toList();
+        
+        debugPrint("Found ${contestsList.length} contests from D1");
+        return contestsList;
+      } else {
+        debugPrint("Failed to fetch contests: ${response['error']}");
+        return [];
+      }
+    } catch (e) {
+      debugPrint("Error fetching contests: $e");
+      return [];
+    }
+  }
