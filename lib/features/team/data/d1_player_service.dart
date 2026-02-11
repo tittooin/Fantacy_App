@@ -64,14 +64,22 @@ class D1PlayerService {
             return 'BAT';
           }
 
-          // 3. Sanitizaton
+          // 3. Image Proxy (CORS Fix)
+          String getProxiedUrl(String original) {
+            if (original.isEmpty) return '';
+            if (original.contains('fantasy-cricket-api')) return original; // Already proxied
+            const workerUrl = 'https://fantasy-cricket-api.moremagical4.workers.dev';
+            return '$workerUrl/api/player-image?url=${Uri.encodeComponent(original)}';
+          }
+
+          // 4. Sanitizaton
           final sanitized = {
             'id': (json['id'] ?? json['player_id'] ?? json['uid'] ?? DateTime.now().millisecondsSinceEpoch.toString()).toString(),
             'name': (json['name'] ?? json['player_name'] ?? 'Unknown Player').toString(),
             'role': normalizeRole(json['role'] ?? json['player_role']),
             'credits': parseDouble(json['credits']),
             'points': parseDouble(json['fantasy_points'] ?? json['points']),
-            'imageUrl': (json['imageUrl'] ?? json['image_url'] ?? json['player_image'] ?? '').toString(),
+            'imageUrl': getProxiedUrl((json['imageUrl'] ?? json['image_url'] ?? json['player_image'] ?? '').toString()),
             'isPlaying': json['isPlaying'] == true || json['is_playing'] == true || json['in_starting_lineup'] == true,
             'teamId': (json['teamId'] ?? json['team_id'] ?? '').toString(),
             'teamShortName': (json['teamShortName'] ?? json['team_short_name'] ?? json['team_name'] ?? '').toString(),
