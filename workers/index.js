@@ -58,7 +58,7 @@ export default {
         if (path === '/privacy' || path === '/privacy-policy') return handleStaticPage('privacy');
         if (path === '/contact' || path === '/contact-us') return handleStaticPage('contact');
 
-        if (path === '/matches' || path === '/api/get-matches') return handleGetMatches(env);
+        if (path === '/matches' || path === '/api/get-matches' || path === '/api/matches') return handleGetMatches(env);
         // Refresh manually?
         if (path === '/matches/refresh' || path === '/api/refresh-matches') {
             const matches = await processCricketData(env);
@@ -1253,14 +1253,14 @@ async function handleGetUserContests(userId, env) {
 async function handleUserSync(request, env) {
     try {
         const { userId, email, displayName } = await request.json();
-        
+
         if (!userId) {
             return jsonResponse({ success: false, error: 'userId required' }, 400);
         }
 
         // Check if user already exists
         const existing = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(userId).first();
-        
+
         if (existing) {
             return jsonResponse({ success: true, message: 'User already exists', alreadyExists: true });
         }
