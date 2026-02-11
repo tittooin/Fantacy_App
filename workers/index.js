@@ -366,8 +366,8 @@ async function handleJoinContest(request, env) {
             return jsonResponse({ success: false, error: 'Missing required fields' }, 400);
         }
 
-        // 1. Fetch User Balance (D1)
-        const user = await env.DB.prepare("SELECT deposit_credits, winning_credits FROM users WHERE id = ?").bind(userId).first();
+        // 1. Fetch User (Ensuring D1 Sync)
+        const user = await ensureUserInD1(userId, env);
         if (!user) return jsonResponse({ success: false, error: 'USER_NOT_FOUND' }, 200);
 
         const deposit = user.deposit_credits || 0;
@@ -1044,10 +1044,11 @@ async function handleGetFantasyPoints(matchId, env) {
 async function handleGetWalletBalance(userId, env) {
     try {
         console.log(`D1: Fetching balance for [${userId}]`);
-        const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+        // 1. Ensure user in D1
+        const user = await ensureUserInD1(userId, env);
 
         if (!user) {
-            console.log(`D1: User NOT found for [${userId}]`);
+            console.log(`D1: User NOT found for [${userId}] after sync attempt`);
         } else {
             console.log(`D1: Found user, winnings: ${user.winning_credits}`);
         }
@@ -1309,5 +1310,48 @@ async function handleUserSync(request, env) {
     } catch (e) {
         console.error("User Sync Error:", e);
         return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+// --- HELPER: Ensure User exists in D1 (Auto-sync from Firestore if missing) ---
+async function ensureUserInD1(userId, env) {
+    if (!userId) return null;
+
+    // 1. Check D1 first
+    const existing = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+    if (existing) return existing;
+
+    console.log(`🔍 User [${userId}] missing from D1. Attempting Firestore Sync...`);
+
+    // 2. Fetch from Firestore if missing in D1
+    try {
+        const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}?key=${env.FIREBASE_API_KEY}`;
+        const res = await fetch(url);
+
+        if (!res.ok) {
+            console.error(`❌ Firestore Fetch Failed for [${userId}]: ${res.status}`);
+            return null;
+        }
+
+        const doc = await res.json();
+        const fields = doc.fields || {};
+
+        const email = fields.email?.stringValue || '';
+        const displayName = fields.displayName?.stringValue || fields.name?.stringValue || 'User';
+        const phone = fields.phoneNumber?.stringValue || '';
+
+        // 3. Create in D1 with 0 balance (or whatever logic you want)
+        // Note: Deposits/Winnings in D1 are source-of-truth from now on.
+        await env.DB.prepare(`
+            INSERT INTO users (id, email, display_name, deposit_credits, winning_credits, phone, created_at)
+            VALUES (?, ?, ?, 0, 0, ?, ?)
+        `).bind(userId, email, displayName, phone, Date.now()).run();
+
+        console.log(`✅ User [${userId}] synced from Firestore to D1.`);
+        return await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+
+    } catch (e) {
+        console.error(`❌ ensureUserInD1 Error: ${e.message}`);
+        return null;
     }
 }

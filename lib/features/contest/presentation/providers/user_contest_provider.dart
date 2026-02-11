@@ -12,13 +12,32 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
     final authUser = FirebaseAuth.instance.currentUser;
     if (authUser != null) {
       _fetchJoinedContests();
+      _proactiveSyncUser(authUser);
     } else {
        // Setup listener for future login if currently null
        FirebaseAuth.instance.authStateChanges().listen((user) {
-         if (user != null) _fetchJoinedContests();
+         if (user != null) {
+           _fetchJoinedContests();
+           _proactiveSyncUser(user);
+         }
        });
     }
     return [];
+  }
+
+  /// Proactively sync user to D1 to avoid USER_NOT_FOUND during join
+  void _proactiveSyncUser(User user) async {
+    try {
+      final apiService = ref.read(rapidApiServiceProvider);
+      await apiService.syncUser(
+        user.uid, 
+        user.email ?? '', 
+        user.displayName ?? 'User'
+      );
+      print('✅ Proactive sync: User ${user.uid} verified in D1');
+    } catch (e) {
+      print('⚠️ Proactive sync skipped/failed: $e');
+    }
   }
 
   Future<void> _fetchJoinedContests() async {
