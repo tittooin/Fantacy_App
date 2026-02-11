@@ -421,8 +421,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                                     ],
                                   ),
                              ),
-                           );
-                            ),
+                           ),
                             );
                          }
                        ),
@@ -649,7 +648,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     final teamId = leaderboardEntry['teamId'] ?? '';
     final teamName = leaderboardEntry['teamName'] ?? 'Team';
     final totalPoints = (leaderboardEntry['points'] ?? 0).toDouble();
-    final matchId = _resolvedMatchId ?? contest.matchId;
+    final matchId = _resolvedMatchId ?? widget.contest?.matchId ?? widget.matchId ?? '';
     
     if (teamId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
