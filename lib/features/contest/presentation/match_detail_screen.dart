@@ -420,8 +420,8 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
       itemCount: teams.length,
       itemBuilder: (context, index) {
         final team = teams[index];
-        final captain = team.players.firstWhere((p) => p.id == team.captainId);
-        final viceCaptain = team.players.firstWhere((p) => p.id == team.viceCaptainId);
+        final captain = team.players.firstWhere((p) => p.id == team.captainId, orElse: () => team.players.isNotEmpty ? team.players.first : team.players.first);
+        final viceCaptain = team.players.firstWhere((p) => p.id == team.viceCaptainId, orElse: () => team.players.isNotEmpty ? team.players.last : team.players.last);
         
         // Count roles
         final wk = team.players.where((p) => p.role == 'WK').length;
