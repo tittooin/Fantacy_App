@@ -32,7 +32,7 @@ class TeamPitchViewSheet extends ConsumerWidget {
         players: [],
         captainId: '',
         viceCaptainId: '',
-        createdAt: DateTime.now(),
+        totalPoints: totalPoints,
       ),
     );
 
