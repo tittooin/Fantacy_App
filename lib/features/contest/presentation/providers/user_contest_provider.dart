@@ -99,67 +99,70 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
          throw Exception(result['error'] ?? "Failed to join contest via Server");
       }
 
-      // 2. Firestore Sync (For UI Only - No Wallet Write)
-      final batch = firestore.batch();
-      
-      // A. Paths
-      final matchContestRef = firestore.collection('contests').doc(contest.contestId);
-      final userContestRef = firestore.collection('user_contests').doc(contest.id);
-      final leaderboardRef = firestore.collection('contests')
-            .doc(contest.contestId)
-            .collection('entries').doc(user.uid);
+      // 2. Firestore Sync (For UI Only - Best Effort)
+      try {
+        final batch = firestore.batch();
+        
+        // A. Paths
+        final matchContestRef = firestore.collection('contests').doc(contest.contestId);
+        final userContestRef = firestore.collection('user_contests').doc(contest.id);
+        final leaderboardRef = firestore.collection('contests')
+              .doc(contest.contestId)
+              .collection('entries').doc(user.uid);
 
-      // B. Create User Contest Entry
-      batch.set(userContestRef, contest.toMap());
+        // B. Create User Contest Entry
+        batch.set(userContestRef, contest.toMap());
 
-      // C. Create Public Leaderboard Entry (For App UI)
-      final userSnapshot = await firestore.collection('users').doc(user.uid).get();
-      final data = userSnapshot.data();
-      final String? storedName = data?['displayName'];
-      final userName = (storedName != null && storedName.isNotEmpty) 
-          ? storedName 
-          : "Player ${user.phoneNumber?.substring(user.phoneNumber!.length - 4) ?? 'User'}";
+        // C. Create Public Leaderboard Entry (For App UI)
+        final userSnapshot = await firestore.collection('users').doc(user.uid).get();
+        final data = userSnapshot.data();
+        final String? storedName = data?['displayName'];
+        final userName = (storedName != null && storedName.isNotEmpty) 
+            ? storedName 
+            : "Player ${user.phoneNumber?.substring(user.phoneNumber!.length - 4) ?? 'User'}";
 
-      batch.set(leaderboardRef, {
-        'userId': user.uid,
-        'teamId': contest.teamId,
-        'displayName': userName,
-        'teamName': contest.teamName,
-        'points': 0.0,
-        'rank': 0,
-        'joinedAt': DateTime.now().toIso8601String(),
-      });
+        batch.set(leaderboardRef, {
+          'userId': user.uid,
+          'teamId': contest.teamId,
+          'displayName': userName,
+          'teamName': contest.teamName,
+          'points': 0.0,
+          'rank': 0,
+          'joinedAt': DateTime.now().toIso8601String(),
+        });
 
-      // D. Increment Contest Spots (Visual Only, Worker checked actual spots)
-      batch.update(matchContestRef, {
-        'filledSpots': FieldValue.increment(1)
-      });
-      
-      // E. Transaction History in Firestore? 
-      // The user wants "Zero Firestore Wallet writes". 
-      // Updating 'transactions' collection is NOT updating 'users' walletBalance.
-      // It is good for history sync.
-      
-      final txnRef = firestore.collection('users').doc(user.uid);
-      batch.update(txnRef, {
-        'transactions': FieldValue.arrayUnion([{
-           'type': 'JOIN_CONTEST',
-           'amount': contest.entryFee,
-           'contestName': contest.contestName,
-           'matchId': contest.matchId,
-           'timestamp': DateTime.now().toIso8601String(),
-           'desc': 'Joined ${contest.contestName} (D1)'
-        }])
-      });
+        // D. Increment Contest Spots (Visual Only)
+        // Fix: Use set with merge: true instead of update to avoid [not-found] error if contest is missing in Firestore
+        batch.set(matchContestRef, {
+          'filledSpots': FieldValue.increment(1)
+        }, SetOptions(merge: true));
+        
+        // E. Transaction History
+        final txnRef = firestore.collection('users').doc(user.uid);
+        batch.set(txnRef, {
+          'transactions': FieldValue.arrayUnion([{
+             'type': 'JOIN_CONTEST',
+             'amount': contest.entryFee,
+             'contestName': contest.contestName,
+             'matchId': contest.matchId,
+             'timestamp': DateTime.now().toIso8601String(),
+             'desc': 'Joined ${contest.contestName} (D1)'
+          }])
+        }, SetOptions(merge: true));
 
-      await batch.commit();
+        await batch.commit();
+        print("✅ Firestore Sync Complete");
+      } catch (fsError) {
+        // We log but don't THROW because D1 already succeeded!
+        print("⚠️ Firestore Sync Warning (Non-fatal): $fsError");
+      }
 
       // Update local state
       state = [...state, contest];
 
     } catch (e) {
-      print("Join Contest Failed: $e");
-      throw e; 
+      print("❌ Join Contest Failed: $e");
+      rethrow; 
     }
   }
 
