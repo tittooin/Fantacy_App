@@ -73,6 +73,8 @@ export async function syncMatchSquad(env, match, key, host) {
 
         const teamAId = matchDetail.team_a_id;
         const teamBId = matchDetail.team_b_id;
+        const teamAName = matchDetail.team_a || 'Team A';
+        const teamBName = matchDetail.team_b || 'Team B';
 
         // Strategy 1: Match Squad (Playing XI)
         // Endpoint: /matches/v1/match/squad?matchId={matchId} (or check series match squad if available)
@@ -99,8 +101,8 @@ export async function syncMatchSquad(env, match, key, host) {
                 // (Reuse existing logic if structure matches)
                 const teams = data.items;
                 if (teams.length >= 2) {
-                    finalSquads.teamA = mapPlayers(teams[0]?.players, teamAId);
-                    finalSquads.teamB = mapPlayers(teams[1]?.players, teamBId);
+                    finalSquads.teamA = mapPlayers(teams[0]?.players, teamAId, teamAName);
+                    finalSquads.teamB = mapPlayers(teams[1]?.players, teamBId, teamBName);
                     dataFound = true;
                 }
             }
@@ -122,8 +124,8 @@ export async function syncMatchSquad(env, match, key, host) {
                     const squadA = findSquadId(data.squads, matchDetail.team_a, teamAId);
                     const squadB = findSquadId(data.squads, matchDetail.team_b, teamBId);
 
-                    if (squadA) finalSquads.teamA = await fetchSquadPlayers(squadA, seriesId, key, apiHost, teamAId); // Pass Team ID
-                    if (squadB) finalSquads.teamB = await fetchSquadPlayers(squadB, seriesId, key, apiHost, teamBId); // Pass Team ID
+                    if (squadA) finalSquads.teamA = await fetchSquadPlayers(squadA, seriesId, key, apiHost, teamAId, teamAName); // Pass Team ID and Name
+                    if (squadB) finalSquads.teamB = await fetchSquadPlayers(squadB, seriesId, key, apiHost, teamBId, teamBName); // Pass Team ID and Name
 
                     if (finalSquads.teamA.length > 0 || finalSquads.teamB.length > 0) {
                         dataFound = true;
@@ -193,20 +195,20 @@ function findSquadId(squadsList, teamName, teamId) {
     return found ? found.squadId : null;
 }
 
-async function fetchSquadPlayers(squadId, seriesId, key, host, teamId) {
+async function fetchSquadPlayers(squadId, seriesId, key, host, teamId, teamShortName) {
     const u = `https://${host}/series/v1/${seriesId}/squads/${squadId}`;
     try {
         const r = await fetch(u, { headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host, 'User-Agent': 'Mozilla/5.0' } });
         if (r.ok) {
             const d = await r.json();
-            if (d.player) return mapPlayers(d.player, teamId);
+            if (d.player) return mapPlayers(d.player, teamId, teamShortName);
         }
     } catch (e) { }
     return [];
 }
 
-// Helper: Map Players with Team ID
-function mapPlayers(players, teamId) {
+// Helper: Map Players with Team ID and Short Name
+function mapPlayers(players, teamId, teamShortName) {
     if (!players || !Array.isArray(players)) return [];
     return players.filter(p => !p.isHeader).map(p => ({
         id: (p.id || '').toString(),
@@ -215,7 +217,8 @@ function mapPlayers(players, teamId) {
         image: p.imageId ? `https://static.cricbuzz.com/a/img/v1/i1/c${p.imageId}/i.jpg` : '',
         isCaptain: p.captain || false,
         isWicketKeeper: (p.role || '').toLowerCase().includes('wk') || (p.role || '').toLowerCase().includes('keeper'),
-        teamId: teamId ? teamId.toString() : '0' // Inject Team ID
+        teamId: teamId ? teamId.toString() : '0', // Inject Team ID
+        teamShortName: teamShortName || '' // Inject Team Short Name for UI badges
     }));
 }
 
