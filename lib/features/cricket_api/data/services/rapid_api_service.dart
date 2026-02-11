@@ -283,6 +283,24 @@ class RapidApiService {
     }
     return [];
   }
+  /// Endpoint 11: Sync User to D1
+  Future<Map<String, dynamic>> syncUser(String userId, String email, String displayName) async {
+    try {
+      debugPrint("📡 [Worker] POST /api/user/sync");
+      final response = await _dio.post('$_workerUrl/api/user/sync', data: {
+        'userId': userId,
+        'email': email,
+        'displayName': displayName,
+      });
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      return {'success': false, 'error': 'Failed to sync user'};
+    } catch (e) {
+      debugPrint("❌ User Sync Error: $e");
+      return {'success': false, 'error': e.toString()};
+    }
+  }
 }
 
 /// Provider: RapidApiService ka instance
