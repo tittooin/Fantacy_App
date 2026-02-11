@@ -123,6 +123,24 @@ class FantasyApiClient {
     }
   }
   
+  /// 7. Sync User to D1 (Auto-create if not exists)
+  Future<Map<String, dynamic>> syncUser(String userId, String email, String displayName) async {
+    try {
+      final response = await _dio.post('/api/user/sync', data: {
+        'userId': userId,
+        'email': email,
+        'displayName': displayName,
+      });
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      return {'success': false, 'error': 'Failed to sync user'};
+    } catch (e) {
+      print('❌ Error syncing user: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+  
   /// 8. Fetch User Joined Contests (D1)
   Future<List<Map<String, dynamic>>> getUserContests(String userId) async {
     try {
