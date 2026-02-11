@@ -76,15 +76,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
   
   @override
   Widget build(BuildContext context) {
-    // We listen to the User Stream here.
     final userAsync = ref.watch(userEntityProvider);
-
-    // Auto-fetch when user arrives
-    ref.listen(userEntityProvider, (previous, next) {
-      if (next.hasValue && next.value != null && _isLoadingBalance) {
-        _fetchD1Balance();
-      }
-    });
+    final walletBalance = ref.watch(walletBalanceProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -95,8 +88,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
           IconButton(
             icon: const Icon(Icons.refresh), 
             onPressed: () {
-              setState(() => _isLoadingBalance = true);
-              _fetchD1Balance();
+              ref.read(walletBalanceProvider.notifier).refresh();
             }
           )
         ],
