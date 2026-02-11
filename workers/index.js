@@ -72,6 +72,40 @@ export default {
 
         if (path === '/squads' || path === '/api/squads') return handleGetSquads(url.searchParams.get('matchId'), env, request);
 
+        // --- IMAGE PROXY (CORS Fix for Player Images) ---
+        if (path === '/api/player-image' || path === '/player-image') {
+            const imageUrl = url.searchParams.get('url');
+            if (!imageUrl) {
+                return jsonResponse({ success: false, error: 'Missing url parameter' }, 400);
+            }
+
+            try {
+                const imageResp = await fetch(imageUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'image/*'
+                    }
+                });
+
+                if (!imageResp.ok) {
+                    return new Response('Image not found', { status: 404, headers: corsHeaders });
+                }
+
+                // Return image with CORS headers
+                return new Response(imageResp.body, {
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': imageResp.headers.get('Content-Type') || 'image/jpeg',
+                        'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+                    }
+                });
+            } catch (e) {
+                console.error('Image Proxy Error:', e);
+                return new Response('Failed to fetch image', { status: 500, headers: corsHeaders });
+            }
+        }
+
+
         // --- PAYMENT ROUTES ---
         if (path === '/pay') return handlePaymentRedirect(url.searchParams, env);
         if (path === '/api/create-payment') return handleCreatePayment(request, env);

@@ -48,6 +48,13 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
   
+  String _getProxiedImageUrl(String imageUrl) {
+    if (imageUrl.isEmpty) return '';
+    // Proxy through Worker to fix CORS issues
+    const workerUrl = 'https://fantasy-cricket-api.moremagical4.workers.dev';
+    return '$workerUrl/api/player-image?url=${Uri.encodeComponent(imageUrl)}';
+  }
+  
   @override
   void initState() {
     super.initState();
@@ -394,7 +401,7 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
               children: [
                  CircleAvatar(
                    backgroundColor: Colors.grey.shade800,
-                   backgroundImage: player.imageUrl.isNotEmpty ? NetworkImage(player.imageUrl) : null,
+                   backgroundImage: player.imageUrl.isNotEmpty ? NetworkImage(_getProxiedImageUrl(player.imageUrl)) : null,
                    child: player.imageUrl.isEmpty ? Text(_getInitials(player.name), style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)) : null,
                  ),
                  Positioned(
