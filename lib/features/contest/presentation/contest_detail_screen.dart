@@ -269,49 +269,146 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
   }
 
   Widget _buildWinningsTab(ContestModel contest) {
-    if (contest.winningBreakdown.isEmpty) {
-      return const Center(child: Text("Prize breakdown will be updated soon."));
-    }
+    return Consumer(
+      builder: (context, ref, _) {
+        final allJoined = ref.watch(userContestProvider);
+        final myJoinedTeams = allJoined.where((uc) => uc.contestId == contest.id).toList();
+        final leaderboardAsync = ref.watch(leaderboardProvider(contest.id));
 
-    return ListView(
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(12.0),
-          child: Text("Rank vs Winnings", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-        ),
-        ...contest.winningBreakdown.map((tier) {
-            final start = tier['rankStart'];
-            final end = tier['rankEnd'];
-            final amount = tier['amount'];
-            final rankText = start == end ? "#$start" : "#$start - #$end";
-            
-            return Container(
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.black12)),
-                color: Colors.white,
+        return ListView(
+          children: [
+            // 🏆 MY TEAMS SECTION
+            if (myJoinedTeams.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 20, 16, 12),
+                child: Row(
+                  children: [
+                    Icon(Icons.stars, color: Colors.indigo, size: 20),
+                    SizedBox(width: 8),
+                    Text("MY JOINED TEAMS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, letterSpacing: 1.1, fontSize: 13)),
+                  ],
+                ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              leaderboardAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+                error: (err, _) => Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text("Rankings error: $err", style: const TextStyle(color: Colors.red, fontSize: 12)),
+                ),
+                data: (entries) {
+                  return Column(
+                    children: myJoinedTeams.map((myTeam) {
+                      // Match local team with Leaderboard data from D1
+                      final leaderEntry = entries.firstWhere(
+                        (e) => e['teamId'] == myTeam.teamId,
+                        orElse: () => <String, dynamic>{},
+                      );
+
+                      final rank = leaderEntry['rank'] ?? '-';
+                      final points = (leaderEntry['points'] ?? 0.0).toDouble();
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.indigo.withOpacity(0.1)),
+                        ),
+                        child: ListTile(
+                          onTap: () => _showTeamPitchView(context, ref, leaderEntry.isNotEmpty ? leaderEntry : {
+                            'teamId': myTeam.teamId,
+                            'teamName': myTeam.teamName,
+                            'userId': myTeam.userId,
+                            'points': 0.0,
+                          }),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          leading: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(color: Colors.indigo, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.indigo.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))]),
+                            alignment: Alignment.center,
+                            child: Text(
+                              rank.toString() == '-' ? '-' : "#$rank",
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ),
+                          title: Text(myTeam.teamName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          subtitle: Text("Entry: ${myTeam.entryFee.toStringAsFixed(0)} Coins"),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text("${points.toStringAsFixed(1)} pts", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 16)),
+                              const Text("View Team", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+              const Divider(height: 32),
+            ],
+
+            // 💰 PRIZE BREAKDOWN SECTION
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(rankText, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text("$amount Coins"),
+                  Icon(Icons.emoji_events_outlined, color: Colors.grey, size: 20),
+                  SizedBox(width: 8),
+                  Text("WINNING BREAKDOWN", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1, fontSize: 13)),
                 ],
               ),
-            );
-        }).toList(),
-        
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(
-            child: Text(
-              "Note: This is a projected breakdown.\nActual winnings may vary based on participation.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: Colors.grey[400]),
             ),
-          ),
-        )
-      ],
+            
+            if (contest.winningBreakdown.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Center(child: Text("Prize breakdown will be updated soon.", style: TextStyle(color: Colors.grey))),
+              )
+            else
+              ...contest.winningBreakdown.map((tier) {
+                final start = tier['rankStart'];
+                final end = tier['rankEnd'];
+                final amount = tier['amount'];
+                final rankText = start == end ? "#$start" : "#$start - #$end";
+                
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(rankText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text("₹$amount", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Center(
+                child: Text(
+                  "Note: Winnings are distributed manually by Admin after match completion.\nRanks & points are updated every 5 mins from D1.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 10, color: Colors.grey[400], height: 1.5),
+                ),
+              ),
+            )
+          ],
+        );
+      },
     );
   }
 
