@@ -52,15 +52,14 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     _resolvedMatchId = widget.matchId ?? widget.match?.id.toString();
     
     _contest = widget.contest;
-    if (_contest == null) {
-      _fetchContest();
-    }
+    // Always fetch once to ensure we have late-breaking D1 data (Breakdown, Prize Pool etc)
+    _fetchContest();
   }
 
   Future<void> _fetchContest() async {
     setState(() => _isLoading = true);
     try {
-      debugPrint("📡 [D1 Sync] Fetching contest: ${widget.contestId}");
+      debugPrint("📡 [D1 Only Sync] Fetching contest: ${widget.contestId}");
       final apiService = ref.read(rapidApiServiceProvider);
       final contestData = await apiService.fetchContestById(widget.contestId);
 
@@ -69,30 +68,18 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
            _contest = ContestModel.fromJson(contestData);
            _isLoading = false;
          });
-         debugPrint("✅ D1 → Synced contest ${widget.contestId}");
+         debugPrint("✅ D1 → Pure Sync success for contest ${widget.contestId}");
       } else {
-         // Fallback to Firestore (Best-effort for legacy or newly created private contests)
-         debugPrint("🔍 Fallback to Firestore for contest: ${widget.contestId}");
-         final doc = await FirebaseFirestore.instance
-             .collection('contests')
-             .doc(widget.contestId)
-             .get();
-
-         if (doc.exists) {
-            setState(() {
-              _contest = ContestModel.fromJson(doc.data()!);
-              _isLoading = false;
-            });
-         } else {
-            setState(() {
-              _error = "Contest not found";
-              _isLoading = false;
-            });
-         }
+         debugPrint("❌ D1 Fetch Failed for contest: ${widget.contestId}");
+         setState(() {
+           _error = "Contest details not available on Server. Please try again.";
+           _isLoading = false;
+         });
       }
     } catch (e) {
+      debugPrint("❌ Fatal Fetch Error: $e");
       setState(() {
-        _error = e.toString();
+        _error = "Sync Error: $e";
         _isLoading = false;
       });
     }
