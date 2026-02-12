@@ -95,9 +95,22 @@ class _AdminMatchContestsScreenState extends ConsumerState<AdminMatchContestsScr
                    child: ListTile(
                      title: Text("${contest.category} (₹${contest.entryFee})"),
                      subtitle: Text("Spots: ${contest.filledSpots}/${contest.totalSpots} | Pool: ₹${contest.prizePool}"),
-                     trailing: IconButton(
-                       icon: const Icon(Icons.delete, color: Colors.red),
-                       onPressed: () => _deleteContest(contest.id),
+                     trailing: Row(
+                       mainAxisSize: MainAxisSize.min,
+                       children: [
+                         TextButton.icon(
+                           icon: const Icon(Icons.monetization_on, color: Colors.orange),
+                           label: const Text("Review Payout", style: TextStyle(color: Colors.orange)),
+                           onPressed: () => context.push(
+                             '/admin/matches/${widget.matchId}/contests/${contest.id}/payout',
+                             extra: contest,
+                           ),
+                         ),
+                         IconButton(
+                           icon: const Icon(Icons.delete, color: Colors.red),
+                           onPressed: () => _deleteContest(contest.id),
+                         ),
+                       ],
                      ),
                    ),
                  );

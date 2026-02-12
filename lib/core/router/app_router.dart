@@ -381,6 +381,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                return AdminMatchContestsScreen(matchId: matchId, match: match);
             },
           ),
+          GoRoute(
+            path: '/admin/matches/:matchId/contests/:contestId/payout',
+            builder: (context, state) {
+              final matchId = state.pathParameters['matchId']!;
+              final contestId = state.pathParameters['contestId']!;
+              final contest = state.extra as ContestModel?;
+              return AdminPayoutLeaderboardScreen(
+                matchId: matchId,
+                contestId: contestId,
+                contest: contest,
+              );
+            },
+          ),
            GoRoute(
             path: '/admin/matches/:matchId/players',
             builder: (context, state) {
