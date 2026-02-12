@@ -28,15 +28,10 @@ class _AdminMatchContestsScreenState extends ConsumerState<AdminMatchContestsScr
   Future<void> _fetchContests() async {
     setState(() => _isLoading = true);
     try {
-      // Convert String matchId to int for Firestore query
-      final int matchIdInt = int.parse(widget.matchId);
+      // 📡 FETCH FROM D1 (Worker API) instead of Firestore
+      // Hindi: Ab contests bhi D1 se hi aayenge
+      final list = await ref.read(rapidApiServiceProvider).fetchContestsForMatch(widget.matchId);
       
-      final qs = await FirebaseFirestore.instance
-          .collection('contests')  // Root collection (same as user-side)
-          .where('matchId', isEqualTo: matchIdInt)
-          .get();
-      
-      final list = qs.docs.map((d) => ContestModel.fromJson(d.data())).toList();
       if(mounted) setState(() => _contests = list);
     } catch (e) {
       debugPrint("Error loading contests: $e");

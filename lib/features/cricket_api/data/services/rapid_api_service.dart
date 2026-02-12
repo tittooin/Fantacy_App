@@ -301,6 +301,41 @@ class RapidApiService {
       return {'success': false, 'error': e.toString()};
     }
   }
+
+  /// Endpoint 12: Fetch Contests for a Match (D1)
+  /// Hindi: D1 se kisi match ke saare contests laata hai
+  Future<List<ContestModel>> fetchContestsForMatch(String matchId) async {
+    try {
+      debugPrint("📡 [Worker] GET /api/match/contests?matchId=$matchId");
+      final response = await _dio.get('$_workerUrl/api/match/contests?matchId=$matchId');
+      
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> list = response.data['contests'] ?? [];
+        debugPrint("✅ Worker → Received ${list.length} contests from D1");
+        return list.map((c) => ContestModel.fromJson(c)).toList();
+      }
+    } catch (e) {
+      debugPrint("❌ Fetch Contests Error: $e");
+    }
+    return [];
+  }
+
+  /// Endpoint 13: Fetch Leaderboard for a Contest (D1)
+  /// Hindi: D1 se contest ki top rankings laata hai
+  Future<List<Map<String, dynamic>>> fetchLeaderboard(String contestId) async {
+    try {
+      debugPrint("📡 [Worker] GET /api/contests/$contestId/leaderboard");
+      final response = await _dio.get('$_workerUrl/api/contests/$contestId/leaderboard');
+      
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> list = response.data['leaderboard'] ?? [];
+        return List<Map<String, dynamic>>.from(list);
+      }
+    } catch (e) {
+      debugPrint("❌ Fetch Leaderboard Error: $e");
+    }
+    return [];
+  }
 }
 
 /// Provider: RapidApiService ka instance
