@@ -103,19 +103,12 @@ class LandingPageContent extends StatelessWidget {
                         children: [
                           const Icon(Icons.android, color: Color(0xFF2EA7FF), size: 32), // Bigger icon
                           const SizedBox(width: 16), // Increased gap
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text("Download Axevora11 App", 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900, 
-                                  color: Color(0xFF0B1E3C), // Darker text for contrast
-                                  fontSize: 20,
-                                )),
-                              Text("v1.0.0 • Size: 18MB", 
-                                style: TextStyle(color: Colors.blueGrey.shade700, fontSize: 13, fontWeight: FontWeight.w600)),
-                            ],
-                          )
+                          const Text("Download Axevora11 App", 
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900, 
+                              color: Color(0xFF0B1E3C), // Darker text for contrast
+                              fontSize: 20,
+                            )),
                         ],
                       ),
                     ),
