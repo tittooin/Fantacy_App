@@ -353,6 +353,22 @@ class RapidApiService {
     }
     return [];
   }
+
+  /// Endpoint 15: Fetch Single Contest (D1)
+  /// Hindi: D1 se ek specific contest ki details laata hai
+  Future<Map<String, dynamic>?> fetchContestById(String contestId) async {
+    try {
+      debugPrint("📡 [Worker] GET /api/contest?contestId=$contestId");
+      final response = await _dio.get('$_workerUrl/api/contest?contestId=$contestId');
+      
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['contest'];
+      }
+    } catch (e) {
+      debugPrint("❌ Fetch Contest Error: $e");
+    }
+    return null;
+  }
 }
 
 /// Provider: RapidApiService ka instance

@@ -195,6 +195,11 @@ export default {
             if (!matchId) return jsonResponse({ success: false, error: 'matchId required' }, 400);
             return handleGetContests(matchId, env);
         }
+        if (path === '/api/contest') {
+            const contestId = url.searchParams.get('contestId');
+            if (!contestId) return jsonResponse({ success: false, error: 'contestId required' }, 400);
+            return handleGetContestById(contestId, env);
+        }
         if (path === '/api/user/contests') {
             const userId = url.searchParams.get('userId');
             if (!userId) return jsonResponse({ success: false, error: 'userId required' }, 400);
@@ -492,6 +497,32 @@ async function handleAdminCreateContest(request, env) {
         return jsonResponse({ success: true, message: 'Contest Created in D1' });
     } catch (e) {
         console.error("D1 Create Contest Error:", e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+async function handleGetContestById(contestId, env) {
+    try {
+        const contest = await env.DB.prepare(
+            "SELECT * FROM contests WHERE id = ?"
+        ).bind(contestId).first();
+
+        if (!contest) return jsonResponse({ success: false, error: 'Contest not found' }, 404);
+
+        const formatted = {
+            ...contest,
+            matchId: contest.match_id,
+            entryFee: contest.entry_fee,
+            totalSpots: contest.total_spots,
+            filledSpots: contest.filled_spots,
+            prizePool: contest.prize_pool,
+            isGuaranteed: !!contest.is_guaranteed,
+            isFlexible: !!contest.is_flexible,
+            winningBreakdown: JSON.parse(contest.winning_breakdown || '[]')
+        };
+
+        return jsonResponse({ success: true, contest: formatted });
+    } catch (e) {
         return jsonResponse({ success: false, error: e.message }, 500);
     }
 }

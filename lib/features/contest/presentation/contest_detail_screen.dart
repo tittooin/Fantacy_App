@@ -58,30 +58,37 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
   }
 
   Future<void> _fetchContest() async {
-    final mId = (widget.match?.id ?? widget.matchId)?.toString();
-    if (mId == null) {
-      setState(() => _error = "Match ID missing");
-      return;
-    }
-
     setState(() => _isLoading = true);
     try {
-      debugPrint("🔍 Finding contest in root collection: ${widget.contestId}");
-      final doc = await FirebaseFirestore.instance
-          .collection('contests')
-          .doc(widget.contestId)
-          .get();
+      debugPrint("📡 [D1 Sync] Fetching contest: ${widget.contestId}");
+      final apiService = ref.read(rapidApiServiceProvider);
+      final contestData = await apiService.fetchContestById(widget.contestId);
 
-      if (doc.exists) {
+      if (contestData != null) {
          setState(() {
-           _contest = ContestModel.fromJson(doc.data()!);
+           _contest = ContestModel.fromJson(contestData);
            _isLoading = false;
          });
+         debugPrint("✅ D1 → Synced contest ${widget.contestId}");
       } else {
-         setState(() {
-           _error = "Contest not found";
-           _isLoading = false;
-         });
+         // Fallback to Firestore (Best-effort for legacy or newly created private contests)
+         debugPrint("🔍 Fallback to Firestore for contest: ${widget.contestId}");
+         final doc = await FirebaseFirestore.instance
+             .collection('contests')
+             .doc(widget.contestId)
+             .get();
+
+         if (doc.exists) {
+            setState(() {
+              _contest = ContestModel.fromJson(doc.data()!);
+              _isLoading = false;
+            });
+         } else {
+            setState(() {
+              _error = "Contest not found";
+              _isLoading = false;
+            });
+         }
       }
     } catch (e) {
       setState(() {

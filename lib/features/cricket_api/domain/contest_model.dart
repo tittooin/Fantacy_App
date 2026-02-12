@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'contest_model.freezed.dart';
@@ -47,9 +48,20 @@ abstract class ContestModel with _$ContestModel {
       category: (json['category'] ?? 'Contest').toString(),
       isGuaranteed: (json['isGuaranteed'] ?? json['is_guaranteed'] == 1 || json['is_guaranteed'] == true) as bool? ?? false,
       isFlexible: (json['isFlexible'] ?? json['is_flexible'] == 1 || json['is_flexible'] == true) as bool? ?? false,
-      winningBreakdown: ((json['winningBreakdown'] ?? json['winning_breakdown'] ?? []) as List<dynamic>)
-          .map((e) => e as Map<String, dynamic>)
-          .toList(),
+      winningBreakdown: () {
+        final raw = json['winningBreakdown'] ?? json['winning_breakdown'] ?? [];
+        if (raw is String && raw.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(raw);
+            if (decoded is List) return List<Map<String, dynamic>>.from(decoded);
+          } catch (e) {
+            print("❌ Error parsing winningBreakdown JSON: $e");
+          }
+        } else if (raw is List) {
+          return raw.map((e) => e as Map<String, dynamic>).toList();
+        }
+        return <Map<String, dynamic>>[];
+      }(),
       createdAt: createdAt,
     );
   }
