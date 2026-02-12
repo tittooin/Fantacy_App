@@ -77,7 +77,7 @@ class RapidApiService {
         if (data['success'] == true && data['matches'] != null) {
           final List<dynamic> list = data['matches'];
           debugPrint("✅ Worker → Received ${list.length} matches from Firestore");
-          return list.map((m) => CricketMatchModel.fromJson(m)).toList();
+          return list.map((m) => CricketMatchModel.fromMap(m)).toList();
         }
       }
     } catch (e) {
