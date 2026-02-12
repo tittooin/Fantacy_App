@@ -68,42 +68,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Future<void> _fetchMatches() async {
-    setState(() { _isLoading = true; _matches = []; }); // clear old data to show loading/empty
+    setState(() { _isLoading = true; _matches = []; });
     try {
-      Query query = FirebaseFirestore.instance.collection('matches');
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
-
-      if (_selectedTab == 0) {
-         // Live: Matches status is Live or In Progress
-         query = query.where('status', whereIn: ['Live', 'In Progress', 'Live ']); // Added 'Live ' just in case of whitespace
-      } else if (_selectedTab == 1) {
-         // Upcoming: status is Upcoming AND startDate >= now. 
-         // ORDER BY startDate ASC (Nearest first)
-         query = query.where('status', isEqualTo: 'Upcoming')
-                      .where('startDate', isGreaterThan: now)
-                      .orderBy('startDate', descending: false);
-      } else if (_selectedTab == 2) {
-         // Completed: status in [Completed, Finished] AND recent
-         // ORDER BY startDate DESC (Most recent first)
-         query = query.where('status', whereIn: ['Completed', 'Finished', 'Abandoned'])
-                      .where('startDate', isGreaterThan: thirtyDaysAgo)
-                      .orderBy('startDate', descending: true);
-      } else {
-         // Archive: status is ARCHIVED Or very old
-         // Just fetch 'ARCHIVED' explicitly for now to be safe
-         query = query.where('status', isEqualTo: 'ARCHIVED')
-                      .limit(20);
-      }
+      // 📡 FETCH FROM D1 (Worker API) instead of Firestore
+      // Hindi: Ab Firestore quota bachane ke liye D1/Worker use kar rahe hain
+      final list = await ref.read(rapidApiServiceProvider).fetchMatches();
       
-      final qs = await query.limit(50).get();
-      final list = qs.docs.map((d) => CricketMatchModel.fromMap(d.data() as Map<String, dynamic>)).toList();
-      
-      if(mounted) setState(() => _matches = list);
+      if(mounted) setState(() {
+         _matches = list;
+         _isLoading = false;
+      });
     } catch (e) {
       debugPrint("Error fetching matches: $e");
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-    } finally {
       if(mounted) setState(() => _isLoading = false);
     }
   }
@@ -287,7 +263,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   children: [
                      _buildTabBtn("Live", 0, color: Colors.red),
                      _buildTabBtn("Upcoming", 1, color: Colors.blue),
-                     _buildTabBtn("Completed (7d)", 2, color: Colors.green),
+                     _buildTabBtn("Completed (30d)", 2, color: Colors.green),
                      _buildTabBtn("Archive", 3, color: Colors.grey),
                   ],
                 ),
