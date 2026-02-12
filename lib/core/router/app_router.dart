@@ -13,6 +13,7 @@ import 'package:axevora11/features/admin/presentation/admin_match_contests_scree
 import 'package:axevora11/features/admin/presentation/admin_players_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_manage_squad_screen.dart'; // Added
 import 'package:axevora11/features/admin/presentation/admin_voucher_screen.dart'; // Added
+import 'package:axevora11/features/admin/presentation/admin_payout_leaderboard_screen.dart'; // Added
 import 'package:axevora11/features/legal/presentation/contact_us_screen.dart';
 import 'package:axevora11/features/legal/presentation/faq_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';

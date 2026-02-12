@@ -72,7 +72,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     try {
       Query query = FirebaseFirestore.instance.collection('matches');
       final now = DateTime.now().millisecondsSinceEpoch;
-      final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+      final thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
 
       if (_selectedTab == 0) {
          // Live: Matches status is Live or In Progress
@@ -87,7 +87,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
          // Completed: status in [Completed, Finished] AND recent
          // ORDER BY startDate DESC (Most recent first)
          query = query.where('status', whereIn: ['Completed', 'Finished', 'Abandoned'])
-                      .where('startDate', isGreaterThan: sevenDaysAgo)
+                      .where('startDate', isGreaterThan: thirtyDaysAgo)
                       .orderBy('startDate', descending: true);
       } else {
          // Archive: status is ARCHIVED Or very old
@@ -339,20 +339,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget _buildFilteredList() {
       // Logic: Filter client-side based on the 'Strict Rules'
       final now = DateTime.now().millisecondsSinceEpoch;
-      final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+      final thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
 
       final filtered = _matches.where((m) {
-          // Strict Filter Logic
-          final majorKeywords = [
-             'IPL', 'Indian Premier League', 
-             'World Cup', 'T20 World Cup', '2026'
-          ];
-          bool isMajor = false;
-          final title = m.seriesName.toLowerCase();
-          for (final k in majorKeywords) {
-             if (title.contains(k.toLowerCase())) { isMajor = true; break; }
-          }
-          if (!isMajor) return false;
+          // REMOVED: majorKeywords restriction to show ALL matches imported.
+          // Hindi: Ab saare matches dikhenge, sirf IPL/World Cup nahi.
 
           final isLive = m.status == 'Live' || m.status == 'In Progress';
           final isFinished = m.status == 'Completed' || m.status == 'Finished' || m.status == 'Abandoned';
@@ -368,13 +359,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           }
           // 2. Completed (Recent)
           if (_selectedTab == 2) {
-             final isRecent = m.startDate > sevenDaysAgo && m.startDate <= now;
+             final isRecent = m.startDate > thirtyDaysAgo && m.startDate <= now;
              return !m.isArchived && isFinished && isRecent;
           }
           // 3. Archive
           if (_selectedTab == 3) {
              if (m.isArchived) return true;
-             final isOld = m.startDate <= sevenDaysAgo;
+             final isOld = m.startDate <= thirtyDaysAgo;
              final isStaleUpcoming = m.status == 'Upcoming' && m.startDate <= now;
              return isOld || isStaleUpcoming;
           }
@@ -498,8 +489,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
                       icon: const Icon(Icons.monetization_on, size: 16),
-                      onPressed: () => _confirmAndDistribute(context, match), 
-                      label: const Text("Distribute Prizes"),
+                      onPressed: () => context.push('/admin/matches/${match.id}/contests', extra: match), 
+                      label: const Text("View Contests for Payout"),
                     ),
                  ],
 
