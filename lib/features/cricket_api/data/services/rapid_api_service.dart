@@ -324,8 +324,8 @@ class RapidApiService {
   /// Hindi: D1 se contest ki top rankings laata hai
   Future<List<Map<String, dynamic>>> fetchLeaderboard(String contestId) async {
     try {
-      debugPrint("📡 [Worker] GET /api/contests/$contestId/leaderboard");
-      final response = await _dio.get('$_workerUrl/api/contests/$contestId/leaderboard');
+      debugPrint("📡 [Worker] GET /api/leaderboard?contestId=$contestId");
+      final response = await _dio.get('$_workerUrl/api/leaderboard?contestId=$contestId');
       
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List<dynamic> list = response.data['leaderboard'] ?? [];
@@ -333,6 +333,23 @@ class RapidApiService {
       }
     } catch (e) {
       debugPrint("❌ Fetch Leaderboard Error: $e");
+    }
+    return [];
+  }
+
+  /// Endpoint 14: Fetch User Joined Contests (D1)
+  /// Hindi: D1 se user ke saare joined contests laata hai
+  Future<List<Map<String, dynamic>>> fetchUserJoinedContests(String userId) async {
+    try {
+      debugPrint("📡 [Worker] GET /api/user/contests?userId=$userId");
+      final response = await _dio.get('$_workerUrl/api/user/contests?userId=$userId');
+      
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> list = response.data['contests'] ?? [];
+        return List<Map<String, dynamic>>.from(list);
+      }
+    } catch (e) {
+      debugPrint("❌ Fetch User Contests Error: $e");
     }
     return [];
   }

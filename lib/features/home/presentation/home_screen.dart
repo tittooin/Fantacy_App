@@ -258,8 +258,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   final startTime = m['startDate'] ?? m['start_time'] ?? 0;
                   final date = DateTime.fromMillisecondsSinceEpoch(startTime);
                   
-                  final status = m['status'] ?? 'Upcoming';
-                  final isLive = status == 'Live' || status == 'In Progress';
+                  final isJoined = joinedMatchIds.contains(id);
 
                   return MatchCard(
                     id: id,
@@ -271,6 +270,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     date: date,
                     status: status,
                     isLive: isLive,
+                    isJoined: isJoined,
                     onPrivateContest: () {
                        context.push('/match/$id/create-private-contest', extra: m);
                     },
@@ -639,7 +639,7 @@ class MatchCard extends StatelessWidget {
   final String seriesName;
   final DateTime date;
   final String status;
-  final bool isLive;
+  final bool isJoined;
   
   final VoidCallback onPrivateContest;
   final VoidCallback onTap;
@@ -655,6 +655,7 @@ class MatchCard extends StatelessWidget {
     required this.date,
     required this.status,
     required this.isLive,
+    this.isJoined = false,
     required this.onPrivateContest, 
     required this.onTap
   });
@@ -683,10 +684,28 @@ class MatchCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
-                  child: Text(seriesName, style: TextStyle(fontSize: 9, color: Colors.grey[800], fontWeight: FontWeight.bold, letterSpacing: 0.5), overflow: TextOverflow.ellipsis),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
+                      child: Text(seriesName, style: TextStyle(fontSize: 9, color: Colors.grey[800], fontWeight: FontWeight.bold, letterSpacing: 0.5), overflow: TextOverflow.ellipsis),
+                    ),
+                    if (isJoined) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.green.withOpacity(0.2))),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.green, size: 10),
+                            SizedBox(width: 4),
+                            Text("JOINED", style: TextStyle(fontSize: 8, color: Colors.green, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ]
+                  ],
                 ),
                 const Icon(Icons.notifications_none, size: 14, color: Colors.grey),
               ],

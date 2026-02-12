@@ -41,20 +41,35 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
     }
   }
 
+  // Hindi: D1 se joined contests fetch karta hai
   Future<void> _fetchJoinedContests() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      final snapshot = await FirebaseFirestore.instance
-          .collection('user_contests')
-          .where('userId', isEqualTo: user.uid)
-          .get();
+      final apiService = ref.read(rapidApiServiceProvider);
+      final list = await apiService.fetchUserJoinedContests(user.uid);
 
-      final contests = snapshot.docs.map((doc) => UserContestEntity.fromMap(doc.data())).toList();
+      // Convert D1 Map results to UserContestEntity
+      final contests = list.map((json) {
+         return UserContestEntity(
+            id: json['id']?.toString() ?? '',
+            userId: json['user_id']?.toString() ?? user.uid,
+            contestId: json['contest_id']?.toString() ?? '',
+            matchId: json['match_id']?.toString() ?? '',
+            teamId: json['team_id']?.toString() ?? '',
+            teamName: json['team_name']?.toString() ?? 'User Team',
+            entryFee: (json['entry_fee'] ?? 0).toDouble(),
+            joinedAt: DateTime.fromMillisecondsSinceEpoch(json['joined_at'] ?? DateTime.now().millisecondsSinceEpoch),
+            contestName: json['match_title'] ?? 'Contest', // Match title shared in join
+            transactionId: '',
+         );
+      }).toList();
+
       state = contests;
+      debugPrint("✅ D1 → Synced ${contests.length} joined contests for User");
     } catch (e) {
-      print("Error fetching joined contests: $e");
+      debugPrint("❌ Error fetching joined contests from D1: $e");
     }
   }
 
