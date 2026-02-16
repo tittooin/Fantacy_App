@@ -61,9 +61,13 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
   @override
   void initState() {
     super.initState();
-    debugPrint("🏗️ TeamBuilderScreen INIT");
-    _activeMatch = widget.match; // Initialize with passed data
-    _loadData();
+    debugPrint("🏗️ TeamBuilderScreen INIT called - ${DateTime.now()}");
+    _activeMatch = widget.match; 
+    
+    // Force Fetch
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
@@ -71,14 +75,21 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
     final fetched = await ref.read(d1PlayerServiceProvider).getPlayers(widget.match.id.toString());
     
     // VERIFICATION STEP 1: LOG COUNTS
-    int wk=0, bat=0, ar=0, bowl=0;
-    for(var p in fetched) {
-      if(p.role == PlayerRole.wicketKeeper) wk++;
-      if(p.role == PlayerRole.batsman) bat++;
-      if(p.role == PlayerRole.allRounder) ar++;
-      if(p.role == PlayerRole.bowler) bowl++;
-    }
-    debugPrint("📊 ROLE COUNTS: WK=$wk, BAT=$bat, AR=$ar, BOWL=$bowl");
+    final wkList = fetched.where((p) => p.role == PlayerRole.wicketKeeper).toList();
+    final batList = fetched.where((p) => p.role == PlayerRole.batsman).toList();
+    final arList = fetched.where((p) => p.role == PlayerRole.allRounder).toList();
+    final bowlList = fetched.where((p) => p.role == PlayerRole.bowler).toList();
+
+    debugPrint("📊 DATA FOR UI:");
+    debugPrint("   Total Fetched: ${fetched.length}");
+    debugPrint("   WK Count: ${wkList.length}");
+    debugPrint("   BAT Count: ${batList.length}");
+    debugPrint("   AR Count: ${arList.length}");
+    debugPrint("   BOWL Count: ${bowlList.length}");
+    
+    // Sample check
+    if (batList.isNotEmpty) debugPrint("   Sample BAT: ${batList.first.name} (${batList.first.role})");
+    if (bowlList.isNotEmpty) debugPrint("   Sample BOWL: ${bowlList.first.name} (${bowlList.first.role})");
     
     if (mounted) {
        setState(() {

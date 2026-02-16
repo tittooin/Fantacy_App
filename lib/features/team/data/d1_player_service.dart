@@ -39,20 +39,38 @@ class D1PlayerService {
             return double.tryParse(val.toString()) ?? 0.0;
           }
 
-          // TRUST BACKEND NORMALIZATION + EXTRA SAFETY FOR UI
-          PlayerRole parseRole(dynamic r) {
-            final roleStr = (r ?? 'BAT').toString().toUpperCase();
-            if (roleStr == 'WK' || roleStr.contains('WICKET') || roleStr.contains('KEEPER')) return PlayerRole.wicketKeeper;
-            if (roleStr == 'BAT' || roleStr.contains('BATS')) return PlayerRole.batsman;
-            if (roleStr == 'AR' || roleStr.contains('ALL') || roleStr.contains('ROUND')) return PlayerRole.allRounder;
-             if (roleStr == 'BOWL' || roleStr.contains('BOWL')) return PlayerRole.bowler;
-            return PlayerRole.batsman; // Fallback
+          // STRICT PARSING LOGIC - NO FALLBACKS
+          PlayerRole parseRole(dynamic r, String playerId) {
+            final raw = r?.toString().trim().toUpperCase() ?? '';
+            PlayerRole result;
+            
+            if (raw == 'WK' || raw == 'WICKETKEEPER' || raw == 'WICKET KEEPER') {
+              result = PlayerRole.wicketKeeper;
+            } else if (raw == 'BAT' || raw == 'BATSMAN') {
+               result = PlayerRole.batsman;
+            } else if (raw == 'AR' || raw == 'ALLROUNDER' || raw == 'ALL ROUNDER') {
+               result = PlayerRole.allRounder;
+            } else if (raw == 'BOWL' || raw == 'BOWLER') {
+               result = PlayerRole.bowler;
+            } else {
+               // LOG ERROR FOR UNKNOWN ROLE
+               print("❌ ROLE PARSE ERROR: ID=$playerId, RawRole='$raw' -> Defaulting to UNKNOWN");
+               return PlayerRole.unknown; 
+            }
+            
+            print("✅ ROLE PARSED: ID=$playerId, Raw='$raw', Enum=${result.displayStr}");
+            return result;
           }
           
-          final roleEnum = parseRole(json['role']);
-
           final id = (json['id'] ?? json['player_id'] ?? '').toString();
           if (id.isEmpty) continue;
+
+          final roleEnum = parseRole(json['role'], id);
+          
+          if (roleEnum == PlayerRole.unknown) {
+             print("⚠️ SKIPPING PLAYER due to Unknown Role: ID=$id Name=${json['name']}");
+             continue; // Strict: Don't show players with broken roles
+          }
 
           final player = PlayerModel(
             id: id,
