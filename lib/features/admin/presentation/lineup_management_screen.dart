@@ -60,7 +60,7 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
   }
 
   List<PlayerModel> _sortPlayersByRole(List<PlayerModel> players) {
-    const roleOrder = {'WK': 0, 'BAT': 1, 'AR': 2, 'BOWL': 3};
+    const roleOrder = {PlayerRole.wicketKeeper: 0, PlayerRole.batsman: 1, PlayerRole.allRounder: 2, PlayerRole.bowler: 3, PlayerRole.unknown: 4};
     players.sort((a, b) {
       int roleA = roleOrder[a.role] ?? 99;
       int roleB = roleOrder[b.role] ?? 99;
@@ -310,8 +310,8 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
           value: isSelected,
           onChanged: (val) => _toggleSelection(player.id),
           title: Text(player.name),
-          subtitle: Text(player.role),
-          secondary: CircleAvatar(child: Text(player.role[0])),
+          subtitle: Text(player.role.displayStr),
+          secondary: CircleAvatar(child: Text(player.role.displayStr.substring(0, 1))),
         );
       },
     );

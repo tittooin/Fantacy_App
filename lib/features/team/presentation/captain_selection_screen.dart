@@ -127,7 +127,7 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(color: Colors.blueGrey, borderRadius: BorderRadius.circular(2)),
-                        child: Text(player.role, style: const TextStyle(fontSize: 8, color: Colors.white)),
+                        child: Text(player.role.displayStr, style: const TextStyle(fontSize: 8, color: Colors.white)),
                       ),
                     )
                   ],
@@ -143,7 +143,7 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
                         children: [
                           if (player.teamShortName != null)
                             Text("${player.teamShortName}  •  ", style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                          Text(player.role, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                          Text(player.role.displayStr, style: const TextStyle(color: Colors.white70, fontSize: 11)),
                         ],
                       ),
                       Text("${player.points} pts", style: const TextStyle(color: Colors.grey, fontSize: 11)),

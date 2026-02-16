@@ -102,7 +102,13 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
     }
   }
 
-  // ... (isTeam1 kept same) ...
+  bool _isTeam1(PlayerModel player) {
+    if (player.teamId != null && _activeMatch?.team1Id != null) {
+      return player.teamId == _activeMatch!.team1Id;
+    }
+    // Fallback to name/shortname matching if IDs missing
+    return player.teamShortName == _activeMatch?.team1ShortName;
+  }
 
   void _toggleSelection(PlayerModel player) {
     setState(() {

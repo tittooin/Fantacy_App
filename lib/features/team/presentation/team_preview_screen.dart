@@ -29,10 +29,10 @@ class TeamPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Categorize players
-    final wk = selectedPlayers.where((p) => p.role == 'WK').toList();
-    final bat = selectedPlayers.where((p) => p.role == 'BAT').toList();
-    final ar = selectedPlayers.where((p) => p.role == 'AR').toList();
-    final bowl = selectedPlayers.where((p) => p.role == 'BOWL').toList();
+    final wk = selectedPlayers.where((p) => p.role == PlayerRole.wicketKeeper).toList();
+    final bat = selectedPlayers.where((p) => p.role == PlayerRole.batsman).toList();
+    final ar = selectedPlayers.where((p) => p.role == PlayerRole.allRounder).toList();
+    final bowl = selectedPlayers.where((p) => p.role == PlayerRole.bowler).toList();
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -154,7 +154,7 @@ class TeamPreviewScreen extends StatelessWidget {
                    borderRadius: BorderRadius.circular(4),
                  ),
                  child: Text(
-                   player.role, 
+                   player.role.displayStr, 
                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)
                  ),
                ),

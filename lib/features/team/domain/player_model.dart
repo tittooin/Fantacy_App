@@ -11,7 +11,17 @@ enum PlayerRole {
   @JsonValue('BAT') batsman,
   @JsonValue('AR') allRounder,
   @JsonValue('BOWL') bowler,
-  @JsonValue('UNKNOWN') unknown
+  @JsonValue('UNKNOWN') unknown;
+
+  String get displayStr {
+    switch (this) {
+      case PlayerRole.wicketKeeper: return 'WK';
+      case PlayerRole.batsman: return 'BAT';
+      case PlayerRole.allRounder: return 'AR';
+      case PlayerRole.bowler: return 'BOWL';
+      case PlayerRole.unknown: return 'UNK';
+    }
+  }
 }
 
 @freezed
