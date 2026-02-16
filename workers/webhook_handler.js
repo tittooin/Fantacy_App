@@ -1,6 +1,6 @@
 
 // workers/webhook_handler.js
-import { getFromFirestore, saveToFirestore } from './index.js'; // Assuming we export these or moving them to shared
+// workers/webhook_handler.js
 
 // Helper to verify signature (Web Crypto API for Cloudflare Workers)
 async function verifySignature(ts, body, signature, secret) {

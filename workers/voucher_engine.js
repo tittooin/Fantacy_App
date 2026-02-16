@@ -33,28 +33,30 @@ export async function handleVoucherRequest(request, env) {
             return jsonResponse({ error: 'Insufficient Winning Credits' }, 402);
         }
 
-        // 2. Deduct Winning Credits (D1 Only)
-        // We use a transaction or just sequential updates. D1 batch/transaction is better for consistency but simple update is fine for now as per "simple system" rule.
-        // Actually, let's verify update success.
+        // 2. Atomic Batch: Deduction, Request Insert, Transaction Insert
+        const reqId = `vr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        const statements = [
+            env.DB.prepare(`
+                UPDATE users SET winning_credits = winning_credits - ? 
+                WHERE id = ? AND winning_credits >= ?
+            `).bind(credits, userId, credits),
+            env.DB.prepare(`
+                INSERT INTO voucher_requests (id, user_id, brand, credits, status, created_at)
+                VALUES (?, ?, ?, ?, 'pending', ?)
+            `).bind(reqId, userId, brand, credits, Date.now()),
+            env.DB.prepare(`
+                INSERT INTO transactions (id, user_id, type, amount, created_at, status)
+                VALUES (?, ?, 'voucher_request', ?, ?, 'pending')
+            `).bind(reqId, userId, credits, Date.now())
+        ];
 
-        const result = await env.DB.prepare(`
-            UPDATE users SET winning_credits = winning_credits - ? 
-            WHERE id = ? AND winning_credits >= ?
-        `).bind(credits, userId, credits).run();
+        const results = await env.DB.batch(statements);
 
-        if (result.meta.changes === 0) {
+        if (results[0].meta.changes === 0) {
             return jsonResponse({ error: 'Deduction failed (Balance changed or User not found)' }, 409);
         }
 
-        // 3. Create Pending Request in D1
-        const reqId = `vr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-        await env.DB.prepare(`
-            INSERT INTO voucher_requests (id, user_id, brand, credits, status, created_at)
-            VALUES (?, ?, ?, ?, 'pending', ?)
-        `).bind(reqId, userId, brand, credits, Date.now()).run();
-
-        return jsonResponse({ success: true, message: 'Request Submitted' });
+        return jsonResponse({ success: true, message: 'Request Submitted', requestId: reqId });
 
     } catch (e) {
         return jsonResponse({ error: e.message }, 500);
@@ -104,30 +106,41 @@ export async function handleAdminApproveVoucher(request, env) {
         if (action === 'approve') {
             if (!code) return jsonResponse({ error: 'Voucher Code Required' }, 400);
 
-            await env.DB.prepare(`
-                UPDATE voucher_requests 
-                SET status = 'approved', voucher_code = ?, approved_at = ?
-                WHERE id = ?
-             `).bind(code, Date.now(), requestId).run();
+            // Atomic: Request Update + Transaction Update
+            const statements = [
+                env.DB.prepare(`
+                    UPDATE voucher_requests 
+                    SET status = 'approved', voucher_code = ?, approved_at = ?
+                    WHERE id = ? AND status = 'pending'
+                `).bind(code, Date.now(), requestId),
+                env.DB.prepare("UPDATE transactions SET status = 'success' WHERE id = ?")
+                    .bind(requestId)
+            ];
+
+            const results = await env.DB.batch(statements);
+            if (results[0].meta.changes === 0) return jsonResponse({ error: 'ALREADY_PROCESSED' }, 409);
 
             return jsonResponse({ success: true, message: 'Voucher Approved' });
         }
         else if (action === 'reject') {
             // 1. Get Request details
-            const req = await env.DB.prepare("SELECT user_id, credits FROM voucher_requests WHERE id = ?").bind(requestId).first();
-            if (!req) return jsonResponse({ error: 'Request not found' }, 404);
+            const req = await env.DB.prepare("SELECT user_id, credits FROM voucher_requests WHERE id = ? AND status = 'pending'").bind(requestId).first();
+            if (!req) return jsonResponse({ error: 'Request not found or already processed' }, 404);
 
-            // 2. Refund to D1 Winning Credits
-            await env.DB.prepare(`
-                UPDATE users SET winning_credits = winning_credits + ? WHERE id = ?
-            `).bind(req.credits, req.user_id).run();
+            // 2. Atomic: Refund User + Update Request + Update Transaction
+            const statements = [
+                env.DB.prepare("UPDATE users SET winning_credits = winning_credits + ? WHERE id = ?").bind(req.credits, req.user_id),
+                env.DB.prepare(`
+                    UPDATE voucher_requests 
+                    SET status = 'rejected', approved_at = ?
+                    WHERE id = ? AND status = 'pending'
+                 `).bind(Date.now(), requestId),
+                env.DB.prepare("UPDATE transactions SET status = 'rejected' WHERE id = ?")
+                    .bind(requestId)
+            ];
 
-            // 3. Update Status
-            await env.DB.prepare(`
-                UPDATE voucher_requests 
-                SET status = 'rejected', approved_at = ?
-                WHERE id = ?
-             `).bind(Date.now(), requestId).run();
+            const results = await env.DB.batch(statements);
+            if (results[1].meta.changes === 0) return jsonResponse({ error: 'ALREADY_PROCESSED' }, 409);
 
             return jsonResponse({ success: true, message: 'Request Rejected & Refunded' });
         }

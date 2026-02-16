@@ -10,8 +10,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class TeamBuilderScreen extends ConsumerStatefulWidget {
   final CricketMatchModel match;
   final List<PlayerModel>? initialPlayers; // For Editing
+  final String? existingTeamId;
+  final String? existingTeamName;
 
-  const TeamBuilderScreen({super.key, required this.match, this.initialPlayers});
+  const TeamBuilderScreen({
+    super.key, 
+    required this.match, 
+    this.initialPlayers,
+    this.existingTeamId,
+    this.existingTeamName,
+  });
 
   @override
   ConsumerState<TeamBuilderScreen> createState() => _TeamBuilderScreenState();
@@ -51,29 +59,18 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint("🏗️ TeamBuilderScreen INIT");
+    debugPrint("   - Match ID: ${widget.match.id}");
+    debugPrint("   - Match ID Type: ${widget.match.id.runtimeType}");
+    debugPrint("   - Team 1: ${widget.match.team1ShortName}");
+    debugPrint("   - Team 2: ${widget.match.team2ShortName}");
+    
     _activeMatch = widget.match; // Initialize with passed data
     _loadData();
   }
 
   Future<void> _loadData() async {
-    // NOTE: We removed the Firestore auto-sync step here because we now use D1 database exclusively.
-    // Squad data is managed by Cloudflare Workers and stored in D1, not Firestore.
-    // The Worker API automatically syncs squad data when needed.
-
-    // 1. Fetch Fresh Match Data to ensure ShortNames are correct
-    try {
-      final doc = await FirebaseFirestore.instance.collection('matches').doc(widget.match.id.toString()).get();
-      if (doc.exists && doc.data() != null) {
-        setState(() {
-           _activeMatch = CricketMatchModel.fromMap(doc.data()!);
-        });
-        debugPrint("✅ Fresh Match Data: ${_activeMatch?.team1ShortName} vs ${_activeMatch?.team2ShortName}");
-      }
-    } catch (e) {
-      debugPrint("⚠️ Failed to refresh match data: $e");
-    }
-
-    // 2. Load Players from D1 (Cloudflare Worker)
+    // 1. Load Players from D1 (Cloudflare Worker)
     final fetched = await ref.read(d1PlayerServiceProvider).getPlayers(widget.match.id.toString());
     
     // DEBUG: Print first few players to verify teamShortName and imageUrl
@@ -429,6 +426,8 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
             title: Text(player.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
              subtitle: Row(
                children: [
+                 Text("Sel: ${player.fantasyRating.toStringAsFixed(0)}%", style: const TextStyle(fontSize: 10, color: Colors.amberAccent)), // NEW Rating
+                 const SizedBox(width: 8),
                  Text("${player.points} pts", style: const TextStyle(fontSize: 10, color: Colors.grey)),
                  if (isPlaying) ...[
                     const SizedBox(width: 8),
@@ -485,6 +484,10 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
                      'players': selectedPlayers,
                      'team1Name': widget.match.team1ShortName,
                      'team2Name': widget.match.team2ShortName,
+                     'isEditMode': true,
+                     'match': widget.match,
+                     'existingTeamId': widget.existingTeamId,
+                     'existingTeamName': widget.existingTeamName,
                    });
                 }, 
                 style: OutlinedButton.styleFrom(
@@ -505,7 +508,12 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
                   if (_bowlCount < minBOWL || _bowlCount > maxBOWL) { _showError("Select $minBOWL-$maxBOWL Bowlers"); return; }
 
                   final selectedPlayers = _allPlayers.where((p) => _selectedIds.contains(p.id)).toList();
-                  context.push('/match/${widget.match.id}/create-team/captain', extra: selectedPlayers);
+                  debugPrint("TeamBuilder Debug: Passing existingTeamId to Captain: ${widget.existingTeamId}");
+                  context.push('/match/${widget.match.id}/create-team/captain', extra: {
+                    'players': selectedPlayers,
+                    'existingTeamId': widget.existingTeamId,
+                    'existingTeamName': widget.existingTeamName,
+                  });
                 } : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isComplete ? Colors.green : Colors.grey.shade800, 

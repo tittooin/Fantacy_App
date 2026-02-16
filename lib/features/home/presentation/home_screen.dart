@@ -208,7 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Widget _buildMatchTab({required List<Map<String, dynamic>> matches, required String emptyMsg}) {
+  Widget _buildMatchTab({required List<Map<String, dynamic>> matches, required String emptyMsg, required Set<String> joinedMatchIds}) {
     if (matches.isEmpty) {
       return RefreshIndicator(
         onRefresh: _refreshMatches,
@@ -258,7 +258,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   final startTime = m['startDate'] ?? m['start_time'] ?? 0;
                   final date = DateTime.fromMillisecondsSinceEpoch(startTime);
                   
-                  final isJoined = joinedMatchIds.contains(id);
+                   final status = m['status'] ?? 'Upcoming';
+                   final isLive = status == 'Live' || status == 'In Progress';
+                   final isJoined = joinedMatchIds.contains(id);
 
                   return MatchCard(
                     id: id,
@@ -314,7 +316,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     // Listen for User Changes to trigger Nickname Popup
-    ref.listen(userEntityProvider, (previous, next) {
+    ref.listen<AsyncValue<UserEntity?>>(userEntityProvider, (previous, next) {
        final user = next.value;
        if (user != null) {
           _checkNickname(user);
@@ -486,9 +488,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      _buildMatchTab(matches: live, emptyMsg: "No Live Matches currently."),
-                      _buildMatchTab(matches: upcoming, emptyMsg: "No Upcoming Matches."),
-                      _buildMatchTab(matches: completed, emptyMsg: "No Completed Matches."),
+                      _buildMatchTab(matches: live, emptyMsg: "No Live Matches currently.", joinedMatchIds: joinedMatchIds),
+                      _buildMatchTab(matches: upcoming, emptyMsg: "No Upcoming Matches.", joinedMatchIds: joinedMatchIds),
+                      _buildMatchTab(matches: completed, emptyMsg: "No Completed Matches.", joinedMatchIds: joinedMatchIds),
                     ],
                   ),
                 ),
@@ -639,6 +641,7 @@ class MatchCard extends StatelessWidget {
   final String seriesName;
   final DateTime date;
   final String status;
+  final bool isLive;
   final bool isJoined;
   
   final VoidCallback onPrivateContest;

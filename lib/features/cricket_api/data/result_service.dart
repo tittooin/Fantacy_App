@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
 import 'package:axevora11/features/wallet/data/wallet_repository.dart';
 import 'package:uuid/uuid.dart';
 
@@ -24,7 +24,7 @@ class ResultService {
 
     for (var doc in contestsSnapshot.docs) {
       final contestData = doc.data();
-      final contest = ContestModel.fromJson(contestData);
+      final contest = CricketContestModel.fromJson(contestData);
       
       print("  Processing Contest: ${contest.category} (${contest.id})");
       await _calculateContestWinners(matchId, contest);
@@ -33,7 +33,7 @@ class ResultService {
     print("✅ Result Processing Complete for Match: $matchId");
   }
 
-  Future<void> _calculateContestWinners(String matchId, ContestModel contest) async {
+  Future<void> _calculateContestWinners(String matchId, CricketContestModel contest) async {
     // 2. Fetch Leaderboard (Sorted by Points)
     final entriesSnapshot = await _firestore
         .collection('matches')

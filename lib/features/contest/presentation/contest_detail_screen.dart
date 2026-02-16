@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
+import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:lottie/lottie.dart'; // Added Lottie
 
@@ -23,7 +24,7 @@ import 'package:axevora11/features/contest/presentation/widgets/team_pitch_view_
 
 class ContestDetailScreen extends ConsumerStatefulWidget {
   final String contestId;
-  final ContestModel? contest; // Made optional
+  final CricketContestModel? contest; // Made optional
   final CricketMatchModel? match; 
   final String? matchId; // Added for fetching if match/contest is missing
 
@@ -40,7 +41,7 @@ class ContestDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
-  ContestModel? _contest;
+  CricketContestModel? _contest;
   bool _isLoading = false;
   String? _error;
   late final String? _resolvedMatchId;
@@ -65,7 +66,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
 
       if (contestData != null) {
          setState(() {
-           _contest = ContestModel.fromJson(contestData);
+           _contest = contestData;
            _isLoading = false;
          });
          debugPrint("✅ D1 → Pure Sync success for contest ${widget.contestId}");
@@ -160,7 +161,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  Widget _buildHeader(ContestModel contest) {
+  Widget _buildHeader(CricketContestModel contest) {
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.white,
@@ -262,7 +263,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  Widget _buildWinningsTab(ContestModel contest) {
+  Widget _buildWinningsTab(CricketContestModel contest) {
     return Consumer(
       builder: (context, ref, _) {
         final allJoined = ref.watch(userContestProvider);
@@ -432,7 +433,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     }
   }
 
-  Widget _buildLeaderboardTab(ContestModel contest) {
+  Widget _buildLeaderboardTab(CricketContestModel contest) {
     return Column(
       children: [
         Container(
@@ -527,7 +528,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  Widget _buildBottomBar(BuildContext context, ContestModel contest) {
+  Widget _buildBottomBar(BuildContext context, CricketContestModel contest) {
     if (widget.match?.status == 'Live' || widget.match?.status == 'Completed') {
        return const SizedBox.shrink(); // Hide join option for live/completed matches
     }
@@ -559,7 +560,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  void _handleJoin(BuildContext context, ContestModel contest) {
+  void _handleJoin(BuildContext context, CricketContestModel contest) {
      final userAsync = ref.read(userEntityProvider);
      final currentBalance = userAsync.value?.walletBalance ?? 0.0;
      
@@ -672,7 +673,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  void _confirmJoin(BuildContext context, TeamEntity team, ContestModel contest) {
+  void _confirmJoin(BuildContext context, TeamEntity team, CricketContestModel contest) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(

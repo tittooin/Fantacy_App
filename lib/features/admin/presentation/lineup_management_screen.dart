@@ -117,7 +117,7 @@ class _LineupManagementScreenState extends ConsumerState<LineupManagementScreen>
      try {
        final apiService = ref.read(rapidApiServiceProvider);
        
-       final result = await apiService.fetchSquads(widget.match.id);
+       final result = await apiService.fetchSquads(widget.match.id.toString());
        
        final rawPlayers = result['matchInfo']?['team1']?['playerDetails'] ?? []; // Adjust based on scov2
        // Simplified: Assuming we need to parse team1 and team2

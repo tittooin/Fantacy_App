@@ -1,38 +1,38 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 class LeaderboardService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Dio _dio = Dio();
+  static const String _workerUrl = "https://fantasy-cricket-api.moremagical4.workers.dev";
 
-  // Stream Leaderboard for UI (Auto-Update)
-  Stream<List<Map<String, dynamic>>> getLeaderboardStream(String contestId) {
-    return _firestore
-        .collection('contests')
-        .doc(contestId)
-        .collection('participants')
-        .orderBy('points', descending: true) // Points desc
-        .orderBy('teamName') // Tie-breaker
-        .limit(100) // Top 100 for MVP
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) => doc.data()).toList();
-        });
+  // Stream Leaderboard for UI (Auto-Update) - Hindi: Stream converted to periodic Future for D1
+  Stream<List<Map<String, dynamic>>> getLeaderboardStream(String contestId) async* {
+    while (true) {
+      try {
+        final response = await _dio.get('$_workerUrl/api/leaderboard?contestId=$contestId');
+        if (response.statusCode == 200 && response.data['success'] == true) {
+          yield List<Map<String, dynamic>>.from(response.data['leaderboard'] ?? []);
+        }
+      } catch (e) {
+        debugPrint("LeaderboardService: Stream Fetch Error: $e");
+      }
+      await Future.delayed(const Duration(seconds: 30)); // 30s polling
+    }
   }
 
-  // Get My Rank
+  // Get My Rank - Hindi: D1 se specific user ki rank laata hai
   Future<Map<String, dynamic>?> getMyRank(String contestId, String userId) async {
-    // This requires good indexing or just reading specific doc if we know teamId.
-    // If user has multiple teams, we show the best one?
-    // For now, let's fetch all user teams in this contest
-    final snapshot = await _firestore
-        .collection('contests')
-        .doc(contestId)
-        .collection('participants')
-        .where('userId', isEqualTo: userId)
-        .orderBy('points', descending: true)
-        .get();
-        
-    if (snapshot.docs.isNotEmpty) {
-      return snapshot.docs.first.data();
+    try {
+      final response = await _dio.get('$_workerUrl/api/leaderboard?contestId=$contestId');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final leaderboard = List<Map<String, dynamic>>.from(response.data['leaderboard'] ?? []);
+        return leaderboard.firstWhere(
+          (entry) => entry['user_id'] == userId,
+          orElse: () => {},
+        );
+      }
+    } catch (e) {
+      debugPrint("LeaderboardService: Get Rank Error: $e");
     }
     return null;
   }

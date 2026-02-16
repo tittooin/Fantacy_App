@@ -14,6 +14,7 @@ _PlayerModel _$PlayerModelFromJson(Map<String, dynamic> json) => _PlayerModel(
   credits: (json['credits'] as num).toDouble(),
   imageUrl: json['imageUrl'] as String,
   points: (json['points'] as num?)?.toDouble() ?? 0.0,
+  fantasyRating: (json['fantasyRating'] as num?)?.toDouble() ?? 0.0,
   isPlaying: json['isPlaying'] as bool? ?? false,
   teamId: json['teamId'] as String?,
 );
@@ -27,6 +28,7 @@ Map<String, dynamic> _$PlayerModelToJson(_PlayerModel instance) =>
       'credits': instance.credits,
       'imageUrl': instance.imageUrl,
       'points': instance.points,
+      'fantasyRating': instance.fantasyRating,
       'isPlaying': instance.isPlaying,
       'teamId': instance.teamId,
     };

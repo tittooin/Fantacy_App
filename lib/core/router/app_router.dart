@@ -18,7 +18,7 @@ import 'package:axevora11/features/legal/presentation/contact_us_screen.dart';
 import 'package:axevora11/features/legal/presentation/faq_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/presentation/match_import_screen.dart';
-import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
 import 'package:axevora11/features/contest/presentation/create_private_contest_screen.dart';
 import 'package:axevora11/features/location/presentation/state_selection_screen.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
@@ -122,10 +122,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // B. Location Verified
-      // C. Admin Access Check
-      // If user is trying to access admin, allow him (later add role check)
+      // C. Admin Access Check (Restricted to User A only)
       if (path.startsWith('/admin')) {
-         return null; 
+         if (user?.email == 'tittoosss@gmail.com') {
+           return null; 
+         } else {
+           debugPrint("Router: Unauthorized Admin Access Attempt by ${user?.email}");
+           return '/home'; // Kick out non-admins
+         }
       }
 
       // If on Login, Splash, or Verify screen -> Go Home
@@ -247,13 +251,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final contestId = state.pathParameters['contestId']!;
           final extras = state.extra as Map<String, dynamic>?; // Nullable Map
 
-          // Safely parse ContestModel
-          ContestModel? contest;
+          // Safely parse CricketCricketContestModel
+          CricketContestModel? contest;
           if (extras != null && extras['contest'] != null) {
-             if (extras['contest'] is ContestModel) {
-                contest = extras['contest'] as ContestModel;
+             if (extras['contest'] is CricketContestModel) {
+                contest = extras['contest'] as CricketContestModel;
              } else if (extras['contest'] is Map<String, dynamic>) {
-                contest = ContestModel.fromJson(extras['contest'] as Map<String, dynamic>);
+                contest = CricketContestModel.fromJson(extras['contest'] as Map<String, dynamic>);
              }
           }
 
@@ -280,25 +284,35 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final extra = state.extra;
           CricketMatchModel match;
           List<PlayerModel>? initialPlayers;
+          String? existingTeamId;
+          String? existingTeamName;
 
           if (extra is CricketMatchModel) {
              match = extra;
-          } else if (extra is Map<String, dynamic>) {
+          } else if (extra is Map) {
+             debugPrint("Router Debug: Extra is Map. Keys: ${extra.keys}");
              match = extra['match'] as CricketMatchModel;
              initialPlayers = extra['initialPlayers'] as List<PlayerModel>?;
+             existingTeamId = extra['existingTeamId'] as String?;
+             existingTeamName = extra['existingTeamName'] as String?;
+             debugPrint("Router Debug: existingTeamId extracted: $existingTeamId");
           } else {
-             // If navigating directly via URL (not supported without ID fetch yet), or error
-             // Ideally we fetch match by matchId here. For now, assume passed.
              throw Exception("Match object required for TeamBuilder");
           }
 
-          return TeamBuilderScreen(match: match, initialPlayers: initialPlayers);
+          return TeamBuilderScreen(
+            match: match, 
+            initialPlayers: initialPlayers,
+            existingTeamId: existingTeamId,
+            existingTeamName: existingTeamName,
+          );
         },
         routes: [
            GoRoute(
             path: 'preview',
             builder: (context, state) {
-              final extras = state.extra as Map<String, dynamic>;
+              final extras = state.extra as Map;
+              debugPrint("Router Debug: Preview Extra keys: ${extras.keys}");
               return TeamPreviewScreen(
                 selectedPlayers: extras['players'] as List<PlayerModel>,
                 team1Name: extras['team1Name'] as String,
@@ -306,16 +320,26 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 isEditMode: extras['isEditMode'] as bool? ?? false,
                 matchId: state.pathParameters['matchId'],
                 match: extras['match'] as CricketMatchModel?,
+                existingTeamId: extras['existingTeamId'] as String?,
+                existingTeamName: extras['existingTeamName'] as String?,
               );
             },
           ),
           GoRoute(
             path: 'captain',
             builder: (context, state) {
-               final extras = state.extra as List<PlayerModel>;
-               // We need matchId. Since it's nested under /match/:matchId, we can get it from path params
+               final extras = state.extra as Map;
+               debugPrint("Router Debug: Captain Extra keys: ${extras.keys}");
+               final players = extras['players'] as List<PlayerModel>;
                final matchId = state.pathParameters['matchId']!;
-               return CaptainSelectionScreen(selectedPlayers: extras, matchId: matchId);
+               final existingTeamId = extras['existingTeamId'] as String?;
+               debugPrint("Router Debug: Captain existingTeamId: $existingTeamId");
+               return CaptainSelectionScreen(
+                 selectedPlayers: players, 
+                 matchId: matchId,
+                 existingTeamId: existingTeamId,
+                 existingTeamName: extras['existingTeamName'] as String?,
+               );
             }
           ),
         ]
@@ -386,7 +410,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final matchId = state.pathParameters['matchId']!;
               final contestId = state.pathParameters['contestId']!;
-              final contest = state.extra as ContestModel?;
+              final contest = state.extra as CricketContestModel?;
               return AdminPayoutLeaderboardScreen(
                 matchId: matchId,
                 contestId: contestId,

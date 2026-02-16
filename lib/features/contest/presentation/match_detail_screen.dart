@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart'; // Removed for D1-only compliance
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart'; // Added
-import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
 import 'package:axevora11/core/api/fantasy_api_client.dart';
 import 'package:axevora11/features/team/domain/team_entity.dart';
 import 'package:axevora11/features/team/presentation/providers/team_provider.dart';
@@ -177,7 +177,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     );
   }
 
-  Future<List<ContestModel>> _fetchContests() async {
+  Future<List<CricketContestModel>> _fetchContests() async {
     try {
       // Convert String matchId to int for Firestore query
       final int matchIdInt = int.parse(widget.matchId);
@@ -186,7 +186,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
       final contestsData = await ref.read(fantasyApiClientProvider).getContests(widget.matchId);
       
       final contestsList = contestsData
-          .map((json) => ContestModel.fromJson(json))
+          .map((json) => CricketContestModel.fromJson(json))
           .toList();
       
       debugPrint("Found ${contestsList.length} contests from D1");
@@ -238,7 +238,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           ),
           const Divider(height: 1),
           Expanded(
-            child: FutureBuilder<List<ContestModel>>(
+            child: FutureBuilder<List<CricketContestModel>>(
               future: _fetchContests(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
@@ -349,7 +349,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           child: InkWell(
             onTap: () {
-               // Navigation provided by context.push needs a ContestModel
+               // Navigation provided by context.push needs a CricketContestModel
                context.push('/contest/${contest.contestId}', extra: {
                  'contestId': contest.contestId, 
                  'matchId': contest.matchId,
@@ -444,12 +444,11 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                final t2 = _effectiveMatch?.team2ShortName ?? "Away";
 
                // Use the existing nested route for preview
-               context.push('/match/${widget.matchId}/create-team/preview', extra: {
-                 'players': team.players,
-                 'team1Name': t1,
-                 'team2Name': t2,
-                 'isEditMode': true,
-                 'match': _effectiveMatch, // Pass full match model for editing
+               context.push('/match/${widget.matchId}/create-team', extra: {
+                 'match': _effectiveMatch,
+                 'initialPlayers': team.players,
+                 'existingTeamId': team.id,
+                 'existingTeamName': team.teamName,
                });
              },
              borderRadius: BorderRadius.circular(12),

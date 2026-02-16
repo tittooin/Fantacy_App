@@ -10,6 +10,8 @@ class TeamPreviewScreen extends StatelessWidget {
   final String team2Name;
   final bool isEditMode;
   final String? matchId;
+  final String? existingTeamId;
+  final String? existingTeamName;
   final CricketMatchModel? match; // Required for editing
 
   const TeamPreviewScreen({
@@ -19,6 +21,8 @@ class TeamPreviewScreen extends StatelessWidget {
     required this.team2Name,
     this.isEditMode = false,
     this.matchId,
+    this.existingTeamId,
+    this.existingTeamName,
     this.match,
   });
 

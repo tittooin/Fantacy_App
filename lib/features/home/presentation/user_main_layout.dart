@@ -29,9 +29,9 @@ class UserMainLayout extends ConsumerWidget {
         context.go('/rewards');
         break;
       case 3:
-        final user = ref.read(userEntityProvider).value;
-        if (user != null) {
-           context.go('/profile/${user.uid}');
+        final uid = ref.read(authUserIdProvider);
+        if (uid != null) {
+           context.go('/profile/$uid');
         } else {
            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile loading...")));
         }

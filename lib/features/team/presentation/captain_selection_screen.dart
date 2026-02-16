@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:axevora11/features/team/domain/team_entity.dart';
@@ -9,11 +10,15 @@ import 'package:axevora11/features/team/presentation/providers/team_provider.dar
 class CaptainSelectionScreen extends ConsumerStatefulWidget {
   final List<PlayerModel> selectedPlayers;
   final String matchId;
+  final String? existingTeamId;
+  final String? existingTeamName;
 
   const CaptainSelectionScreen({
     super.key,
     required this.selectedPlayers,
     required this.matchId,
+    this.existingTeamId,
+    this.existingTeamName,
   });
 
   @override
@@ -35,19 +40,29 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
 
     setState(() => _isSaving = true);
 
-    // Create and Save Team
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User session lost. Please login again.")));
+      setState(() => _isSaving = false);
+      return;
+    }
+
     final existingTeams = ref.read(teamProvider).where((t) => t.matchId == widget.matchId).toList();
     final newTeamNumber = existingTeams.length + 1;
+    final teamName = widget.existingTeamName ?? "Team $newTeamNumber";
+    final finalId = widget.existingTeamId ?? "team_${DateTime.now().millisecondsSinceEpoch}_${user.uid}";
     
+    debugPrint("CaptainSelection Debug: Saving Team. ID=$finalId, isEdit=${widget.existingTeamId != null}");
+
     final newTeam = TeamEntity(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: finalId,
       matchId: widget.matchId,
-      userId: "currentUser", // Placeholder
+      userId: user.uid,
       players: widget.selectedPlayers,
       captainId: _captainId!,
       viceCaptainId: _viceCaptainId!,
       totalPoints: 0,
-      teamName: "Team $newTeamNumber",
+      teamName: teamName,
     );
     
     ref.read(teamProvider.notifier).addTeam(newTeam);

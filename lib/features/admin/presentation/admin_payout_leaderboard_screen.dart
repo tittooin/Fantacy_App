@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/cricket_api/data/providers/leaderboard_provider.dart';
 import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
-import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
 
 class AdminPayoutLeaderboardScreen extends ConsumerStatefulWidget {
   final String contestId;
   final String matchId;
-  final ContestModel? contest;
+  final CricketContestModel? contest;
 
   const AdminPayoutLeaderboardScreen({
     super.key, 

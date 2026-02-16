@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
-import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
 import 'package:axevora11/core/api/fantasy_api_client.dart';
 
 
@@ -292,7 +292,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
 
     try {
       final contestId = const Uuid().v4();
-      final contest = ContestModel(
+      final contest = CricketContestModel(
         id: contestId,
         matchId: widget.match.id.toString(),
         entryFee: double.parse(_entryFeeController.text),

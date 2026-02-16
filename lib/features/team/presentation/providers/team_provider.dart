@@ -1,20 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/team/domain/team_entity.dart';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
+import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:flutter/foundation.dart';
 
 class TeamNotifier extends Notifier<List<TeamEntity>> {
   @override
-  @override
   List<TeamEntity> build() {
-    final authUser = FirebaseAuth.instance.currentUser;
-    if (authUser != null) {
+    final uid = ref.watch(authUserIdProvider);
+    if (uid != null) {
       _fetchTeams();
-    } else {
-       FirebaseAuth.instance.authStateChanges().listen((user) {
-         if (user != null) _fetchTeams();
-       });
     }
     return [];
   }
@@ -24,45 +20,35 @@ class TeamNotifier extends Notifier<List<TeamEntity>> {
        final user = FirebaseAuth.instance.currentUser;
        if (user == null) return;
 
-       final snapshot = await FirebaseFirestore.instance
-           .collection('teams')
-           .where('userId', isEqualTo: user.uid)
-           .get();
-
-       final teams = snapshot.docs.map((doc) => TeamEntity.fromMap(doc.data())).toList();
+       final apiService = ref.read(rapidApiServiceProvider);
+       final teamsData = await apiService.fetchTeams(user.uid);
+       
+       final teams = teamsData.map((data) => TeamEntity.fromMap(data)).toList();
+       debugPrint("📊 TeamNotifier: Fetched ${teams.length} teams for UID: ${user.uid}");
        state = teams; 
     } catch (e) {
-      print("Error fetching teams: $e");
+      debugPrint("Error fetching teams from D1: $e");
     }
   }
 
   Future<void> addTeam(TeamEntity team) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-         // Fallback for testing/unauth
-         state = [...state, team];
-         return;
+      if (user == null) return;
+      
+      final apiService = ref.read(rapidApiServiceProvider);
+      
+      final teamData = team.toMap();
+      teamData['userId'] = user.uid;
+      
+      final result = await apiService.saveTeam(teamData);
+      debugPrint("TeamNotifier: Save Result: $result");
+      
+      if (result['success'] == true) {
+        await _fetchTeams();
       }
-      
-      // Ensure team has correct userId
-      final teamToSave = TeamEntity(
-         id: team.id, 
-         matchId: team.matchId, 
-         userId: user.uid, 
-         players: team.players, 
-         captainId: team.captainId, 
-         viceCaptainId: team.viceCaptainId, 
-         totalPoints: team.totalPoints, 
-         teamName: team.teamName
-      );
-
-      await FirebaseFirestore.instance.collection('teams').doc(team.id).set(teamToSave.toMap());
-      
-      state = [...state, teamToSave];
     } catch (e) {
-      print("Error saving team: $e");
-      // Optionally rethrow or show error
+      debugPrint("Error saving team to D1: $e");
     }
   }
 

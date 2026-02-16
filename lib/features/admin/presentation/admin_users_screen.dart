@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:data_table_2/data_table_2.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:axevora11/features/wallet/data/wallet_repository.dart';
 
 class AdminUsersScreen extends ConsumerStatefulWidget {
   const AdminUsersScreen({super.key});
@@ -26,12 +26,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
   Future<void> _fetchUsers() async {
     setState(() => _isLoading = true);
     try {
-      final qs = await FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).limit(100).get();
-      final users = qs.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
+      final users = await ref.read(walletRepositoryProvider).getAllUsers();
 
       if (mounted) {
         setState(() {
@@ -54,9 +49,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         _filteredUsers = _users.where((user) {
           final name = (user['name'] ?? '').toString().toLowerCase();
           final email = (user['email'] ?? '').toString().toLowerCase();
-          final phone = (user['phoneNumber'] ?? '').toString().toLowerCase();
           final q = query.toLowerCase();
-          return name.contains(q) || email.contains(q) || phone.contains(q);
+          return name.contains(q) || email.contains(q);
         }).toList();
       });
     }
@@ -66,7 +60,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("User Management"),
+        title: const Text("User Management (D1)"),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -83,7 +77,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 labelText: "Search Users",
-                hintText: "Name, Email, or Phone",
+                hintText: "Name or Email",
                 prefixIcon: const Icon(Icons.search),
                 border: const OutlineInputBorder(),
                 filled: true,
@@ -106,28 +100,29 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                       columns: const [
                         DataColumn2(label: Text('Name'), size: ColumnSize.L),
                         DataColumn(label: Text('Email')),
-                        DataColumn(label: Text('Phone')),
-                        DataColumn(label: Text('Wallet')),
+                        DataColumn(label: Text('Deposit')),
+                        DataColumn(label: Text('Winnings')),
                         DataColumn(label: Text('Joined')),
                         DataColumn(label: Text('Actions')),
                       ],
                       rows: _filteredUsers.map((user) {
-                        final joined = user['createdAt'] != null 
-                             ? DateFormat('dd MMM yyyy').format((user['createdAt'] as Timestamp).toDate()) 
+                        final joinedAt = user['joined_at'];
+                        final joined = joinedAt != null 
+                             ? DateFormat('dd MMM yyyy').format(DateTime.fromMillisecondsSinceEpoch(joinedAt)) 
                              : 'N/A';
-                        final wallet = user['wallet'] ?? {};
-                        final totalBalance = (wallet['deposited'] ?? 0) + (wallet['winnings'] ?? 0) + (wallet['bonus'] ?? 0);
+                             
+                        final deposit = user['deposit_credits'] ?? 0;
+                        final winnings = user['winning_credits'] ?? 0;
 
                         return DataRow(cells: [
-                          DataCell(Text(user['name'] ?? 'Guest')),
+                          DataCell(Text(user['name'] ?? 'User')),
                           DataCell(Text(user['email'] ?? '-')),
-                          DataCell(Text(user['phoneNumber'] ?? '-')),
-                          DataCell(Text("₹$totalBalance")),
+                          DataCell(Text("₹$deposit")),
+                          DataCell(Text("₹$winnings")),
                           DataCell(Text(joined)),
                           DataCell(IconButton(
                             icon: const Icon(Icons.edit, color: Colors.blue),
                             onPressed: () {
-                              // Identify User or Block functionality (Future Phase)
                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Edit User feature coming soon.")));
                             },
                           )),

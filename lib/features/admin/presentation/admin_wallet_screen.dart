@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:axevora11/features/admin/data/audit_service.dart';
-import 'package:intl/intl.dart';
 import 'package:axevora11/features/wallet/data/wallet_repository.dart';
 
 class AdminWalletScreen extends ConsumerStatefulWidget {
@@ -14,6 +11,19 @@ class AdminWalletScreen extends ConsumerStatefulWidget {
 
 class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
   bool _isLoading = false;
+  late Future<List<Map<String, dynamic>>> _payoutsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshPayouts();
+  }
+
+  void _refreshPayouts() {
+    setState(() {
+      _payoutsFuture = ref.read(walletRepositoryProvider).getPendingWithdrawals();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,13 +72,13 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
             ),
             const SizedBox(height: 12),
 
-            StreamBuilder<QuerySnapshot>(
-                stream: ref.read(walletRepositoryProvider).getPendingWithdrawals(),
+            FutureBuilder<List<Map<String, dynamic>>>(
+                future: _payoutsFuture,
                 builder: (context, snapshot) {
                   if (snapshot.hasError) return Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red));
-                  if (!snapshot.hasData) return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
+                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
 
-                  final docs = snapshot.data!.docs;
+                  final docs = snapshot.data ?? [];
                   if (docs.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("No Pending Payouts", style: TextStyle(color: Colors.white54))));
 
                   return ListView.separated(
@@ -77,10 +87,10 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
                     itemCount: docs.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
-                      final data = docs[index].data() as Map<String, dynamic>;
-                      final docId = docs[index].id;
+                      final data = docs[index];
+                      final docId = data['id'];
                       final amount = (data['amount'] ?? 0).toDouble();
-                      final userId = data['userId'] ?? 'Unknown';
+                      final userId = data['user_id'] ?? 'Unknown';
                       final method = data['method'] ?? 'Unknown';
                       final details = data['details'] ?? '--';
 
@@ -147,13 +157,13 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
         builder: (context, setState) {
           return AlertDialog(
             backgroundColor: const Color(0xFF2C3E50),
-            title: const Text("Issue Reward Credit 🎁", style: TextStyle(color: Colors.amber)),
+            title: const Text("Issue Reward Credit", style: TextStyle(color: Colors.amber)), // No emoji
             content: SizedBox(
               width: 400,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                   const Text("Credits are non-withdrawable.", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                   const Text("Credits are added to user winnings.", style: TextStyle(color: Colors.white54, fontSize: 12)),
                    const SizedBox(height: 16),
                    TextField(
                      controller: emailController,
@@ -167,12 +177,11 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
                          onPressed: () async {
                            if(emailController.text.isEmpty) return;
                            setState(() => searching = true);
-                           // Simple Search Logic
                            try {
-                             final snap = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: emailController.text.trim()).limit(1).get();
-                             if(snap.docs.isNotEmpty) {
-                               foundUserId = snap.docs.first.id;
-                               foundUserName = snap.docs.first.data()['name'] ?? "User";
+                             final user = await ref.read(walletRepositoryProvider).searchUserByEmail(emailController.text.trim());
+                             if(user != null) {
+                               foundUserId = user['id'];
+                               foundUserName = user['name'] ?? "User";
                              } else {
                                foundUserId = null;
                              }
@@ -231,31 +240,15 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
     if (amount <= 0) return;
     setState(() => _isLoading = true);
     try {
-      // 1. Add Transaction
-      await FirebaseFirestore.instance.collection('users').doc(userId).collection('transactions').add({
-        'amount': amount,
-        'type': 'reward_credit', // SPECIAL TYPE
-        'description': note.isEmpty ? "Admin Reward" : note,
-        'timestamp': FieldValue.serverTimestamp(),
-        'isCredit': true,
-        'status': 'success',
-        'isWithdrawable': false, // NON-WITHDRAWABLE
-      });
-
-      // 2. Update Wallet (Total Balance)
-      // Note: We might want to track 'bonus' separatedly in future, but for now it adds to balance.
-      // But Payout Logic must filter it? 
-      // Current system: User sees Total Balance. Payout Logic checks 'deposit' + 'winnings'.
-      // 'reward_credit' is logically 'winnings' or 'bonus'.
-      // Let's treat it as 'bonus' usage.
+      final success = await ref.read(walletRepositoryProvider).issueRewardCredit(userId, amount, note.isEmpty ? "Admin Reward" : note);
       
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'walletBalance': FieldValue.increment(amount),
-        'bonusBalance': FieldValue.increment(amount), // Assuming bonusBalance field exists or we create it
-      });
-      
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Reward Credit Issued Successfully!"), backgroundColor: Colors.green));
-
+      if(mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Reward Credit Issued Successfully!"), backgroundColor: Colors.green));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to issue credit"), backgroundColor: Colors.red));
+        }
+      }
     } catch (e) {
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
     } finally {
@@ -302,12 +295,21 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(walletRepositoryProvider);
+      bool success;
       if (approve) {
-        await repo.approveWithdrawal(docId, userId, note ?? 'Approved');
+        success = await repo.approveWithdrawal(docId, userId, note ?? 'Approved');
       } else {
-        await repo.rejectWithdrawal(docId, userId, refreshAmount ?? 0.0, note ?? 'Rejected');
+        success = await repo.rejectWithdrawal(docId, userId, refreshAmount ?? 0.0, note ?? 'Rejected');
       }
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? "Paid" : "Rejected")));
+      
+      if(mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? "Paid" : "Rejected")));
+          _refreshPayouts();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Action failed"), backgroundColor: Colors.red));
+        }
+      }
     } catch (e) {
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
     } finally {

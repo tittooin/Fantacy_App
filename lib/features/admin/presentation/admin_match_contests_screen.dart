@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
-import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
+import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
 
 class AdminMatchContestsScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -17,7 +18,7 @@ class AdminMatchContestsScreen extends ConsumerStatefulWidget {
 
 class _AdminMatchContestsScreenState extends ConsumerState<AdminMatchContestsScreen> {
   bool _isLoading = true;
-  List<ContestModel> _contests = [];
+  List<CricketContestModel> _contests = [];
 
   @override
   void initState() {

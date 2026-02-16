@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:axevora11/features/cricket_api/domain/contest_model.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/team/domain/team_entity.dart';
 import 'package:axevora11/features/team/presentation/providers/team_provider.dart';
@@ -13,7 +13,7 @@ import 'package:axevora11/features/user/presentation/providers/user_provider.dar
 import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
 
 class ContestCard extends StatefulWidget {
-  final ContestModel contest;
+  final CricketContestModel contest;
   final CricketMatchModel? match; // Threading match
   final String matchId;
 
@@ -245,7 +245,7 @@ class _ContestCardState extends State<ContestCard> {
     );
   }
 
-  void _confirmContestJoin(BuildContext context, TeamEntity team, WidgetRef ref, ContestModel contest, String matchIdArg) {
+  void _confirmContestJoin(BuildContext context, TeamEntity team, WidgetRef ref, CricketContestModel contest, String matchIdArg) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(

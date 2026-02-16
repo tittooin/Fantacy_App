@@ -77,12 +77,18 @@ class FantasyApiClient {
   /// 4. Fetch Squads (Optional Helper)
   Future<Map<String, dynamic>?> getSquads(String matchId) async {
     try {
+       print("🚀 API Client: Fetching Squads for $matchId");
        final response = await _dio.get('/api/squads', queryParameters: {'matchId': matchId});
+       
+       print("📥 API Client: Response Status: ${response.statusCode}");
+       
        if (response.statusCode == 200) {
           return response.data;
        }
+       print("⚠️ API Client: API returned ${response.statusCode}");
        return null;
     } catch (e) {
+       print("❌ API Client Error (getSquads): $e");
        return null;
     }
   }

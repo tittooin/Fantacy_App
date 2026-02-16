@@ -119,3 +119,75 @@ CREATE TABLE IF NOT EXISTS transactions (
     status TEXT DEFAULT 'success'
 );
 CREATE INDEX IF NOT EXISTS idx_txn_user ON transactions(user_id);
+-- 11. Contests Table (Core logic)
+CREATE TABLE IF NOT EXISTS contests (
+    id TEXT PRIMARY KEY,
+    match_id INTEGER NOT NULL,
+    entry_fee REAL DEFAULT 0,
+    total_spots INTEGER DEFAULT 0,
+    filled_spots INTEGER DEFAULT 0,
+    prize_pool REAL DEFAULT 0,
+    category TEXT,
+    is_guaranteed BOOLEAN DEFAULT 0,
+    is_flexible BOOLEAN DEFAULT 0,
+    winning_breakdown TEXT,          -- JSON string mapping ranks to prizes
+    status TEXT DEFAULT 'Upcoming',  -- Upcoming, Live, Completed
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (match_id) REFERENCES matches(id)
+);
+CREATE INDEX IF NOT EXISTS idx_contests_match ON contests(match_id);
+
+-- 12. Teams Table (D1-Only)
+CREATE TABLE IF NOT EXISTS teams (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    match_id INTEGER NOT NULL,
+    team_name TEXT DEFAULT 'My Team',
+    players_json TEXT NOT NULL,      -- JSON array of player objects
+    captain_id TEXT,
+    vice_captain_id TEXT,
+    total_points REAL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (match_id) REFERENCES matches(id)
+);
+CREATE INDEX IF NOT EXISTS idx_teams_user_match ON teams(user_id, match_id);
+
+-- 12. Contest Participants (Join link)
+CREATE TABLE IF NOT EXISTS contest_participants (
+    id TEXT PRIMARY KEY,             -- Unique Entry ID
+    contest_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    team_id TEXT NOT NULL,
+    match_id INTEGER NOT NULL,
+    player_ids TEXT,                 -- Legacy/Audit: Snapshot of players at join
+    team_name TEXT,
+    joined_at INTEGER NOT NULL,
+    FOREIGN KEY (match_id) REFERENCES matches(id)
+);
+CREATE INDEX IF NOT EXISTS idx_participants_contest ON contest_participants(contest_id);
+CREATE INDEX IF NOT EXISTS idx_participants_user ON contest_participants(user_id);
+
+-- 13. Contest Leaderboards (Consolidated JSON for fast reads)
+CREATE TABLE IF NOT EXISTS contest_leaderboards (
+    contest_id TEXT PRIMARY KEY,
+    match_id INTEGER NOT NULL,
+    data TEXT,                       -- JSON: [{userId, teamName, points, rank, teamId}]
+    last_updated INTEGER NOT NULL
+);
+
+-- 14. Payout Requests (Manual Withdrawals)
+CREATE TABLE IF NOT EXISTS payout_requests (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    amount REAL NOT NULL,
+    method TEXT NOT NULL,           -- UPI, Bank, etc.
+    details TEXT,                    -- Account details
+    status TEXT DEFAULT 'pending',   -- pending, approved, rejected
+    admin_note TEXT,
+    created_at INTEGER NOT NULL,
+    processed_at INTEGER,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_payout_user ON payout_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_payout_status ON payout_requests(status);

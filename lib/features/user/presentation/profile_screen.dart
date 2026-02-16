@@ -5,8 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:axevora11/features/user/domain/user_entity.dart';
 import 'package:axevora11/features/user/data/user_repository.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
+import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:axevora11/core/theme/app_theme.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -17,29 +17,37 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  final String _currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
   bool _isFollowing = false;
   bool _isLoadingFollow = false;
 
+  String get _currentUid => ref.watch(authUserIdProvider) ?? '';
   bool get _isMe => widget.userId == _currentUid;
-
-  late Stream<DocumentSnapshot> _userStream;
+  bool get _isAdmin => ref.watch(authStateProvider).value?.email == 'tittoosss@gmail.com';
 
   @override
   void initState() {
     super.initState();
-    _userStream = FirebaseFirestore.instance.collection('users').doc(widget.userId).snapshots();
     _checkFollowStatus();
   }
 
+  @override
+  void didUpdateWidget(ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      _checkFollowStatus();
+    }
+  }
+
   Future<void> _checkFollowStatus() async {
-    if (_isMe) return;
-    final isFollowing = await ref.read(userRepositoryProvider).isFollowing(_currentUid, widget.userId);
-    if (mounted) setState(() => _isFollowing = isFollowing);
+    if (_isMe || _currentUid.isEmpty) return;
+    try {
+      final isFollowing = await ref.read(userRepositoryProvider).isFollowing(_currentUid, widget.userId);
+      if (mounted) setState(() => _isFollowing = isFollowing);
+    } catch (_) {}
   }
 
   Future<void> _toggleFollow() async {
-    if (_isLoadingFollow) return;
+    if (_isLoadingFollow || _currentUid.isEmpty) return;
     setState(() => _isLoadingFollow = true);
     
     try {
@@ -50,9 +58,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
       setState(() => _isFollowing = !_isFollowing);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
-      setState(() => _isLoadingFollow = false);
+      if (mounted) setState(() => _isLoadingFollow = false);
     }
   }
 
@@ -72,7 +80,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
     ];
 
-    // Restricted States Logic
     final restrictedStates = {"Andhra Pradesh", "Assam", "Nagaland", "Odisha", "Sikkim", "Telangana"};
 
     showDialog(
@@ -87,26 +94,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                    TextField(controller: nameController, decoration: const InputDecoration(labelText: "Display Name")),
                    const SizedBox(height: 12),
-                   TextField(controller: bioController, decoration: const InputDecoration(labelText: "Bio", hintText: "Tell us about yourself")),
+                   TextField(controller: bioController, decoration: const InputDecoration(labelText: "Bio")),
                    const SizedBox(height: 12),
-                   TextField(controller: phoneController, decoration: const InputDecoration(labelText: "Mobile Number", hintText: "+91 9876543210")),
+                   TextField(controller: phoneController, decoration: const InputDecoration(labelText: "Mobile Number")),
                    const SizedBox(height: 12),
-                   TextField(controller: photoController, decoration: const InputDecoration(labelText: "Photo URL", hintText: "https://example.com/me.jpg")),
+                   TextField(controller: photoController, decoration: const InputDecoration(labelText: "Photo URL")),
                    const SizedBox(height: 12),
                    DropdownButtonFormField<String>(
                      value: selectedState,
-                     decoration: const InputDecoration(labelText: "Select State (Required for Compliance)"),
+                     decoration: const InputDecoration(labelText: "Select State"),
                      items: indianStates.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                      onChanged: (val) => setState(() => selectedState = val),
                    ),
-                   if (selectedState != null && restrictedStates.contains(selectedState))
-                     Padding(
-                       padding: const EdgeInsets.only(top: 8.0),
-                       child: Text(
-                         "Note: Cash contests are not allowed in $selectedState.",
-                         style: const TextStyle(color: Colors.red, fontSize: 12),
-                       ),
-                     ),
                 ],
               ),
             ),
@@ -114,14 +113,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
               ElevatedButton(
                 onPressed: () async {
-                  if (selectedState == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a state")));
-                    return;
-                  }
-                  
+                  if (selectedState == null) return;
                   Navigator.pop(ctx);
-                  
-                  // Update Profile Info
                   await ref.read(userRepositoryProvider).updateProfile(
                     uid: _currentUid, 
                     displayName: nameController.text,
@@ -129,14 +122,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     photoUrl: photoController.text,
                     phoneNumber: phoneController.text,
                   );
-
-                  // Update State Compliance
                   final isRestricted = restrictedStates.contains(selectedState);
                   await ref.read(userRepositoryProvider).updateUserState(_currentUid, selectedState!, isRestricted);
-                  
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile Updated")));
-                  }
                 },
                 child: const Text("Save"),
               )
@@ -149,6 +136,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userAsync = ref.watch(userByUidProvider(widget.userId));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Profile"),
@@ -157,103 +146,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
            IconButton(
              icon: const Icon(Icons.help_outline),
-             tooltip: "Help & Support",
-             onPressed: () {
-               showDialog(
-                 context: context, 
-                 builder: (ctx) => AlertDialog(
-                   title: const Text("Contact Support"),
-                   content: Column(
-                     mainAxisSize: MainAxisSize.min,
-                     children: [
-                       ListTile(
-                         leading: const Icon(Icons.email, color: Colors.indigo),
-                         title: const Text("Email Us"),
-                         subtitle: const Text("admin@axevoralabs.com"),
-                         onTap: () => Navigator.pop(ctx),
-                       ),
-                       ListTile(
-                         leading: const Icon(Icons.chat, color: Colors.green),
-                         title: const Text("WhatsApp & Telegram"),
-                         subtitle: const Text("Support coming soon"),
-                         onTap: () => Navigator.pop(ctx),
-                       )
-                     ],
-                   ),
-                   actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close"))]
-                 )
-               );
-             },
+             onPressed: () {},
            ),
            if (_isMe) 
              PopupMenuButton<String>(
                icon: const Icon(Icons.settings),
                onSelected: (value) async {
                  if (value == 'logout') {
-                   final confirm = await showDialog<bool>(
-                     context: context, 
-                     builder: (ctx) => AlertDialog(
-                       title: const Text("Logout?"),
-                       content: const Text("Are you sure you want to logout?"),
-                       actions: [
-                         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
-                         ElevatedButton(
-                           onPressed: () => Navigator.pop(ctx, true), 
-                           style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
-                           child: const Text("Logout")
-                         )
-                       ],
-                     )
-                   );
-
-                   if (confirm == true) {
-                      await ref.read(authRepositoryProvider).signOut();
-                      if (mounted) context.go('/login');
-                   }
+                   await ref.read(authRepositoryProvider).signOut();
+                   if (mounted) context.go('/login');
                  }
                },
-               itemBuilder: (BuildContext context) {
-                 return [
-                   const PopupMenuItem<String>(
-                     value: 'logout',
-                     child: Row(
-                       children: [
-                         Icon(Icons.logout, color: Colors.redAccent, size: 20),
-                         SizedBox(width: 8),
-                         Text("Logout", style: TextStyle(color: Colors.redAccent)),
-                       ],
-                     ),
-                   ),
-                 ];
-               },
+               itemBuilder: (ctx) => [
+                 const PopupMenuItem(value: 'logout', child: Text("Logout")),
+               ],
              )
         ],
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: _userStream,
-        builder: (context, snapshot) {
-           if (snapshot.hasError) return Center(child: Text("Error loading profile"));
-           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-
-           if (!snapshot.hasData || !snapshot.data!.exists) {
-             return const Center(child: Text("User not found"));
-           }
-
-           final userData = snapshot.data!.data() as Map<String, dynamic>;
-           userData['uid'] = snapshot.data!.id; // Fix for 'Null is not subtype of String' crash
-           final user = UserEntity.fromJson(userData);
-
-           return SingleChildScrollView(
-             child: Column(
-               children: [
-                 _buildProfileHeader(user),
-                 _buildStatsRow(user),
-                 const Divider(),
-                 _buildContentTabs(),
-               ],
-             ),
-           );
+      body: userAsync.when(
+        data: (user) {
+          if (user == null) return const Center(child: Text("User not found"));
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildProfileHeader(user),
+                _buildStatsRow(user),
+                const Divider(),
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text("Match History will appear here", style: TextStyle(color: Colors.grey)),
+                ),
+              ],
+            ),
+          );
         },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, s) => Center(child: Text("Error: $e")),
       ),
     );
   }
@@ -261,103 +189,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildProfileHeader(UserEntity user) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Colors.indigo,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-      ),
+      color: Colors.indigo,
+      width: double.infinity,
       child: Column(
         children: [
            CircleAvatar(
              radius: 50,
-             backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty 
-                ? NetworkImage(user.photoUrl!) 
-                : null,
-             backgroundColor: Colors.white24,
-             child: user.photoUrl == null || user.photoUrl!.isEmpty 
-                ? const Icon(Icons.person, size: 50, color: Colors.white)
-                : null,
+             backgroundImage: user.photoUrl != null && user.photoUrl!.isNotEmpty ? NetworkImage(user.photoUrl!) : null,
+             child: user.photoUrl == null || user.photoUrl!.isEmpty ? const Icon(Icons.person, size: 50) : null,
            ),
            const SizedBox(height: 16),
-           Text(
-             user.displayName ?? "Unknown User",
-             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-           ),
-           if (user.bio != null && user.bio!.isNotEmpty)
-             Padding(
-               padding: const EdgeInsets.only(top: 8.0),
-               child: Text(user.bio!, style: const TextStyle(color: Colors.white70)),
-             ),
+           Text(user.displayName ?? "User", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
            const SizedBox(height: 16),
-           
-           
            if (_isMe) ...[
-             ElevatedButton.icon(
-               onPressed: () => _showEditProfileDialog(user),
-               icon: const Icon(Icons.edit, size: 16),
-               label: const Text("Edit Profile"),
-               style: ElevatedButton.styleFrom(
-                 backgroundColor: Colors.white,
-                 foregroundColor: Colors.indigo,
-                 shape: const StadiumBorder()
-               )
-             ),
-             const SizedBox(height: 12),
-             ElevatedButton.icon(
-                onPressed: () => context.push('/redeem'),
-                icon: const Icon(Icons.card_giftcard, size: 16),
-                label: const Text("Redeem Rewards"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amberAccent,
-                  foregroundColor: Colors.black87,
-                  shape: const StadiumBorder()
-                )
-              ),
-              // Restricted Admin Access
-              if (FirebaseAuth.instance.currentUser?.email == 'tittoosss@gmail.com')
-                Padding(
-                  padding: const EdgeInsets.only(top: 12.0),
-                  child: ElevatedButton.icon(
-                    onPressed: () => context.push('/admin/dashboard'),
-                    icon: const Icon(Icons.admin_panel_settings, size: 16),
-                    label: const Text("Admin Panel"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                      foregroundColor: Colors.white,
-                      shape: const StadiumBorder()
-                    )
-                  ),
-                )
-           ] else 
-             Row(
-               mainAxisAlignment: MainAxisAlignment.center,
-               children: [
-                 ElevatedButton(
-                   onPressed: _toggleFollow,
+             ElevatedButton(onPressed: () => _showEditProfileDialog(user), child: const Text("Edit Profile")),
+             if (_isAdmin)
+               Padding(
+                 padding: const EdgeInsets.only(top: 12.0),
+                 child: ElevatedButton.icon(
+                   onPressed: () => context.push('/admin/dashboard'),
+                   icon: const Icon(Icons.admin_panel_settings, size: 18),
+                   label: const Text("ADMIN PANEL"),
                    style: ElevatedButton.styleFrom(
-                     backgroundColor: _isFollowing ? Colors.transparent : Colors.white,
-                     foregroundColor: _isFollowing ? Colors.white : Colors.indigo,
-                     elevation: _isFollowing ? 0 : 2,
-                     shape: const StadiumBorder(),
-                     side: _isFollowing ? const BorderSide(color: Colors.white) : null
-                   ),
-                   child: Text(_isFollowing ? "Following" : "Follow"),
-                 ),
-                 const SizedBox(width: 12),
-                 OutlinedButton(
-                   onPressed: (){ 
-                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Chat coming soon!")));
-                   },
-                   style: OutlinedButton.styleFrom(
+                     backgroundColor: Colors.redAccent,
                      foregroundColor: Colors.white,
-                     side: const BorderSide(color: Colors.white70),
-                     shape: const StadiumBorder()
+                     shape: const StadiumBorder(),
                    ),
-                   child: const Text("Chat"),
-                 )
-               ],
-             ),
-             const SizedBox(height: 16),
-             const SizedBox.shrink()
+                 ),
+               ),
+           ] else
+             ElevatedButton(onPressed: _toggleFollow, child: Text(_isFollowing ? "Following" : "Follow")),
         ],
       ),
     );
@@ -365,14 +226,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildStatsRow(UserEntity user) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildStatItem("Followers", user.followersCount.toString()),
           _buildStatItem("Following", user.followingCount.toString()),
           _buildStatItem("Contests", user.contestsPlayed.toString()),
-          _buildStatItem("Won", user.contestsWon.toString()),
         ],
       ),
     );
@@ -382,18 +242,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       children: [
         Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
-    );
-  }
-
-  Widget _buildContentTabs() {
-    return const Padding(
-      padding: EdgeInsets.all(16.0),
-      child: Center(
-        child: Text("Match History will appear here (Phase 9)", style: TextStyle(color: Colors.grey)),
-      ),
     );
   }
 }
