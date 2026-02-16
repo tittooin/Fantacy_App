@@ -160,6 +160,7 @@ export function calculateFantasyPoints(stats, format = 'T20') {
  * Automates Points Sync for a Match
  */
 export async function syncMatchPointsToD1(matchId, env) {
+    console.log("POINTS_ENGINE_VERSION_V2"); // Version Check
     console.log(`📊 Syncing Points for Match ${matchId}...`);
     const apiKey = env.RAPID_API_KEY;
     const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
@@ -222,6 +223,13 @@ export async function syncMatchPointsToD1(matchId, env) {
             console.error("Failed to update live_scores in cron:", scoreErr);
         }
 
+        // --- NEW: Update Playing XI in match_squads (Fix for Missing Lineups) ---
+        try {
+            await updatePlayingXI(matchId, playerStats, env);
+        } catch (xiErr) {
+            console.error("Failed to update playing XI:", xiErr);
+        }
+
         return playerStats.length;
 
     } catch (e) {
@@ -230,42 +238,111 @@ export async function syncMatchPointsToD1(matchId, env) {
     }
 }
 
+async function updatePlayingXI(matchId, playerStats, env) {
+    // 1. Get current squads
+    const squadData = await env.DB.prepare("SELECT team_a_roster, team_b_roster FROM match_squads WHERE match_id = ?").bind(matchId).first();
+    if (!squadData) return;
+
+    const rosterA = JSON.parse(squadData.team_a_roster || '[]');
+    const rosterB = JSON.parse(squadData.team_b_roster || '[]');
+
+    // 2. Filter Active Players
+    const idSet = new Set(playerStats.map(p => String(p.playerId)));
+
+    // Filter Rosters to keep only those in stats.
+    // Ensure ID comparison is robust (String vs Number)
+    const xiA = rosterA.filter(p => idSet.has(String(p.id)));
+    const xiB = rosterB.filter(p => idSet.has(String(p.id)));
+
+    if (xiA.length === 0 && xiB.length === 0) return;
+
+    console.log(`Updating Playing XI for ${matchId}: A=${xiA.length}, B=${xiB.length}`);
+
+    // 3. Update D1
+    await env.DB.prepare(`
+        UPDATE match_squads 
+        SET playing_11_a = ?, playing_11_b = ?
+        WHERE match_id = ?
+    `).bind(
+        JSON.stringify(xiA),
+        JSON.stringify(xiB),
+        matchId
+    ).run();
+}
+
 function extractPlayerStatsFromScorecard(data) {
     const stats = [];
     if (!data || !data.scorecard) return stats;
 
     data.scorecard.forEach(inning => {
-        // Batsmen
-        if (inning.batTeamDetails && inning.batTeamDetails.batsmenData) {
+        // --- BATSMEN Parsing ---
+        if (inning.batsman && Array.isArray(inning.batsman)) {
+            inning.batsman.forEach(b => {
+                let existing = stats.find(s => s.playerId === b.id);
+                if (!existing) {
+                    existing = {
+                        playerId: b.id, name: b.name,
+                        runs: 0, fours: 0, sixes: 0, wickets: 0, catches: 0,
+                        role: 'Batsman'
+                    };
+                    stats.push(existing);
+                }
+                existing.runs = parseInt(b.runs || 0);
+                existing.fours = parseInt(b.fours || 0);
+                existing.sixes = parseInt(b.sixes || 0);
+                existing.isOut = b.outDesc !== 'not out' && b.outDec !== 'not out';
+                if (b.outdec) existing.isOut = b.outdec !== 'not out';
+            });
+        }
+        else if (inning.batTeamDetails && inning.batTeamDetails.batsmenData) {
+            // Fallback for old structure
             Object.values(inning.batTeamDetails.batsmenData).forEach(b => {
-                stats.push({
-                    playerId: b.batId,
-                    name: b.outDesc || 'Batsman',
-                    runs: parseInt(b.runs || 0),
-                    fours: parseInt(b.fours || 0),
-                    sixes: parseInt(b.sixes || 0),
-                    isOut: b.outDesc && b.outDesc !== 'not out',
-                    role: 'Batsman' // Heuristic
-                });
+                let existing = stats.find(s => s.playerId === b.batId);
+                if (!existing) {
+                    existing = {
+                        playerId: b.batId,
+                        name: b.outDesc || 'Batsman',
+                        runs: 0, fours: 0, sixes: 0, wickets: 0, catches: 0,
+                        role: 'Batsman'
+                    };
+                    stats.push(existing);
+                }
+                existing.runs = parseInt(b.runs || 0);
+                existing.fours = parseInt(b.fours || 0);
+                existing.sixes = parseInt(b.sixes || 0);
+                existing.isOut = b.outDesc && b.outDesc !== 'not out';
             });
         }
 
-        // Bowlers
-        if (inning.bowlTeamDetails && inning.bowlTeamDetails.bowlersData) {
+        // --- BOWLERS Parsing ---
+        if (inning.bowler && Array.isArray(inning.bowler)) {
+            inning.bowler.forEach(b => {
+                let existing = stats.find(s => s.playerId === b.id);
+                const bowlStats = {
+                    playerId: b.id,
+                    wickets: parseInt(b.wickets || 0),
+                    maidens: parseInt(b.maidens || 0),
+                    overs: parseFloat(b.overs || 0),
+                    lbwOrBowled: 0,
+                };
+                if (existing) { Object.assign(existing, bowlStats); }
+                else { stats.push({ ...bowlStats, name: b.name || 'Bowler', role: 'Bowler', runs: 0, fours: 0, sixes: 0, isOut: false, catches: 0 }); }
+            });
+        }
+        else if (inning.bowlTeamDetails && inning.bowlTeamDetails.bowlersData) {
             Object.values(inning.bowlTeamDetails.bowlersData).forEach(b => {
-                const existing = stats.find(s => s.playerId === b.bowlerId);
+                let existing = stats.find(s => s.playerId === b.bowlerId);
                 const bowlStats = {
                     playerId: b.bowlerId,
                     wickets: parseInt(b.wickets || 0),
                     maidens: parseInt(b.maidens || 0),
                     overs: parseFloat(b.overs || 0),
-                    lbwOrBowled: 0, // Cricbuzz doesn't directly provide LBW/Bowled count in scard summary usually, needs detailed parsing or generic bonus
+                    lbwOrBowled: 0,
                 };
-
                 if (existing) {
                     Object.assign(existing, bowlStats);
                 } else {
-                    stats.push({ ...bowlStats, name: 'Bowler', role: 'Bowler', runs: 0, fours: 0, sixes: 0, isOut: false });
+                    stats.push({ ...bowlStats, name: 'Bowler', role: 'Bowler', runs: 0, fours: 0, sixes: 0, isOut: false, catches: 0 });
                 }
             });
         }

@@ -59,6 +59,18 @@ export default {
 
             // 0. CRITICAL: Allow Test Routes immediately (Bypass all checks)
             // if (path === '/test-squad-sync' || path === '/test-squad-sync/') return handleManualSquadSync(env);
+            if (path === '/api/test-force-sync') {
+                const mid = url.searchParams.get('matchId');
+                if (!mid) return new Response("Missing matchId", { status: 400 });
+                const count = await syncMatchPointsToD1(mid, env);
+                return new Response(`Synced ${count} players for ${mid}`, { status: 200 });
+            }
+            if (path === '/api/test-squad-sync') {
+                const mid = url.searchParams.get('matchId');
+                if (!mid) return new Response("Missing matchId", { status: 400 });
+                const squad = await syncMatchSquad(mid, env);
+                return new Response(`Synced Squad: ${squad ? 'Yes' : 'No'}`, { status: 200 });
+            }
 
 
             if (url.pathname === '/api/leaderboard') return await handleGetLeaderboard(request, env);
@@ -245,6 +257,11 @@ export default {
             if (path === '/api/contest') {
                 const contestId = url.searchParams.get('contestId');
                 if (!contestId) return jsonResponse({ success: false, error: 'contestId required' }, 400);
+                return handleGetContestById(contestId, env);
+            }
+            // Fix for Flutter App Mismatch (GET /api/contest/:id)
+            if (path.startsWith('/api/contest/')) {
+                const contestId = path.split('/').pop();
                 return handleGetContestById(contestId, env);
             }
             if (path === '/api/user/contests') {
@@ -823,10 +840,14 @@ async function handleGetSquads(matchId, env, request) {
 
         const rawTeamA = JSON.parse(d1Squad.team_a_roster || '[]');
         const rawTeamB = JSON.parse(d1Squad.team_b_roster || '[]');
+        const rawXiA = JSON.parse(d1Squad.playing_11_a || '[]');
+        const rawXiB = JSON.parse(d1Squad.playing_11_b || '[]');
 
         // 3. COLLECT IDs & FETCH STATS (Batch)
         const allMap = new Map();
-        [...rawTeamA, ...rawTeamB].forEach(p => allMap.set(p.id, p));
+        [...rawTeamA, ...rawTeamB, ...rawXiA, ...rawXiB].forEach(p => {
+            if (p.id) allMap.set(p.id, p);
+        });
 
         const allIds = Array.from(allMap.keys());
 
@@ -904,6 +925,8 @@ async function handleGetSquads(matchId, env, request) {
 
         const finalTeamA = rawTeamA.map(enrich);
         const finalTeamB = rawTeamB.map(enrich);
+        const finalXiA = rawXiA.map(enrich);
+        const finalXiB = rawXiB.map(enrich);
 
         // 5. SORT STABLE
         // WK -> BAT -> AR -> BOWL
@@ -918,12 +941,14 @@ async function handleGetSquads(matchId, env, request) {
 
         finalTeamA.sort(sorter);
         finalTeamB.sort(sorter);
+        finalXiA.sort(sorter);
+        finalXiB.sort(sorter);
 
         const responseData = {
             teamA: finalTeamA,
             teamB: finalTeamB,
-            xiA: [], // Not supported yet
-            xiB: [],
+            xiA: finalXiA,
+            xiB: finalXiB,
             matchId: matchId,
             team1Id: team1Id,
             team2Id: team2Id
