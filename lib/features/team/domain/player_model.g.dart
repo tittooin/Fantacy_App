@@ -10,7 +10,7 @@ _PlayerModel _$PlayerModelFromJson(Map<String, dynamic> json) => _PlayerModel(
   id: json['id'] as String,
   name: json['name'] as String,
   teamShortName: json['teamShortName'] as String?,
-  role: json['role'] as String,
+  role: $enumDecode(_$PlayerRoleEnumMap, json['role']),
   credits: (json['credits'] as num).toDouble(),
   imageUrl: json['imageUrl'] as String,
   points: (json['points'] as num?)?.toDouble() ?? 0.0,
@@ -24,7 +24,7 @@ Map<String, dynamic> _$PlayerModelToJson(_PlayerModel instance) =>
       'id': instance.id,
       'name': instance.name,
       'teamShortName': instance.teamShortName,
-      'role': instance.role,
+      'role': _$PlayerRoleEnumMap[instance.role]!,
       'credits': instance.credits,
       'imageUrl': instance.imageUrl,
       'points': instance.points,
@@ -32,3 +32,11 @@ Map<String, dynamic> _$PlayerModelToJson(_PlayerModel instance) =>
       'isPlaying': instance.isPlaying,
       'teamId': instance.teamId,
     };
+
+const _$PlayerRoleEnumMap = {
+  PlayerRole.wicketKeeper: 'WK',
+  PlayerRole.batsman: 'BAT',
+  PlayerRole.allRounder: 'AR',
+  PlayerRole.bowler: 'BOWL',
+  PlayerRole.unknown: 'UNKNOWN',
+};

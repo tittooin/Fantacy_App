@@ -39,11 +39,17 @@ class D1PlayerService {
             return double.tryParse(val.toString()) ?? 0.0;
           }
 
-          // TRUST BACKEND NORMALIZATION (WK, BAT, AR, BOWL)
-          // But keep fallback just in case
-          String role = (json['role'] ?? 'BAT').toString().toUpperCase();
-          if (role == 'WICKET KEEPER') role = 'WK'; // Legacy catch
-          if (role == 'ALL ROUNDER') role = 'AR';
+          // TRUST BACKEND NORMALIZATION + EXTRA SAFETY FOR UI
+          PlayerRole parseRole(dynamic r) {
+            final roleStr = (r ?? 'BAT').toString().toUpperCase();
+            if (roleStr == 'WK' || roleStr.contains('WICKET') || roleStr.contains('KEEPER')) return PlayerRole.wicketKeeper;
+            if (roleStr == 'BAT' || roleStr.contains('BATS')) return PlayerRole.batsman;
+            if (roleStr == 'AR' || roleStr.contains('ALL') || roleStr.contains('ROUND')) return PlayerRole.allRounder;
+             if (roleStr == 'BOWL' || roleStr.contains('BOWL')) return PlayerRole.bowler;
+            return PlayerRole.batsman; // Fallback
+          }
+          
+          final roleEnum = parseRole(json['role']);
 
           final id = (json['id'] ?? json['player_id'] ?? '').toString();
           if (id.isEmpty) continue;
@@ -51,7 +57,7 @@ class D1PlayerService {
           final player = PlayerModel(
             id: id,
             name: (json['name'] ?? 'Unknown').toString(),
-            role: role,
+            role: roleEnum, // Enum
             credits: parseDouble(json['credits']),
             points: parseDouble(json['points']),
             fantasyRating: parseDouble(json['fantasy_rating']), // NEW

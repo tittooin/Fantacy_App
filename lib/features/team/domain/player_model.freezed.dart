@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 mixin _$PlayerModel {
 
  String get id; String get name; String? get teamShortName;// e.g., "CSK" - Nullable to handle legacy data
- String get role;// "WK", "BAT", "AR", "BOWL"
+ PlayerRole get role;// Enum for strict filtering
  double get credits;// e.g., 9.0
  String get imageUrl;// URL or asset path
  double get points;// Last match points or average
@@ -55,7 +55,7 @@ abstract mixin class $PlayerModelCopyWith<$Res>  {
   factory $PlayerModelCopyWith(PlayerModel value, $Res Function(PlayerModel) _then) = _$PlayerModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String? teamShortName, String role, double credits, String imageUrl, double points, double fantasyRating, bool isPlaying, String? teamId
+ String id, String name, String? teamShortName, PlayerRole role, double credits, String imageUrl, double points, double fantasyRating, bool isPlaying, String? teamId
 });
 
 
@@ -78,7 +78,7 @@ id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,teamShortName: freezed == teamShortName ? _self.teamShortName : teamShortName // ignore: cast_nullable_to_non_nullable
 as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
-as String,credits: null == credits ? _self.credits : credits // ignore: cast_nullable_to_non_nullable
+as PlayerRole,credits: null == credits ? _self.credits : credits // ignore: cast_nullable_to_non_nullable
 as double,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
 as double,fantasyRating: null == fantasyRating ? _self.fantasyRating : fantasyRating // ignore: cast_nullable_to_non_nullable
@@ -169,7 +169,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  double fantasyRating,  bool isPlaying,  String? teamId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  PlayerRole role,  double credits,  String imageUrl,  double points,  double fantasyRating,  bool isPlaying,  String? teamId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PlayerModel() when $default != null:
 return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.fantasyRating,_that.isPlaying,_that.teamId);case _:
@@ -190,7 +190,7 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  double fantasyRating,  bool isPlaying,  String? teamId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  PlayerRole role,  double credits,  String imageUrl,  double points,  double fantasyRating,  bool isPlaying,  String? teamId)  $default,) {final _that = this;
 switch (_that) {
 case _PlayerModel():
 return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.fantasyRating,_that.isPlaying,_that.teamId);case _:
@@ -210,7 +210,7 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? teamShortName,  String role,  double credits,  String imageUrl,  double points,  double fantasyRating,  bool isPlaying,  String? teamId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? teamShortName,  PlayerRole role,  double credits,  String imageUrl,  double points,  double fantasyRating,  bool isPlaying,  String? teamId)?  $default,) {final _that = this;
 switch (_that) {
 case _PlayerModel() when $default != null:
 return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.fantasyRating,_that.isPlaying,_that.teamId);case _:
@@ -232,8 +232,8 @@ class _PlayerModel implements PlayerModel {
 @override final  String name;
 @override final  String? teamShortName;
 // e.g., "CSK" - Nullable to handle legacy data
-@override final  String role;
-// "WK", "BAT", "AR", "BOWL"
+@override final  PlayerRole role;
+// Enum for strict filtering
 @override final  double credits;
 // e.g., 9.0
 @override final  String imageUrl;
@@ -279,7 +279,7 @@ abstract mixin class _$PlayerModelCopyWith<$Res> implements $PlayerModelCopyWith
   factory _$PlayerModelCopyWith(_PlayerModel value, $Res Function(_PlayerModel) _then) = __$PlayerModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String? teamShortName, String role, double credits, String imageUrl, double points, double fantasyRating, bool isPlaying, String? teamId
+ String id, String name, String? teamShortName, PlayerRole role, double credits, String imageUrl, double points, double fantasyRating, bool isPlaying, String? teamId
 });
 
 
@@ -302,7 +302,7 @@ id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,teamShortName: freezed == teamShortName ? _self.teamShortName : teamShortName // ignore: cast_nullable_to_non_nullable
 as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
-as String,credits: null == credits ? _self.credits : credits // ignore: cast_nullable_to_non_nullable
+as PlayerRole,credits: null == credits ? _self.credits : credits // ignore: cast_nullable_to_non_nullable
 as double,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
 as double,fantasyRating: null == fantasyRating ? _self.fantasyRating : fantasyRating // ignore: cast_nullable_to_non_nullable
