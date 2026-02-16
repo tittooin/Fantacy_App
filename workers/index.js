@@ -67,9 +67,13 @@ export default {
             }
             if (path === '/api/test-squad-sync') {
                 const mid = url.searchParams.get('matchId');
+                const source = url.searchParams.get('source'); // Optional: SERIES or SCARD
                 if (!mid) return new Response("Missing matchId", { status: 400 });
-                const squad = await syncMatchSquad(mid, env);
-                return new Response(`Synced Squad: ${squad ? 'Yes' : 'No'}`, { status: 200 });
+                const result = await syncMatchSquad(mid, env, source);
+                return new Response(JSON.stringify(result, null, 2), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
             }
 
 

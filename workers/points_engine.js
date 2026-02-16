@@ -159,9 +159,76 @@ export function calculateFantasyPoints(stats, format = 'T20') {
 /**
  * Automates Points Sync for a Match
  */
+// --- SERIES WHITELIST (API SAVER) ---
+function isPrioritySeries(seriesName) {
+    if (!seriesName) return false;
+    const s = seriesName.toUpperCase();
+
+    // International Tournaments
+    if (s.includes('WORLD CUP')) return true;
+    if (s.includes('T20 WORLD CUP')) return true;
+    if (s.includes('CHAMPIONS TROPHY')) return true;
+    if (s.includes('ASIA CUP')) return true;
+
+    // Franchise Leagues (Major only)
+    if (s.includes('IPL') || s.includes('INDIAN PREMIER')) return true;
+    if (s.includes('PSL') || s.includes('PAKISTAN SUPER')) return true;
+    if (s.includes('BBL') || s.includes('BIG BASH')) return true;
+    if (s.includes('THE HUNDRED')) return true;
+
+    if (s.includes('WPL') || s.includes('WOMEN\'S PREMIER')) return true;
+
+    return false;
+}
+
+/**
+ * Automates Points Sync for a Match
+ * Optimization Update: 
+ * - Only syncs 'Live' matches
+ * - Only syncs 'Upcoming' matches if start_time is within 20 mins (Pre-toss checks)
+ * - Strict Time Window: start_time <= now <= start_time + 8 hours
+ * - Strict Whitelist: Only Major Leagues
+ */
 export async function syncMatchPointsToD1(matchId, env) {
-    console.log("POINTS_ENGINE_VERSION_V2"); // Version Check
-    console.log(`📊 Syncing Points for Match ${matchId}...`);
+    console.log("POINTS_ENGINE_OPT_V4"); // Version: Whitelist Patch
+
+    // 1. Fetch match details to validate Time Window
+    const match = await env.DB.prepare("SELECT status, start_time, title FROM matches WHERE id = ?").bind(matchId).first();
+    if (!match) return 0;
+
+    // WHITELIST CHECK
+    if (!isPrioritySeries(match.title)) {
+        // console.log(`⏭️ Skipping Points for ${matchId}: Not in Whitelist.`);
+        return 0;
+    }
+
+    const now = Date.now();
+    const startTime = match.start_time;
+    const eightHours = 8 * 60 * 60 * 1000;
+    const twentyMins = 20 * 60 * 1000;
+
+    // RULE 1: If Status is Completed/Abandoned, SKIP (Unless forced manual sync, handled by caller?)
+    // Actually, this function is called by processLivePoints which selects Live/Upcoming.
+    // We add a safety check here too.
+    if (match.status === 'Completed' || match.status === 'Abandoned') {
+        console.log(`⏭️ Skipping ${matchId}: Status is ${match.status}`);
+        return 0;
+    }
+
+    // RULE 2: Time Window Check
+    // Allow if:
+    // a) Status is 'Live' AND Time is within 12 hours of start (Safety for stuck Live matches)
+    // b) Status is 'Upcoming' AND Time is within 20 mins of start
+
+    const isLiveViable = (match.status === 'Live' && (now < (startTime + 12 * 60 * 60 * 1000))); // 12h safety for Test matches/Rain
+    const isUpcomingViable = (match.status === 'Upcoming' && (now > (startTime - twentyMins)));
+
+    if (!isLiveViable && !isUpcomingViable) {
+        // console.log(`⏳ Skipping ${matchId}: Outside Sync Window. Status: ${match.status}, Start: ${new Date(startTime).toISOString()}`);
+        return 0;
+    }
+
+    console.log(`📊 Syncing Points for Match ${matchId} (Status: ${match.status})...`);
     const apiKey = env.RAPID_API_KEY;
     const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
 
@@ -172,6 +239,12 @@ export async function syncMatchPointsToD1(matchId, env) {
 
         if (!resp.ok) throw new Error(`API Error: ${resp.status}`);
         const data = await resp.json();
+
+        // VALIDATION: If match is actually completed in API data, update DB Status
+        if (data.status && (data.status.toLowerCase().includes('complete') || data.status.toLowerCase().includes('result'))) {
+            console.log(`✅ Match ${matchId} Completed in API. Updating DB Status.`);
+            await env.DB.prepare("UPDATE matches SET status = 'Completed' WHERE id = ?").bind(matchId).run();
+        }
 
         const playerStats = extractPlayerStatsFromScorecard(data);
         console.log(`Found stats for ${playerStats.length} players in scorecard.`);
@@ -218,14 +291,16 @@ export async function syncMatchPointsToD1(matchId, env) {
                 JSON.stringify(details.fullData),
                 Date.now()
             ).run();
-            console.log(`✅ Updated live_scores for ${matchId}`);
+            // console.log(`✅ Updated live_scores for ${matchId}`);
         } catch (scoreErr) {
             console.error("Failed to update live_scores in cron:", scoreErr);
         }
 
         // --- NEW: Update Playing XI in match_squads (Fix for Missing Lineups) ---
         try {
-            await updatePlayingXI(matchId, playerStats, env);
+            if (playerStats.length > 0) {
+                await updatePlayingXI(matchId, playerStats, env);
+            }
         } catch (xiErr) {
             console.error("Failed to update playing XI:", xiErr);
         }
