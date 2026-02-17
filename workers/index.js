@@ -809,15 +809,18 @@ async function handleGetScorecard(matchId, env) {
 // --- RUNTIME MERGE & CACHE ---
 const SQUAD_CACHE = new Map(); // Simple Memory Cache
 
-async function handleGetSquads(matchId, env, request) {
+async function handleGetSquads(rawMatchId, env, request) {
     try {
-        if (!matchId) return jsonResponse({ success: false, error: 'matchId required' });
+        // Normalize Input: "144321" -> 144321
+        const matchIdStr = String(rawMatchId || "").trim();
+        if (!matchIdStr) return jsonResponse({ success: false, error: 'matchId required' });
 
+        const matchId = Number(matchIdStr); // CAST Input
         const now = Date.now();
 
-        // 1. MEMORY CACHE (TTL 60s)
-        if (SQUAD_CACHE.has(matchId)) {
-            const cached = SQUAD_CACHE.get(matchId);
+        // 1. MEMORY CACHE (TTL 60s) using normalized ID
+        if (SQUAD_CACHE.has(matchIdStr)) {
+            const cached = SQUAD_CACHE.get(matchIdStr);
             if (now - cached.ts < 60000) {
                 return jsonResponse({
                     success: true,
@@ -827,13 +830,14 @@ async function handleGetSquads(matchId, env, request) {
             }
         }
 
-        // 2. FETCH STATIC SQUAD (D1)
+        // 2. FETCH STATIC SQUAD (D1) with STRICT INTEGER CASTING
+        // Fix: match_id in DB is REAL (144321.0), input is "144321"
         const d1Squad = await env.DB.prepare(
-            "SELECT team_a_roster, team_b_roster, playing_11_a, playing_11_b, last_updated FROM match_squads WHERE match_id = ?"
+            "SELECT team_a_roster, team_b_roster, playing_11_a, playing_11_b, last_updated FROM match_squads WHERE CAST(match_id AS INTEGER) = CAST(? AS INTEGER)"
         ).bind(matchId).first();
 
         // Fetch Team Metadata
-        let matchInfo = await env.DB.prepare("SELECT team_a_id, team_b_id FROM matches WHERE id = ?").bind(matchId).first();
+        let matchInfo = await env.DB.prepare("SELECT team_a_id, team_b_id FROM matches WHERE CAST(id AS INTEGER) = CAST(? AS INTEGER)").bind(matchId).first();
         const team1Id = matchInfo?.team_a_id || '0';
         const team2Id = matchInfo?.team_b_id || '0';
 
@@ -846,6 +850,9 @@ async function handleGetSquads(matchId, env, request) {
         const rawTeamB = JSON.parse(d1Squad.team_b_roster || '[]');
         const rawXiA = JSON.parse(d1Squad.playing_11_a || '[]');
         const rawXiB = JSON.parse(d1Squad.playing_11_b || '[]');
+
+        // STEP 2: RAW DATA LOG
+        console.log("RAW_D1_DATA", rawTeamA.length, rawTeamB.length);
 
         // 3. COLLECT IDs & FETCH STATS (Batch)
         const allMap = new Map();
@@ -932,6 +939,10 @@ async function handleGetSquads(matchId, env, request) {
         const finalXiA = rawXiA.map(enrich);
         const finalXiB = rawXiB.map(enrich);
 
+        // STEP 3: AFTER MAP LOG
+        console.log("AFTER_ROLE_MAP", finalTeamA.length + finalTeamB.length);
+
+
         // 5. SORT STABLE
         // WK -> BAT -> AR -> BOWL
         // Then ID Asc
@@ -947,6 +958,12 @@ async function handleGetSquads(matchId, env, request) {
         finalTeamB.sort(sorter);
         finalXiA.sort(sorter);
         finalXiB.sort(sorter);
+
+        // STEP 4: FINAL COUNT LOG
+        const allFinal = [...finalTeamA, ...finalTeamB];
+        const grouped = { WK: 0, BAT: 0, AR: 0, BOWL: 0 };
+        allFinal.forEach(p => grouped[p.role] = (grouped[p.role] || 0) + 1);
+        console.log("FINAL_API_PLAYERS", grouped.WK, grouped.BAT, grouped.AR, grouped.BOWL);
 
         const responseData = {
             teamA: finalTeamA,
