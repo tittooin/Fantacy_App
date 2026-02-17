@@ -33,7 +33,8 @@ const corsHeaders = {
 
 export default {
     async scheduled(event, env, ctx) {
-        console.log("⏰ Scheduled Event Triggered");
+        console.log("⏰ Scheduled Event Triggered", new Date().toISOString());
+        console.log("CRON_TRIGGERED", new Date().toISOString());
         ctx.waitUntil(processCricketData(env));
         ctx.waitUntil(processLivePoints(env));
         ctx.waitUntil(processLeaderboards(env));

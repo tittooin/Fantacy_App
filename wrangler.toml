@@ -7,12 +7,10 @@ RAPID_API_KEY = "70a8792460msh629f8e0af8cc36bp17accbjsn7c270b8814ee"
 RAPID_API_HOST = "unofficial-cricbuzz.p.rapidapi.com"
 
 # Firestore configuration
-# Firestore configuration
 FIREBASE_PROJECT_ID = "axevora11"
 FIREBASE_API_KEY = "AIzaSyDVoZoy6_Qz36Xz3P7CbkGSB75Vq0CsJhU"
 
 # Cashfree Configuration (Backend Only)
-# Cashfree Configuration (Secrets moved to .dev.vars / Cloudflare Dashboard)
 # CASHFREE_APP_ID = "YOUR_APP_ID"
 # CASHFREE_SECRET_KEY = "YOUR_SECRET_KEY"
 # CASHFREE_IS_SANDBOX = "false"
