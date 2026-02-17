@@ -159,25 +159,26 @@ export function calculateFantasyPoints(stats, format = 'T20') {
 /**
  * Automates Points Sync for a Match
  */
-// --- SERIES WHITELIST (API SAVER) ---
+// --- SERIES WHITELIST (API SAVER - Points) ---
 function isPrioritySeries(seriesName) {
     if (!seriesName) return false;
     const s = seriesName.toUpperCase();
 
-    // International Tournaments
+    // STRICT ALLOWED LIST (User Defined)
+    // 1. ICC Events
     if (s.includes('WORLD CUP')) return true;
     if (s.includes('T20 WORLD CUP')) return true;
     if (s.includes('CHAMPIONS TROPHY')) return true;
     if (s.includes('ASIA CUP')) return true;
 
-    // Franchise Leagues (Major only)
+    // 2. Major Leagues
     if (s.includes('IPL') || s.includes('INDIAN PREMIER')) return true;
     if (s.includes('PSL') || s.includes('PAKISTAN SUPER')) return true;
     if (s.includes('BBL') || s.includes('BIG BASH')) return true;
     if (s.includes('THE HUNDRED')) return true;
-
     if (s.includes('WPL') || s.includes('WOMEN\'S PREMIER')) return true;
 
+    // 3. Reject Everything Else
     return false;
 }
 

@@ -8,25 +8,26 @@
  */
 
 // --- SERIES WHITELIST (API SAVER) ---
-function isPrioritySeries(seriesName) {
+// --- SERIES WHITELIST (API SAVER) ---
+export function isPrioritySeries(seriesName) {
     if (!seriesName) return false;
     const s = seriesName.toUpperCase();
 
-    // International Tournaments
+    // STRICT ALLOWED LIST (User Defined)
+    // 1. ICC Events
     if (s.includes('WORLD CUP')) return true;
     if (s.includes('T20 WORLD CUP')) return true;
     if (s.includes('CHAMPIONS TROPHY')) return true;
     if (s.includes('ASIA CUP')) return true;
 
-    // Franchise Leagues (Major only)
+    // 2. Major Leagues
     if (s.includes('IPL') || s.includes('INDIAN PREMIER')) return true;
     if (s.includes('PSL') || s.includes('PAKISTAN SUPER')) return true;
     if (s.includes('BBL') || s.includes('BIG BASH')) return true;
     if (s.includes('THE HUNDRED')) return true;
-
-    // Add Women's equivalents if needed, currently generic matching covers most.
     if (s.includes('WPL') || s.includes('WOMEN\'S PREMIER')) return true;
 
+    // 3. Reject Everything Else
     return false;
 }
 
@@ -458,4 +459,58 @@ export async function syncMatchSquad(matchId, env, sourceOverride) {
     await saveToDB(env, String(matchId), data, targetState, source);
 
     return { data, source, targetState };
+}
+
+/**
+ * REPAIR QUEUE MECHANISM (Safe Recovery)
+ * - Controlled via DB
+ * - Max 1 Execution per Cron
+ * - Verification before Success
+ */
+export async function processRepairQueue(env) {
+    const logs = [];
+    logs.push("🛠️ Checking Repair Queue...");
+
+    try {
+        // 1. Fetch PENDING repair task (Limit 1)
+        const task = await env.DB.prepare("SELECT * FROM repair_queue WHERE processed = 0 ORDER BY created_at ASC LIMIT 1").first();
+
+        if (!task) {
+            logs.push("✅ No Pending Repairs.");
+            return { processed: 0, logs };
+        }
+
+        logs.push(`🚀 Processing Repair: Match ${task.match_id} (${task.action})`);
+
+        // 2. Execute SYNC (Bypass Priority Filter)
+        // We use syncMatchSquad logic but ensure we pass existing Env
+        const result = await syncMatchSquad(task.match_id, env, 'SERIES'); // Default to Series Sync for safety
+
+        // 3. VERIFY DATA (Success Condition: Complete Squads)
+        const valid = await env.DB.prepare(`
+            SELECT 
+                json_array_length(team_a_roster) as a, 
+                json_array_length(team_b_roster) as b 
+            FROM match_squads 
+            WHERE match_id = ?
+        `).bind(task.match_id).first();
+
+        const success = (valid && valid.a >= 11 && valid.b >= 11);
+
+        if (success) {
+            // 4. SUCCESS: Mark Processed
+            await env.DB.prepare("UPDATE repair_queue SET processed = 1 WHERE id = ?").bind(task.id).run();
+            logs.push(`✅ Repair Success for ${task.match_id}. Squads: A=${valid.a}, B=${valid.b}`);
+        } else {
+            // 5. FAILURE: Do NOT mark processed (Retry Next Cron)
+            logs.push(`❌ Repair Failed for ${task.match_id}. Data Invalid/Empty. Retrying next cycle.`);
+        }
+
+        return { processed: 1, logs };
+
+    } catch (e) {
+        console.error("Repair Error:", e);
+        logs.push("❌ Repair Error: " + e.message);
+        return { processed: 0, error: e.message, logs };
+    }
 }

@@ -11,7 +11,7 @@ import { processLiveContests } from './contest_engine.js';
 import { createCashfreeOrder } from './payment_service.js';
 import { handleCashfreeWebhook } from './webhook_handler.js';
 import { processLeaderboards } from './leaderboard_engine.js';
-import { processSquads, syncMatchSquad } from './squad_engine.js';
+import { processSquads, syncMatchSquad, processRepairQueue } from './squad_engine.js';
 import { processPayoutsForMatch } from './payout_engine.js';
 import { handleVoucherRequest, handleVoucherUserHistory, handleAdminVoucherList, handleAdminApproveVoucher } from './voucher_engine.js';
 import { syncMatchPointsToD1 } from './points_engine.js';
@@ -39,6 +39,7 @@ export default {
         ctx.waitUntil(processLeaderboards(env));
         ctx.waitUntil(processEconomy(env));
         ctx.waitUntil(processPlayerStats(env)); // NEW Background Stats Sync
+        ctx.waitUntil(processRepairQueue(env)); // NEW Safe Recovery Mechanism
     },
 
     async fetch(request, env, ctx) {
@@ -829,6 +830,20 @@ async function handleGetSquads(rawMatchId, env, request) {
                 });
             }
         }
+
+        // --- NEW: MATCH LIFECYCLE GUARD (Optimized) ---
+        // Prevent team creation on Completed matches (Saves DB, API, and fixes Blank Screen)
+        const matchStatus = await env.DB.prepare("SELECT status FROM matches WHERE CAST(id AS INTEGER) = CAST(? AS INTEGER)").bind(matchId).first();
+
+        // If match exists AND is NOT editable (Upcoming/Live) -> Block access
+        if (matchStatus && (matchStatus.status !== 'Upcoming' && matchStatus.status !== 'Live')) {
+            return jsonResponse({
+                success: false,
+                reason: "MATCH_NOT_EDITABLE",
+                error: "Match is completed or abandoned"
+            });
+        }
+        // ----------------------------------------------
 
         // 2. FETCH STATIC SQUAD (D1) with STRICT INTEGER CASTING
         // Fix: match_id in DB is REAL (144321.0), input is "144321"

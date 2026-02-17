@@ -7,7 +7,7 @@
  * 4. STRICTLY NO FIRESTORE WRITES
  */
 
-import { calculateFantasyPoints } from './points_engine.js';
+import { isPrioritySeries } from './squad_engine.js'; // Shared Whitelist
 // import { processPayoutsForMatch } from './payout_engine.js'; // Disabled for now
 
 export async function processCricketData(env) {
@@ -23,6 +23,8 @@ export async function processCricketData(env) {
 
         // Process Matches (Upsert to D1)
         for (const match of matches) {
+            // STRICT WHITELIST REMOVED - Allow All Matches to Enter DB
+            // (Filtering happens at Processing Stage)
             await syncMatchToD1(match, env);
         }
 

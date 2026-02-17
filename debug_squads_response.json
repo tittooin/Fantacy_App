@@ -1,0 +1,112 @@
+{
+  "squads": [{
+    "squadType": "T20",
+    "isHeader": true
+  }, {
+    "squadId": 107338,
+    "squadType": "India",
+    "imageId": 776162,
+    "teamId": 2
+  }, {
+    "squadId": 107382,
+    "squadType": "Namibia",
+    "imageId": 776326,
+    "teamId": 161
+  }, {
+    "squadId": 107393,
+    "squadType": "Australia",
+    "imageId": 776202,
+    "teamId": 4
+  }, {
+    "squadId": 107415,
+    "squadType": "Zimbabwe",
+    "imageId": 776198,
+    "teamId": 12
+  }, {
+    "squadId": 107437,
+    "squadType": "Oman",
+    "imageId": 776328,
+    "teamId": 304
+  }, {
+    "squadId": 107448,
+    "squadType": "England",
+    "imageId": 776237,
+    "teamId": 9
+  }, {
+    "squadId": 107492,
+    "squadType": "Nepal",
+    "imageId": 776331,
+    "teamId": 72
+  }, {
+    "squadId": 107503,
+    "squadType": "South Africa",
+    "imageId": 776287,
+    "teamId": 11
+  }, {
+    "squadId": 107514,
+    "squadType": "New Zealand",
+    "imageId": 776333,
+    "teamId": 13
+  }, {
+    "squadId": 107525,
+    "squadType": "Afghanistan",
+    "imageId": 776177,
+    "teamId": 96
+  }, {
+    "squadId": 107996,
+    "squadType": "Ireland",
+    "imageId": 839366,
+    "teamId": 27
+  }, {
+    "squadId": 108942,
+    "squadType": "Netherlands",
+    "imageId": 776335,
+    "teamId": 24
+  }, {
+    "squadId": 109044,
+    "squadType": "Italy",
+    "imageId": 776295,
+    "teamId": 527
+  }, {
+    "squadId": 109046,
+    "squadType": "Canada",
+    "imageId": 776227,
+    "teamId": 26
+  }, {
+    "squadId": 110157,
+    "squadType": "Pakistan",
+    "imageId": 776308,
+    "teamId": 3
+  }, {
+    "squadId": 110245,
+    "squadType": "West Indies",
+    "imageId": 776191,
+    "teamId": 10
+  }, {
+    "squadId": 110253,
+    "squadType": "Scotland",
+    "imageId": 776280,
+    "teamId": 23
+  }, {
+    "squadId": 110372,
+    "squadType": "United States Of America",
+    "imageId": 776186,
+    "teamId": 15
+  }, {
+    "squadId": 110716,
+    "squadType": "United Arab Emirates",
+    "imageId": 776242,
+    "teamId": 7
+  }, {
+    "squadId": 111510,
+    "squadType": "Sri Lanka",
+    "imageId": 776254,
+    "teamId": 5
+  }],
+  "appIndex": {
+    "seoTitle": "Squads - ICC Men\u0027s T20 World Cup 2026 - Cricbuzz | Cricbuzz.com",
+    "webURL": "www.cricbuzz.com/cricket-series/"
+  },
+  "seriesName": "ICC Men\u0027s T20 World Cup 2026",
+  "seriesId": 11253
+}
