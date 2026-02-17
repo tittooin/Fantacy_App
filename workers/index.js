@@ -33,14 +33,18 @@ const corsHeaders = {
 
 export default {
     async scheduled(event, env, ctx) {
+        console.log("CRON ENTRY START");
         console.log("⏰ Scheduled Event Triggered", new Date().toISOString());
-        console.log("CRON_TRIGGERED", new Date().toISOString());
-        ctx.waitUntil(processCricketData(env));
-        ctx.waitUntil(processLivePoints(env));
-        ctx.waitUntil(processLeaderboards(env));
-        ctx.waitUntil(processEconomy(env));
-        ctx.waitUntil(processPlayerStats(env)); // NEW Background Stats Sync
-        ctx.waitUntil(processRepairQueue(env)); // NEW Safe Recovery Mechanism
+
+        // Existing background tasks
+        // Existing background tasks (Isolated Execution)
+        ctx.waitUntil(processCricketData(env).catch(e => console.error("CRICKET_ENGINE_FAIL", e)));
+        ctx.waitUntil(processLivePoints(env).catch(e => console.error("POINTS_ENGINE_FAIL", e)));
+        ctx.waitUntil(processLeaderboards(env).catch(e => console.error("LEADERBOARD_ENGINE_FAIL", e)));
+        ctx.waitUntil(processEconomy(env).catch(e => console.error("ECONOMY_ENGINE_FAIL", e)));
+        ctx.waitUntil(processPlayerStats(env).catch(e => console.error("PLAYER_STATS_ENGINE_FAIL", e)));
+        ctx.waitUntil(processRepairQueue(env).catch(e => console.error("REPAIR_QUEUE_FAIL", e)));
+        ctx.waitUntil(processSquads(env).catch(e => console.error("SQUAD_ENGINE_FAIL", e)));
     },
 
     async fetch(request, env, ctx) {

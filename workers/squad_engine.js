@@ -77,6 +77,8 @@ export async function processSquads(env) {
 
         for (const match of matches) {
             // WHITELIST CHECK
+
+
             if (!isPrioritySeries(match.title)) {
                 logs.push(`⏭️ Skipping ${match.id} (${match.title}): Not in Whitelist.`);
                 continue;
@@ -332,7 +334,19 @@ async function fetchSeriesSquads(matchId, seriesId, key, host, env) {
     const resp = await fetch(url, { headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host } });
     if (!resp.ok) return { error: `API Error: ${resp.status} ${resp.statusText}` };
 
-    const sData = await resp.json();
+    if (resp.status === 204) {
+        return { error: "No Content (204)", status: 204 };
+    }
+
+    const rawText = await resp.text();
+    let sData;
+    try {
+        sData = JSON.parse(rawText);
+    } catch (e) {
+        console.error(`JSON Parse Error for ${seriesId}:`, rawText.substring(0, 200));
+        return { error: `JSON Parse Error. Raw: ${rawText}` };
+    }
+
     if (!sData.squads) return { error: "No 'squads' in API response" };
 
     const squadA = findSquad(sData.squads, teamA);
@@ -485,6 +499,27 @@ export async function processRepairQueue(env) {
         // 2. Execute SYNC (Bypass Priority Filter)
         // We use syncMatchSquad logic but ensure we pass existing Env
         const result = await syncMatchSquad(task.match_id, env, 'SERIES'); // Default to Series Sync for safety
+
+        // HANDLE 204 / NO CONTENT explicitly
+        if (result && result.data && result.data.status === 204) {
+            await env.DB.prepare("UPDATE repair_queue SET processed = 1 WHERE id = ?").bind(task.id).run();
+            logs.push(`⚠️ Repair Skipped for ${task.match_id}. API returned 204 No Content.`);
+            return { processed: 1, logs };
+        }
+
+        // Also check if syncMatchSquad returned error object directly (it might wrap it)
+        // syncMatchSquad returns { data, source, targetState } or { error }?
+        // Let's check syncMatchSquad implementation... it awaits saveToDB.
+        // saveToDB returns void. 
+        // syncMatchSquad returns { data, ... }. data comes from fetchSquadBySource.
+        // fetchSquadBySource returns result of fetchSeriesSquads.
+        // So data will be { error: "No Content (204)", status: 204 }.
+
+        if (result && result.data && result.data.error && result.data.status === 204) {
+            await env.DB.prepare("UPDATE repair_queue SET processed = 1 WHERE id = ?").bind(task.id).run();
+            logs.push(`⚠️ Repair Skipped for ${task.match_id}. API returned 204 No Content.`);
+            return { processed: 1, logs };
+        }
 
         // 3. VERIFY DATA (Success Condition: Complete Squads)
         const valid = await env.DB.prepare(`
