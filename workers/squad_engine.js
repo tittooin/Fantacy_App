@@ -9,9 +9,12 @@
 
 // --- SERIES WHITELIST (API SAVER) ---
 // --- SERIES WHITELIST (API SAVER) ---
-export function isPrioritySeries(seriesName) {
+export function isPrioritySeries(seriesName, liveSeriesSet = null) {
     if (!seriesName) return false;
     const s = seriesName.toUpperCase();
+
+    // DYNAMIC: Currently observed live series (injected from processSquads)
+    if (liveSeriesSet && liveSeriesSet.has(s)) return true;
 
     // STRICT ALLOWED LIST (User Defined)
     // 1. ICC Events
@@ -31,122 +34,181 @@ export function isPrioritySeries(seriesName) {
     return false;
 }
 
-export async function processSquads(env) {
+// --- REVISED SQUAD ENGINE (STRICT API SAFETY) ---
+
+export async function processSquads(matches, env, apiKey, apiHost) {
     const logs = [];
-    logs.push("👥 Squad Engine V2 (State-Based Safe Mode) Started...");
-    const apiKey = '70a8792460msh629f8e0af8cc36bp17accbjsn7c270b8814ee';
-    const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
-
     try {
-        const now = Date.now();
-        const thirtyMins = 30 * 60 * 1000;
-        const fortyEightHours = 48 * 60 * 60 * 1000;
-
-        // 1. Select Candidates based on STATE & TIME
-        const query = `
-            SELECT m.id, m.series_id, m.status, m.start_time, m.title,
-                   COALESCE(s.squad_state, 0) as current_state
-            FROM matches m
-            LEFT JOIN match_squads s ON m.id = s.match_id
-            WHERE 
-                (
-                    -- PHASE 1: Pre-Match (State 0 -> 1)
-                    COALESCE(s.squad_state, 0) = 0 
-                    AND (m.status = 'Upcoming')
-                    AND (m.start_time - ? <= ?) -- Inside 48h
-                )
-                OR
-                (
-                    -- PHASE 2: Toss/Live (State 1 -> 2)
-                    COALESCE(s.squad_state, 0) = 1 
-                    AND (
-                        m.status = 'Live' 
-                        OR (m.status = 'Upcoming' AND (? >= m.start_time - ?)) -- Within 30 mins of start
-                    )
-                )
-        `;
-
-        const { results: matches } = await env.DB.prepare(query).bind(now, fortyEightHours, now, thirtyMins).all();
-
-        if (!matches || matches.length === 0) {
-            logs.push("✅ No matches need squad sync.");
-            return { processed: 0, logs };
+        // SQUAD SAFE GUARD: matches iterable hai ya nahi check karo
+        if (!matches || !Array.isArray(matches)) {
+            console.log(`[SQUAD_SAFE_GUARD_APPLIED] matches argument invalid hai (type: ${typeof matches}). Squad engine skip.`);
+            return { processed: 0, logs: ['[SQUAD_SAFE_GUARD_APPLIED] Invalid matches input - skipped'] };
         }
+        logs.push(`🔍 Squad Engine: ${matches.length} matches process ho rahe hain...`);
 
-        logs.push(`Processing ${matches.length} matches for Squad Sync...`);
+        // BUILD DYNAMIC WHITELIST: sirf currently live/in-progress matches ki series
+        const liveSeriesSet = new Set(
+            matches
+                .filter(m => m.status === 'Live' || m.status === 'In Progress')
+                .map(m => (m.series_name || m.title || '').toUpperCase())
+                .filter(Boolean)
+        );
+        if (liveSeriesSet.size > 0) {
+            console.log('[DYNAMIC_WHITELIST] Live series detected:', [...liveSeriesSet]);
+        }
 
         for (const match of matches) {
             // WHITELIST CHECK
+            const seriesName = match.series_name || match.title || '';
+            const isPriority = isPrioritySeries(seriesName, liveSeriesSet);
 
-
-            if (!isPrioritySeries(match.title)) {
-                logs.push(`⏭️ Skipping ${match.id} (${match.title}): Not in Whitelist.`);
+            if (!isPriority) {
+                // logs.push(`⏭️ Skipping ${match.id}: Whitelist Mismatch`);
                 continue;
             }
 
-            const state = match.current_state;
-            let targetState = state;
-            let source = 'NONE';
+            // 1. GET COOLDOWN DATA
+            const meta = await env.DB.prepare(
+                "SELECT series_last_fetch, series_last_fail, scard_last_fetch, squad_state FROM match_squads WHERE match_id = ?"
+            ).bind(match.id).first();
 
-            // DETERMINE TRANSITION
-            if (state === 0) {
-                targetState = 1;
-                source = 'SERIES';
-            } else if (state === 1) {
-                targetState = 2;
-                source = 'SCARD';
+            const now = Math.floor(Date.now() / 1000); // Unix Timestamp (Seconds)
+
+            let source = 'NONE';
+            let reason = '';
+
+            // SAFETY: meta null = match_squads record nahi hai = unknown state
+            // NULL ≠ state 0. NULL = SKIP. Koi assumption nahi.
+            if (!meta) {
+                console.log(`[SQUAD_META_MISSING_SKIP ${match.id}] match_squads record nahi mila. Fetch skip.`);
+                continue;
             }
 
-            logs.push(`🔄 Syncing ${match.id} | State: ${state} -> Target: ${targetState} | Source: ${source}`);
+            const squadState = meta.squad_state; // Only from DB, never assumed
+            let targetState = squadState;
 
-            if (source === 'NONE') continue;
+            // --- STRICT SOURCE SELECTION LOGIC ---
 
-            // 2. FETCH DIRECTLY BY SOURCE
-            const data = await fetchSquadBySource(match.id, match.series_id, source, apiKey, apiHost, env);
+            // CASE A: LIVE / IN PROGRESS
+            if (match.status === 'Live' || match.status === 'In Progress') {
+                const lastFetch = meta?.scard_last_fetch || 0;
+                const diff = now - lastFetch;
 
-            // 3. SAVE (Pass Source to handle Merge logic)
-            await saveToDB(env, String(match.id), data, targetState, source);
+                if (diff > 600) { // 10 Minutes (600s)
+                    source = 'SCARD';
+                    targetState = 2; // Move to State 2 (Playing XI Available)
+                    reason = `Live Match (Last fetch: ${diff}s ago)`;
+                } else {
+                    source = 'NONE';
+                    reason = `[FETCH_SKIPPED_COOLDOWN] Live Wait (${diff}s < 600s)`;
+                }
+            }
 
-            logs.push(`  -> Processed ${source}. Result: ${data && !data.error ? 'Success' : 'Failed'}`);
+            // CASE B: UPCOMING (New Match - State 0)
+            else if (squadState === 0) {
+                // Only allow if NEVER fetched successfully
+                const lastFetch = meta?.series_last_fetch || 0;
+                const lastFail = meta?.series_last_fail || 0;
+
+                if (lastFetch > 0) {
+                    source = 'NONE';
+                    reason = `[FETCH_ALREADY_EXISTS] Series Squad already fetched.`;
+                    // Auto-correct state if needed
+                    if (squadState === 0) targetState = 1;
+                } else {
+                    // Check Fail Cooldown (6 Hours)
+                    const failDiff = now - lastFail;
+                    if (failDiff > 21600) { // 6 Hours
+                        source = 'SERIES';
+                        targetState = 1;
+                        reason = `New Match (First Fetch)`;
+                    } else {
+                        source = 'NONE';
+                        reason = `[FETCH_SKIPPED_COOLDOWN] Series Fail Wait (${failDiff}s < 6h)`;
+                    }
+                }
+            }
+
+            // CASE C: UPCOMING (State 1) -> DO NOTHING
+            else if (squadState === 1) {
+                source = 'NONE';
+                reason = `[FETCH_ALREADY_EXISTS] State 1 (Roster Saved). No updates needed until Toss.`;
+            }
+
+            // CASE D: COMPLETED / ABANDONED -> DO NOTHING
+            else {
+                source = 'NONE';
+                reason = `Match Status: ${match.status}`;
+            }
+
+            // LOGGING & EXECUTION
+            if (source !== 'NONE') {
+                console.log(`[FETCH_ALLOWED] Match: ${match.id} | Source: ${source} | Reason: ${reason}`);
+                logs.push(`🚀 Fetching ${match.id} (${source})`);
+
+                // FETCH
+                const data = await fetchSquadBySource(match.id, match.series_id, source, apiKey, apiHost, env);
+
+                // SAVE (Always call save, it handles errors/updates)
+                await saveToDB(env, String(match.id), data, targetState, source);
+
+            } else {
+                if (reason.includes("COOLDOWN") || reason.includes("EXISTS")) {
+                    console.log(`[SKIP] Match: ${match.id} | ${reason}`);
+                }
+            }
         }
 
         return { processed: matches.length, logs };
 
     } catch (e) {
-        logs.push("ERROR: " + e.message);
-        console.error("Squad Engine Error:", e);
-        return { processed: 0, error: e.message, logs };
+        console.error("Squad Engine SafeGuard Error:", e);
+        return { processed: 0, error: e.message };
     }
 }
 
 // --- CORE SAVE LOGIC ---
 
 async function saveToDB(env, matchId, data, newState, source) {
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000);
 
-    // VALIDATION
+    // --- FAILURE HANDLING ---
     if (!data || data.error) {
-        console.log(`⚠️ Failed Data for ${matchId} (${source}). Skipping Update.`);
-        return; // Safety: Do not update state if fetch failed. Retry next time.
+        console.log(`⚠️ Fetch Failed for ${matchId} (${source}). Error: ${data?.error}`);
+
+        // UPDATE FAIL TIMESTAMP
+        if (source === 'SERIES') {
+            await env.DB.prepare("UPDATE match_squads SET series_last_fail = ? WHERE match_id = ?").bind(now, matchId).run();
+        }
+        return;
     }
+
+    // --- SUCCESS SAVING ---
 
     if (source === 'SERIES') {
         // FULL OVERWRITE (State 0 -> 1)
         if (!data.teamA || !data.teamB || data.teamA.length === 0) {
             console.log(`⚠️ Empty Roster for ${matchId}. Skipping Save.`);
+            await env.DB.prepare("UPDATE match_squads SET series_last_fail = ? WHERE match_id = ?").bind(now, matchId).run();
             return;
         }
 
-        console.log(`✅ Saving Full Roster for ${matchId}. State -> ${newState}.`);
+        console.log(`✅ Saving Full Roster for ${matchId}. State -> ${newState}. Source: SERIES`);
+
         await env.DB.prepare(`
-            INSERT INTO match_squads (match_id, series_id, team_a_roster, team_b_roster, playing_11_a, playing_11_b, squad_state, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO match_squads (
+                match_id, series_id, team_a_roster, team_b_roster, playing_11_a, playing_11_b, 
+                squad_state, last_updated, series_last_fetch
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(match_id) DO UPDATE SET
                 squad_state = excluded.squad_state,
                 last_updated = excluded.last_updated,
                 team_a_roster = excluded.team_a_roster,
                 team_b_roster = excluded.team_b_roster,
-                series_id = excluded.series_id
+                series_id = excluded.series_id,
+                series_last_fetch = excluded.series_last_fetch,
+                series_last_fail = NULL  -- Clear fail flag on success
         `).bind(
             matchId,
             data.seriesId,
@@ -155,14 +217,13 @@ async function saveToDB(env, matchId, data, newState, source) {
             JSON.stringify([]),
             JSON.stringify([]),
             newState,
-            now
+            now,
+            now // Set series_last_fetch
         ).run();
     }
     else if (source === 'SCARD') {
-        // PARTIAL UPDATE (State 1 -> 2) requires Reading Old + Merging
-        // We need to mark players as "is_playing: true" in the roster
-
-        console.log(`✅ Updating Playing XI for ${matchId}. State -> ${newState}.`);
+        // PARTIAL UPDATE (State 1 -> 2)
+        console.log(`✅ Updating Playing XI for ${matchId}. State -> ${newState}. Source: SCARD`);
 
         // 1. Get Current Roster
         const current = await env.DB.prepare("SELECT team_a_roster, team_b_roster FROM match_squads WHERE match_id = ?").bind(matchId).first();
@@ -176,18 +237,12 @@ async function saveToDB(env, matchId, data, newState, source) {
 
         const xiA = data.xiA || [];
         const xiB = data.xiB || [];
-        const benchA = data.benchA || []; // Use to add if missing? User said "Same squad rahegi". 
-        // User rule: "Same squad rahegi + sirf is_playing flag update hoga"
-        // Implicitly implies: Do not add players if they are not in original roster? 
-        // Or if they are in SCARD but not in Series Squad, should we add them?
-        // Safe approach: Update existing. If SCARD has new player, maybe add? 
-        // Let's strictly UPDATE flags for now.
 
         // Helper to update
         const updateRoster = (roster, xiList) => {
             return roster.map(p => ({
                 ...p,
-                is_playing: xiList.includes(p.id)
+                is_playing: xiList.includes(p.player_id) // USE player_id NOT id
             }));
         };
 
@@ -198,7 +253,8 @@ async function saveToDB(env, matchId, data, newState, source) {
             UPDATE match_squads 
             SET squad_state = ?, last_updated = ?, 
                 team_a_roster = ?, team_b_roster = ?,
-                playing_11_a = ?, playing_11_b = ?
+                playing_11_a = ?, playing_11_b = ?,
+                scard_last_fetch = ?
             WHERE match_id = ?
         `).bind(
             newState,
@@ -207,6 +263,7 @@ async function saveToDB(env, matchId, data, newState, source) {
             JSON.stringify(rosterB),
             JSON.stringify(xiA),
             JSON.stringify(xiB),
+            now, // Set scard_last_fetch
             matchId
         ).run();
     }
@@ -339,15 +396,43 @@ async function fetchSeriesSquads(matchId, seriesId, key, host, env) {
     }
 
     const rawText = await resp.text();
+    // RAW PREVIEW
+    console.log(`[SQUAD_HTTP_DETAILS] Series: ${seriesId}`, {
+        status: resp.status,
+        contentType: resp.headers.get("content-type"),
+        preview: rawText.substring(0, 200)
+    });
+
     let sData;
     try {
         sData = JSON.parse(rawText);
+        // DIAGNOSTIC LOG
+        console.log(`[SQUAD_RAW_DUMP] Series: ${seriesId}`, {
+            keys: Object.keys(sData || {}),
+            squadsType: typeof sData?.squads,
+            squadsLen: Array.isArray(sData?.squads) ? sData.squads.length : -1
+        });
+
+        // DEEP INSPECT IF SQUADS MISSING
+        if (!sData.squads) {
+            console.log("[SQUAD_ROOT_KEYS]", Object.keys(sData));
+            for (const k in sData) {
+                if (typeof sData[k] === "object" && sData[k] !== null) {
+                    console.log("[SQUAD_CHILD_KEYS]", k, Object.keys(sData[k]));
+                }
+            }
+        }
     } catch (e) {
         console.error(`JSON Parse Error for ${seriesId}:`, rawText.substring(0, 200));
         return { error: `JSON Parse Error. Raw: ${rawText}` };
     }
 
-    if (!sData.squads) return { error: "No 'squads' in API response" };
+    if (!sData.squads) {
+        console.log(`[SQUAD_RESPONSE_SHAPE] Series: ${seriesId}`, {
+            keys: Object.keys(sData)
+        });
+        return { error: "No 'squads' in API response" };
+    }
 
     const squadA = findSquad(sData.squads, teamA);
     const squadB = findSquad(sData.squads, teamB);
@@ -356,8 +441,8 @@ async function fetchSeriesSquads(matchId, seriesId, key, host, env) {
 
     const result = { teamA: [], teamB: [], seriesId };
 
-    if (squadA) result.teamA = await fetchPlayers(squadA, seriesId, key, host, teamAId, 'T1');
-    if (squadB) result.teamB = await fetchPlayers(squadB, seriesId, key, host, teamBId, 'T2');
+    if (squadA) result.teamA = await fetchPlayers(squadA, seriesId, key, host, teamAId, teamA);
+    if (squadB) result.teamB = await fetchPlayers(squadB, seriesId, key, host, teamBId, teamB);
 
     return result;
 }
@@ -389,17 +474,28 @@ async function fetchMatchScard(matchId, key, host) {
 
 function findSquad(squads, teamName) {
     if (!squads || !teamName) return null;
-    const nameLower = teamName.toLowerCase();
-    // Prioritize direct match
-    let found = squads.find(s => !s.isHeader && s.squadType && nameLower === s.squadType.toLowerCase());
+    const nameLower = teamName.trim().toLowerCase();
+
+    // 1. Exact Match (Squad Type)
+    let found = squads.find(s => !s.isHeader && s.squadType && s.squadType.trim().toLowerCase() === nameLower);
     if (found) return found;
 
-    // Fallback to inclusion
-    return squads.find(s => !s.isHeader && s.squadType && nameLower.includes(s.squadType.toLowerCase()))
-        || squads.find(s => !s.isHeader && s.teamName && nameLower.includes(s.teamName.toLowerCase()));
+    // 2. Exact Match (Team Name)
+    found = squads.find(s => !s.isHeader && s.teamName && s.teamName.trim().toLowerCase() === nameLower);
+    if (found) return found;
+
+    // 3. Inclusion (Squad Type contains Name OR Name contains Squad Type)
+    // Example: "Pakistan" in "Pakistan Squad" OR "India" in "Team India"
+    return squads.find(s => {
+        if (s.isHeader) return false;
+        const sType = (s.squadType || '').trim().toLowerCase();
+        const tName = (s.teamName || '').trim().toLowerCase();
+        return (sType && (sType.includes(nameLower) || nameLower.includes(sType))) ||
+            (tName && (tName.includes(nameLower) || nameLower.includes(tName)));
+    });
 }
 
-async function fetchPlayers(squad, seriesId, key, host, teamId, shortName) {
+async function fetchPlayers(squad, seriesId, key, host, teamId, teamName) {
     if (!squad || !squad.squadId) return [];
 
     try {
@@ -407,26 +503,44 @@ async function fetchPlayers(squad, seriesId, key, host, teamId, shortName) {
         const resp = await fetch(url, { headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': host } });
 
         if (resp.ok) {
-            const data = await resp.json();
-            if (data.player) return mapPlayers(data.player, teamId, shortName);
+            const rawText = await resp.text();
+            // RAW PREVIEW
+            console.log(`[PLAYER_RAW_PREVIEW] SquadID: ${squad.squadId} | First 200 chars:`, rawText.substring(0, 200));
+
+            let data;
+            try {
+                data = JSON.parse(rawText);
+                // UNCONDITIONAL RAW LOG
+                console.log(`[PLAYER_RAW_DUMP] SquadID: ${squad.squadId}`, {
+                    keys: Object.keys(data || {}),
+                    playerType: typeof data?.player,
+                    playersType: typeof data?.players,
+                    isArray: Array.isArray(data?.player)
+                });
+
+                if (data.player) return mapPlayers(data.player, teamId, teamName);
+
+            } catch (e) {
+                console.error(`[PLAYER_JSON_FAIL] SquadID: ${squad.squadId}`, rawText.substring(0, 200));
+            }
         }
     } catch (e) { console.error("Player Fetch Error", e); }
     return [];
 }
 
-function mapPlayers(players, teamId, shortName) {
+function mapPlayers(players, teamId, teamName) {
     return players
         .filter(p => p.id && p.name && !p.isHeader) // VALIDATION FILTER
         .map(p => ({
-            id: (p.id || '').toString(),
+            player_id: (p.id || '').toString(),
             name: p.name || 'Unknown',
+            team_id: teamId.toString(),
+            team_name: teamName,
             role: normalizeRoleStrict(p.role),
-            imageUrl: p.imageId ? `https://static.cricbuzz.com/a/img/v1/i1/c${p.imageId}/i.jpg` : '',
-            isCaptain: p.captain || false,
-            isWicketKeeper: false,
+            image_id: p.imageId ? p.imageId.toString() : '',
             is_playing: false, // Default for Pre-Match
-            teamId: teamId.toString(),
-            teamShortName: shortName
+            fantasy_points: 0,
+            credit: 0
         }));
 }
 

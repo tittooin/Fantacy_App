@@ -1,4 +1,9 @@
 export async function processPlayerStats(env) {
+    const API_LOCK_ACTIVE = true;
+    if (API_LOCK_ACTIVE) {
+        console.log('[API_LOCK_ACTIVE] Player stats skip — lock active.');
+        return { processed: 0, logs: ['LOCK_ACTIVE'] };
+    }
     const logs = [];
     logs.push("📊 Player Stats Engine Started...");
 

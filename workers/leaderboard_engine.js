@@ -37,11 +37,11 @@ async function calculateLeaderboardForMatch(env, matchId) {
 
     // 1. Get Player Points
     const { results: pointRows } = await env.DB.prepare(
-        "SELECT player_id, total_points FROM fantasy_points WHERE match_id = ?"
+        "SELECT player_id, points FROM fantasy_points WHERE match_id = ?"
     ).bind(matchId).all();
 
     const pointsMap = {}; // player_id -> points
-    pointRows.forEach(r => pointsMap[r.player_id] = (r.total_points || 0));
+    pointRows.forEach(r => pointsMap[r.player_id] = (r.points || 0));
 
     // 2. Get Participants for this Match
     const { results: participants } = await env.DB.prepare(

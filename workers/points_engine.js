@@ -191,6 +191,11 @@ function isPrioritySeries(seriesName) {
  * - Strict Whitelist: Only Major Leagues
  */
 export async function syncMatchPointsToD1(matchId, env) {
+    const API_LOCK_ACTIVE = true;
+    if (API_LOCK_ACTIVE) {
+        console.log(`[API_LOCK_ACTIVE] Points sync skip: ${matchId}`);
+        return 0;
+    }
     console.log("POINTS_ENGINE_OPT_V4"); // Version: Whitelist Patch
 
     // 1. Fetch match details to validate Time Window

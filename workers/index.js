@@ -36,15 +36,29 @@ export default {
         console.log("CRON ENTRY START");
         console.log("⏰ Scheduled Event Triggered", new Date().toISOString());
 
-        // Existing background tasks
-        // Existing background tasks (Isolated Execution)
-        ctx.waitUntil(processCricketData(env).catch(e => console.error("CRICKET_ENGINE_FAIL", e)));
-        ctx.waitUntil(processLivePoints(env).catch(e => console.error("POINTS_ENGINE_FAIL", e)));
-        ctx.waitUntil(processLeaderboards(env).catch(e => console.error("LEADERBOARD_ENGINE_FAIL", e)));
-        ctx.waitUntil(processEconomy(env).catch(e => console.error("ECONOMY_ENGINE_FAIL", e)));
-        ctx.waitUntil(processPlayerStats(env).catch(e => console.error("PLAYER_STATS_ENGINE_FAIL", e)));
-        ctx.waitUntil(processRepairQueue(env).catch(e => console.error("REPAIR_QUEUE_FAIL", e)));
-        ctx.waitUntil(processSquads(env).catch(e => console.error("SQUAD_ENGINE_FAIL", e)));
+        // Isolation Wrapper
+        const safeRun = async (name, fn) => {
+            try {
+                await fn();
+            } catch (e) {
+                console.error(`${name}_FATAL_ERROR`, e);
+            }
+        };
+
+        // Existing background tasks (Strictly Isolated)
+        ctx.waitUntil(safeRun("CRICKET_ENGINE", () => processCricketData(env)));
+        ctx.waitUntil(safeRun("POINTS_ENGINE", () => processLivePoints(env)));
+        ctx.waitUntil(safeRun("LEADERBOARD_ENGINE", () => processLeaderboards(env)));
+        ctx.waitUntil(safeRun("ECONOMY_ENGINE", () => processEconomy(env)));
+        ctx.waitUntil(safeRun("PLAYER_STATS_ENGINE", () => processPlayerStats(env)));
+        ctx.waitUntil(safeRun("REPAIR_QUEUE", () => processRepairQueue(env)));
+        ctx.waitUntil(safeRun("SQUAD_ENGINE", async () => {
+            // Root cause fix: matches array DB se leke pass karo
+            const { results: dbMatches } = await env.DB.prepare(
+                "SELECT id, series_id, status, title FROM matches WHERE status IN ('Live', 'In Progress', 'Upcoming') LIMIT 20"
+            ).all();
+            await processSquads(dbMatches || [], env, env.RAPID_API_KEY, 'cricbuzz-cricket.p.rapidapi.com');
+        }));
     },
 
     async fetch(request, env, ctx) {
@@ -450,6 +464,19 @@ async function handleJoinContest(request, env) {
         // Rule 9: Always return 200 with structured JSON.
         if (!userId || !contestId || !matchId || !teamId) {
             return jsonResponse({ success: false, error: 'MISSING_FIELDS' }, 200);
+        }
+
+        // TEAM GUARD: Minimal data integrity check (no scoring/contest logic)
+        const pids = Array.isArray(playerIds) ? playerIds : [];
+        if (pids.length === 0) {
+            return jsonResponse({ success: false, error: 'EMPTY_TEAM' }, 200);
+        }
+        if (pids.length > 11) {
+            return jsonResponse({ success: false, error: 'TOO_MANY_PLAYERS' }, 200);
+        }
+        const uniquePids = new Set(pids.map(String));
+        if (uniquePids.size !== pids.length) {
+            return jsonResponse({ success: false, error: 'DUPLICATE_PLAYERS' }, 200);
         }
 
         // 1. Fetch User, Contest, and Count in parallel
@@ -871,13 +898,36 @@ async function handleGetSquads(rawMatchId, env, request) {
         const rawXiA = JSON.parse(d1Squad.playing_11_a || '[]');
         const rawXiB = JSON.parse(d1Squad.playing_11_b || '[]');
 
+        // ROSTER NORMALIZATION: Format A (player_id) + Format B (id) → canonical
+        const normalizePlayer = (p) => ({
+            ...p,
+            id: p.player_id || p.id || '',
+            player_id: p.player_id || p.id || '',
+            team_id: p.team_id || p.teamId || '',
+            teamId: p.teamId || p.team_id || '',
+            name: p.name || 'Unknown',
+            role: p.role || 'BAT',
+            imageUrl: p.imageUrl
+                ? p.imageUrl
+                : p.image_id
+                    ? `https://static.cricbuzz.com/a/img/v1/i1/c${p.image_id}/i.jpg`
+                    : '',
+            is_playing: p.is_playing || false,
+        });
+
+        const normTeamA = rawTeamA.map(normalizePlayer);
+        const normTeamB = rawTeamB.map(normalizePlayer);
+        const normXiA = rawXiA.map(normalizePlayer);
+        const normXiB = rawXiB.map(normalizePlayer);
+
         // STEP 2: RAW DATA LOG
-        console.log("RAW_D1_DATA", rawTeamA.length, rawTeamB.length);
+        console.log("RAW_D1_DATA", normTeamA.length, normTeamB.length);
 
         // 3. COLLECT IDs & FETCH STATS (Batch)
         const allMap = new Map();
-        [...rawTeamA, ...rawTeamB, ...rawXiA, ...rawXiB].forEach(p => {
-            if (p.id) allMap.set(p.id, p);
+        [...normTeamA, ...normTeamB, ...normXiA, ...normXiB].forEach(p => {
+            const pid = p.player_id || p.id;
+            if (pid) allMap.set(pid, p);
         });
 
         const allIds = Array.from(allMap.keys());
@@ -901,8 +951,9 @@ async function handleGetSquads(rawMatchId, env, request) {
 
         // 4. MERGE & DETERMINISTIC FALLBACK
         const enrich = (p) => {
-            const stat = statsMap.get(p.id);
-            const pidHash = simpleHash(p.id);
+            const pid = p.player_id || p.id || '';
+            const stat = statsMap.get(pid);
+            const pidHash = simpleHash(pid);
 
             // Role: Trust backend 'p.role' (from squad_engine strict norm) or override if stats has better?
             // User requirement: "Backend Source of Truth" -> squad_engine already normalizes.
@@ -910,13 +961,6 @@ async function handleGetSquads(rawMatchId, env, request) {
             const role = p.role || stat?.role_normalized || 'BAT';
 
             // Credits: Real or Hash
-            // Hash: 8.0 + (hash % 10)/10 -> 8.0 to 8.9? No.
-            // User Rule: role_base_credit + (hash % 10)/10
-            // WK=8.5, BAT=8.5, AR=9.0, BOWL=8.5 (Adjusted for typical fantasy)
-            // Let's use user's constants if provided, else reasonable defaults.
-            // User said: role_base: WK=55, BAT=50... that's RATING.
-            // Credits: role_base_credit... let's deduce.
-
             let credits = 8.0;
             let rating = 50.0;
 
@@ -930,8 +974,6 @@ async function handleGetSquads(rawMatchId, env, request) {
                 credits = baseCredit + (pidHash % 6) * 0.5; // 8.0, 8.5, 9.0, 9.5, 10.0, 10.5
 
                 // Rating
-                // User: (hash % 40) + role_base
-                // WK=55, BAT=50, AR=60, BOWL=52
                 let baseRating = 50;
                 if (role === 'WK') baseRating = 55;
                 if (role === 'AR') baseRating = 60;
@@ -941,12 +983,12 @@ async function handleGetSquads(rawMatchId, env, request) {
             }
 
             return {
-                id: p.id,
+                id: pid,
                 name: p.name,
                 role: role,
                 credits: credits,
                 fantasy_rating: rating,
-                teamId: (p.teamId || (allMap.get(p.id) === p ? team1Id : team2Id)).toString(), // Contextual ID
+                teamId: (p.teamId || (allMap.get(pid) === p ? team1Id : team2Id)).toString(),
                 teamShortName: p.teamShortName,
                 imageUrl: p.imageUrl,
                 isCaptain: p.isCaptain || false,
@@ -954,10 +996,10 @@ async function handleGetSquads(rawMatchId, env, request) {
             };
         };
 
-        const finalTeamA = rawTeamA.map(enrich);
-        const finalTeamB = rawTeamB.map(enrich);
-        const finalXiA = rawXiA.map(enrich);
-        const finalXiB = rawXiB.map(enrich);
+        const finalTeamA = normTeamA.map(enrich);
+        const finalTeamB = normTeamB.map(enrich);
+        const finalXiA = normXiA.map(enrich);
+        const finalXiB = normXiB.map(enrich);
 
         // STEP 3: AFTER MAP LOG
         console.log("AFTER_ROLE_MAP", finalTeamA.length + finalTeamB.length);
