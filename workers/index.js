@@ -499,6 +499,64 @@ async function handleJoinContest(request, env) {
             return jsonResponse({ success: false, error: 'CONTEST_FULL' }, 200);
         }
 
+        // Team Split Guard: max 7 players from one real team
+        const splitMatchId = contest.match_id || matchId;
+        const splitRow = await env.DB.prepare(
+            "SELECT team_a_roster, team_b_roster FROM match_squads WHERE CAST(match_id AS INTEGER) = CAST(? AS INTEGER)"
+        ).bind(splitMatchId).first();
+
+        if (!splitRow || !splitRow.team_a_roster || !splitRow.team_b_roster) {
+            return jsonResponse({ success: false, error: 'TEAM_SPLIT_VALIDATION_UNAVAILABLE' }, 200);
+        }
+
+        let teamARoster = [];
+        let teamBRoster = [];
+        try {
+            teamARoster = JSON.parse(splitRow.team_a_roster || '[]');
+            teamBRoster = JSON.parse(splitRow.team_b_roster || '[]');
+        } catch (e) {
+            return jsonResponse({ success: false, error: 'TEAM_SPLIT_VALIDATION_UNAVAILABLE' }, 200);
+        }
+
+        if (!Array.isArray(teamARoster) || !Array.isArray(teamBRoster) || teamARoster.length === 0 || teamBRoster.length === 0) {
+            return jsonResponse({ success: false, error: 'TEAM_SPLIT_VALIDATION_UNAVAILABLE' }, 200);
+        }
+
+        const normalizeRosterPlayerId = (p) => {
+            if (!p || typeof p !== 'object') return '';
+            return String(p.player_id ?? p.id ?? '').trim();
+        };
+
+        const teamASet = new Set(teamARoster.map(normalizeRosterPlayerId).filter(Boolean));
+        const teamBSet = new Set(teamBRoster.map(normalizeRosterPlayerId).filter(Boolean));
+
+        if (teamASet.size === 0 || teamBSet.size === 0) {
+            return jsonResponse({ success: false, error: 'TEAM_SPLIT_VALIDATION_UNAVAILABLE' }, 200);
+        }
+
+        const selectedIds = pids.map((id) => String(id).trim());
+        let teamACount = 0;
+        let teamBCount = 0;
+        for (const pid of selectedIds) {
+            if (teamASet.has(pid)) {
+                teamACount++;
+            } else if (teamBSet.has(pid)) {
+                teamBCount++;
+            } else {
+                return jsonResponse({ success: false, error: 'INVALID_PLAYER_ID' }, 200);
+            }
+        }
+
+        if (teamACount > 7 || teamBCount > 7) {
+            return jsonResponse({
+                success: false,
+                error: 'MAX_7_PER_TEAM_EXCEEDED',
+                maxPerTeam: 7,
+                teamACount: teamACount,
+                teamBCount: teamBCount
+            }, 200);
+        }
+
         // Rule 4: User max 20 teams per contest limit
         if (userCount && userCount.count >= 20) {
             return jsonResponse({ success: false, error: 'LIMIT_EXCEEDED_20_TEAMS' }, 200);
@@ -898,22 +956,24 @@ async function handleGetSquads(rawMatchId, env, request) {
         const rawXiA = JSON.parse(d1Squad.playing_11_a || '[]');
         const rawXiB = JSON.parse(d1Squad.playing_11_b || '[]');
 
-        // ROSTER NORMALIZATION: Format A (player_id) + Format B (id) → canonical
-        const normalizePlayer = (p) => ({
-            ...p,
-            id: p.player_id || p.id || '',
-            player_id: p.player_id || p.id || '',
-            team_id: p.team_id || p.teamId || '',
-            teamId: p.teamId || p.team_id || '',
-            name: p.name || 'Unknown',
-            role: p.role || 'BAT',
-            imageUrl: p.imageUrl
-                ? p.imageUrl
-                : p.image_id
-                    ? `https://static.cricbuzz.com/a/img/v1/i1/c${p.image_id}/i.jpg`
-                    : '',
-            is_playing: p.is_playing || false,
-        });
+        // FIX 3: Roster Normalization Layer
+        const normalizePlayer = (p) => {
+            const id = p.player_id || p.id || "";
+            return {
+                id: id,
+                player_id: id,
+                name: p.name || 'Unknown',
+                team_id: p.team_id || p.teamId || "",
+                role: p.role || "BAT", // Default to BAT if not specified
+                credits: p.credits || 9.0, // Default to 9 if 0 or missing
+                is_playing: !!p.is_playing,
+                imageUrl: p.imageUrl
+                    ? p.imageUrl
+                    : p.image_id
+                        ? `https://static.cricbuzz.com/a/img/v1/i1/c${p.image_id}/i.jpg`
+                        : '',
+            };
+        };
 
         const normTeamA = rawTeamA.map(normalizePlayer);
         const normTeamB = rawTeamB.map(normalizePlayer);
