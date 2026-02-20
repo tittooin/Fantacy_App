@@ -176,6 +176,95 @@ export async function seedUpcomingMatches(env) {
     console.log(`[UPCOMING_SEED_DONE] inserted=${inserted}, updated=${updated}, scanned=${incomingMatches.length}`);
 }
 
+export async function warmupMissingUpcomingSquads(env) {
+    const nowMs = Date.now();
+
+    const eligibleRows = await env.DB.prepare(`
+        SELECT m.id
+        FROM matches m
+        LEFT JOIN match_squads ms
+            ON CAST(ms.match_id AS INTEGER) = CAST(m.id AS INTEGER)
+        LEFT JOIN sys_config sc
+            ON sc.key = ('squad_warmup_done:' || CAST(m.id AS TEXT))
+        WHERE m.status = 'Upcoming'
+        AND m.start_time IS NOT NULL
+        AND CAST(m.start_time AS INTEGER) > ?
+        AND ms.match_id IS NULL
+        AND sc.key IS NULL
+        ORDER BY CAST(m.start_time AS INTEGER) ASC
+        LIMIT 2
+    `).bind(nowMs).all();
+
+    const matches = eligibleRows.results || [];
+    if (matches.length === 0) {
+        console.log('[SQUAD_WARMUP_SKIP] No eligible upcoming matches.');
+        return;
+    }
+
+    const { syncMatchSquad } = await import('./squad_engine.js');
+
+    let attempted = 0;
+    let success = 0;
+    let failed = 0;
+
+    for (const row of matches) {
+        const matchId = String(row?.id || '').trim();
+        if (!matchId) continue;
+
+        const markerKey = `squad_warmup_done:${matchId}`;
+        const claimAt = Date.now();
+
+        const claim = await env.DB.prepare(
+            "INSERT OR IGNORE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)"
+        ).bind(
+            markerKey,
+            JSON.stringify({ status: 'claimed', claimedAt: claimAt }),
+            claimAt
+        ).run();
+
+        if (!claim.meta || claim.meta.changes !== 1) {
+            continue;
+        }
+
+        attempted += 1;
+
+        const marker = {
+            status: 'failed',
+            source: 'SERIES',
+            reason: 'UNKNOWN',
+            attemptedAt: claimAt
+        };
+
+        try {
+            const result = await syncMatchSquad(matchId, env, 'SERIES');
+            const errorText = result?.error || result?.data?.error;
+
+            if (errorText) {
+                marker.reason = String(errorText);
+                failed += 1;
+            } else {
+                marker.status = 'success';
+                marker.reason = 'OK';
+                success += 1;
+            }
+        } catch (e) {
+            marker.reason = e?.message ? String(e.message) : 'EXCEPTION';
+            failed += 1;
+        }
+
+        marker.attemptedAt = Date.now();
+        await env.DB.prepare(
+            "UPDATE sys_config SET value = ?, updated_at = ? WHERE key = ?"
+        ).bind(
+            JSON.stringify(marker),
+            marker.attemptedAt,
+            markerKey
+        ).run();
+    }
+
+    console.log(`[SQUAD_WARMUP_DONE] attempted=${attempted}, success=${success}, failed=${failed}, scanned=${matches.length}`);
+}
+
 
 // --- SCHEMA VERIFY (STEP 2) ---
 // Sirf missing columns add karta hai. Existing data safe rahega.

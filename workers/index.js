@@ -5,7 +5,7 @@
  * CORS issue solve karne ke liye server-side implementation
  */
 
-import { processCricketData, seedUpcomingMatches } from './cricket_engine.js';
+import { processCricketData, seedUpcomingMatches, warmupMissingUpcomingSquads } from './cricket_engine.js';
 import { calculateFantasyPoints } from './points_engine.js';
 import { processLiveContests } from './contest_engine.js';
 import { createCashfreeOrder } from './payment_service.js';
@@ -46,6 +46,7 @@ export default {
         };
 
         await safeRun("UPCOMING_SEED_ENGINE", () => seedUpcomingMatches(env));
+        await safeRun("SQUAD_WARMUP_ENGINE", () => warmupMissingUpcomingSquads(env));
 
         // Existing background tasks (Strictly Isolated)
         ctx.waitUntil(safeRun("CRICKET_ENGINE", () => processCricketData(env)));
