@@ -14,6 +14,9 @@ import { isPrioritySeries } from './squad_engine.js'; // Shared Whitelist
 // Sab external API calls band hain. Sirf DB se data return hoga.
 // Jab stable ho jaye, is flag ko false karo.
 const API_LOCK_ACTIVE = false; // CONTROLLED UNLOCK — D1 atomic lock active
+const STALE_LIVE_RECONCILE_ENABLED = true; // Feature flag for safe rollback
+const STALE_LIVE_MISS_THRESHOLD = 5; // Close after 5 consecutive misses
+const STALE_LIVE_GRACE_ARM_AT = 4; // Arm grace one cycle before close
 
 // --- PREDICTIVE GUARDED VERIFICATION (Target < 25 Calls) ---
 
@@ -207,6 +210,99 @@ async function updateDBTimestamp(env, key) {
     await env.DB.prepare("INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)").bind(key, now, Date.now()).run();
 }
 
+function buildStaleLiveKey(matchId) {
+    return `stale_live:${String(matchId)}`;
+}
+
+async function readStaleLiveTracker(env, key) {
+    const row = await env.DB.prepare("SELECT value FROM sys_config WHERE key = ?").bind(key).first();
+    if (!row || !row.value) return null;
+
+    try {
+        const parsed = JSON.parse(row.value);
+        return (parsed && typeof parsed === 'object') ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+async function writeStaleLiveTracker(env, key, payload) {
+    await env.DB.prepare(
+        "INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)"
+    ).bind(key, JSON.stringify(payload), Date.now()).run();
+}
+
+async function clearStaleLiveTracker(env, key) {
+    await env.DB.prepare("DELETE FROM sys_config WHERE key = ?").bind(key).run();
+}
+
+async function reconcileStaleLiveMatches(env, liveApiMatches, nowMs) {
+    if (STALE_LIVE_RECONCILE_ENABLED !== true) return;
+    if (!Array.isArray(liveApiMatches)) return;
+
+    const liveApiIds = new Set(
+        liveApiMatches
+            .map(m => String(m?.id ?? '').trim())
+            .filter(Boolean)
+    );
+
+    const dbLive = await env.DB.prepare(`
+        SELECT id, status, start_time, last_updated
+        FROM matches
+        WHERE status IN ('Live', 'In Progress', 'Innings Break')
+    `).all();
+
+    const dbLiveMatches = dbLive.results || [];
+    if (dbLiveMatches.length === 0) return;
+
+    for (const match of dbLiveMatches) {
+        const matchId = String(match.id ?? '').trim();
+        if (!matchId) continue;
+
+        // Safety guard: do not auto-close if start time is still in future.
+        const startTime = Number(match.start_time || 0);
+        if (startTime > 0 && nowMs < startTime) {
+            continue;
+        }
+        const lastUpdated = Number(match.last_updated || 0);
+        const isOldByStart = startTime > 0 && (nowMs - startTime) >= (6 * 60 * 60 * 1000);
+        const isStableByLastUpdate = lastUpdated > 0 && (nowMs - lastUpdated) >= (30 * 60 * 1000);
+
+        const trackerKey = buildStaleLiveKey(matchId);
+
+        if (liveApiIds.has(matchId)) {
+            await clearStaleLiveTracker(env, trackerKey);
+            continue;
+        }
+
+        const previous = await readStaleLiveTracker(env, trackerKey);
+        const previousMissCount = Number(previous?.missCount || 0);
+        const missCount = previousMissCount + 1;
+        const firstMissAt = Number(previous?.firstMissAt || nowMs);
+        const previouslyGraceArmed = previous?.graceArmed === true;
+        const graceArmed = previouslyGraceArmed || missCount >= STALE_LIVE_GRACE_ARM_AT;
+
+        if (missCount >= STALE_LIVE_MISS_THRESHOLD && previouslyGraceArmed && isOldByStart && isStableByLastUpdate) {
+            await env.DB.prepare(`
+                UPDATE matches
+                SET status = 'Completed', last_updated = ?
+                WHERE id = ?
+                AND status IN ('Live', 'In Progress', 'Innings Break')
+            `).bind(nowMs, match.id).run();
+
+            await clearStaleLiveTracker(env, trackerKey);
+            continue;
+        }
+
+        await writeStaleLiveTracker(env, trackerKey, {
+            missCount,
+            firstMissAt,
+            lastMissAt: nowMs,
+            graceArmed
+        });
+    }
+}
+
 // Helper for Fetching
 async function fetchEndpoint(path, key, host) {
     try {
@@ -305,6 +401,11 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
     if (data) {
         parsed.push(...data);
         await updateDBTimestamp(env, 'last_fetch_live');
+        try {
+            await reconcileStaleLiveMatches(env, data, now);
+        } catch (_) {
+            // Intentionally silent to keep existing live fetch behavior unchanged.
+        }
     }
 
     // /upcoming — DISABLED for controlled unlock
