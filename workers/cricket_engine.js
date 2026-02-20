@@ -58,6 +58,125 @@ export async function processCricketData(env) {
     }
 }
 
+
+export async function seedUpcomingMatches(env) {
+    const nowMs = Date.now();
+    const windowEndMs = nowMs + (48 * 60 * 60 * 1000);
+
+    const countRow = await env.DB.prepare(`
+        SELECT COUNT(1) AS upcoming_count
+        FROM matches
+        WHERE status = 'Upcoming'
+        AND start_time IS NOT NULL
+        AND CAST(start_time AS INTEGER) > ?
+        AND CAST(start_time AS INTEGER) < ?
+    `).bind(nowMs, windowEndMs).first();
+
+    const upcomingCount = Number(countRow?.upcoming_count || 0);
+    if (upcomingCount >= 5) {
+        console.log(`[UPCOMING_SEED_SKIP] ${upcomingCount} matches already available in next 48h.`);
+        return;
+    }
+
+    const apiKey = env.RAPID_API_KEY;
+    const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
+
+    if (!apiKey) {
+        console.log('[UPCOMING_SEED_SKIP] RAPID_API_KEY missing.');
+        return;
+    }
+
+    const incomingMatches = await fetchEndpoint('/matches/v1/upcoming', apiKey, apiHost);
+    if (!Array.isArray(incomingMatches) || incomingMatches.length === 0) {
+        console.log('[UPCOMING_SEED_NO_DATA] /upcoming returned no matches.');
+        return;
+    }
+
+    let inserted = 0;
+    let updated = 0;
+
+    for (const match of incomingMatches) {
+        const matchId = String(match?.id || '').trim();
+        const startTime = Number(match?.startTime || 0);
+
+        if (!matchId || startTime <= nowMs) {
+            continue;
+        }
+
+        const existing = await env.DB.prepare(`
+            SELECT status, start_time
+            FROM matches
+            WHERE id = ?
+        `).bind(matchId).first();
+
+        if (!existing) {
+            await env.DB.prepare(`
+                INSERT INTO matches (
+                    id,
+                    series_id,
+                    series_name,
+                    title,
+                    short_title,
+                    status,
+                    start_time,
+                    team_a,
+                    team_b,
+                    team_a_img,
+                    team_b_img,
+                    team_a_id,
+                    team_b_id,
+                    last_updated,
+                    last_score,
+                    last_wickets,
+                    last_over,
+                    last_innings
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+                matchId,
+                match.seriesId || '0',
+                match.seriesName || '',
+                match.title || '',
+                match.shortTitle || '',
+                'Upcoming',
+                startTime,
+                match.teamA || '',
+                match.teamB || '',
+                match.teamAImg || '',
+                match.teamBImg || '',
+                match.team1Id || '0',
+                match.team2Id || '0',
+                startTime,
+                match.lastScore || null,
+                match.lastWickets || 0,
+                match.lastOver || null,
+                match.lastInnings || 1
+            ).run();
+            inserted += 1;
+            continue;
+        }
+
+        if (existing.status !== 'Upcoming') {
+            continue;
+        }
+
+        const existingStart = Number(existing.start_time || 0);
+        if (existingStart === startTime) {
+            continue;
+        }
+
+        await env.DB.prepare(`
+            UPDATE matches
+            SET start_time = ?, last_updated = ?
+            WHERE id = ?
+            AND status = 'Upcoming'
+        `).bind(startTime, startTime, matchId).run();
+        updated += 1;
+    }
+
+    console.log(`[UPCOMING_SEED_DONE] inserted=${inserted}, updated=${updated}, scanned=${incomingMatches.length}`);
+}
+
+
 // --- SCHEMA VERIFY (STEP 2) ---
 // Sirf missing columns add karta hai. Existing data safe rahega.
 async function verifySchema(env) {
