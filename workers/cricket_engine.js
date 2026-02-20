@@ -236,6 +236,32 @@ async function clearStaleLiveTracker(env, key) {
     await env.DB.prepare("DELETE FROM sys_config WHERE key = ?").bind(key).run();
 }
 
+
+async function selfHealStaleUpcomingMatches(env, nowMs) {
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+
+    // Recently started upcoming matches are moved to in-progress state.
+    await env.DB.prepare(`
+        UPDATE matches
+        SET status = 'In Progress', last_updated = ?
+        WHERE status = 'Upcoming'
+        AND start_time IS NOT NULL
+        AND CAST(start_time AS INTEGER) > 0
+        AND CAST(start_time AS INTEGER) < ?
+        AND CAST(start_time AS INTEGER) >= ?
+    `).bind(nowMs, nowMs, nowMs - SIX_HOURS).run();
+
+    // Very old upcoming matches are considered completed for UI self-heal.
+    await env.DB.prepare(`
+        UPDATE matches
+        SET status = 'Completed', last_updated = ?
+        WHERE status = 'Upcoming'
+        AND start_time IS NOT NULL
+        AND CAST(start_time AS INTEGER) > 0
+        AND CAST(start_time AS INTEGER) < ?
+    `).bind(nowMs, nowMs - SIX_HOURS).run();
+}
+
 async function reconcileStaleLiveMatches(env, liveApiMatches, nowMs) {
     if (STALE_LIVE_RECONCILE_ENABLED !== true) return;
     if (!Array.isArray(liveApiMatches)) return;
@@ -334,6 +360,11 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
     let parsed = [];
     const now = Date.now();
     const FIVE_MINUTES = 5 * 60 * 1000;
+    try {
+        await selfHealStaleUpcomingMatches(env, now);
+    } catch (_) {
+        // Keep predictive guard flow unchanged if self-heal fails.
+    }
 
     // --- RULE A: DB mein live match nahi → 0 API calls ---
     const activeMatches = await env.DB.prepare(`
