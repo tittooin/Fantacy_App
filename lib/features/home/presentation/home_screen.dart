@@ -385,6 +385,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         )),
         data: (allMatches) {
+            bool isUpcomingLikeStatus(dynamic rawStatus) {
+              final status = (rawStatus ?? '').toString().trim().toLowerCase();
+              if (status == 'upcoming' || status == 'scheduled') return true;
+              if (status.contains('start delayed')) return true;
+              if (status.contains('delay')) return true;
+              if (status.contains('rain')) return true;
+              return false;
+            }
+
             final live = allMatches.where((m) {
               final status = m['status'];
               final isLive = status == 'Live' || status == 'In Progress';
@@ -394,7 +403,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
            final upcoming = allMatches.where((m) {
               final status = m['status'];
-              return status == 'Upcoming';
+              return isUpcomingLikeStatus(status);
            }).toList();
            
            final completed = allMatches.where((m) {
