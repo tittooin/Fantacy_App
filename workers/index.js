@@ -89,11 +89,25 @@ function isActiveStatusBypass(status) {
         status === 'INNINGS BREAK';
 }
 
+function isTerminalVisibilityStatus(status) {
+    return status === 'COMPLETED' ||
+        status === 'FINISHED' ||
+        status === 'ABANDONED' ||
+        status === 'CANCELLED' ||
+        status === 'CANCELED';
+}
+
 function isAboutToStartBypass(status, startTime, nowMs) {
     const start = Number(startTime || 0);
     if (!Number.isFinite(start) || start <= 0) return false;
     const activeOrUpcoming = status === 'UPCOMING' || isActiveStatusBypass(status);
     return activeOrUpcoming && start <= (nowMs + (15 * 60 * 1000));
+}
+
+function isStartedBypass(status, startTime, nowMs) {
+    const start = Number(startTime || 0);
+    if (!Number.isFinite(start) || start <= 0) return false;
+    return start <= nowMs && !isTerminalVisibilityStatus(status);
 }
 
 function isMajorLeagueSeries(seriesName) {
@@ -1070,7 +1084,8 @@ async function handleGetMatches(env) {
                     isActiveStatusBypass(status) ||
                     lineupMatchSet.has(matchId) ||
                     joinedMatchSet.has(matchId) ||
-                    isAboutToStartBypass(status, startTime, nowMs);
+                    isAboutToStartBypass(status, startTime, nowMs) ||
+                    isStartedBypass(status, startTime, nowMs);
 
                 if (activeMatchBypass) return true;
                 return shouldServeCuratedMatch(match);

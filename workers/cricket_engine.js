@@ -923,12 +923,44 @@ function formatCricbuzzMatch(info) {
 
     // Status Mapping
     let status = 'Upcoming';
-    const state = info.state || '';
+    const state = String(info.state || '').trim();
+    const stateUpper = state.toUpperCase();
+    const startTimeMs = parseInt(info.startDate) || Date.now();
+    const hasStarted = startTimeMs <= Date.now();
 
-    if (state === 'Complete' || state === 'Mom' || state.includes('Won')) status = 'Completed';
-    else if (state === 'In Progress' || state === 'Live' || state === 'Toss' || state === 'Stumps' || state === 'Innings Break') status = 'Live';
-    else if (state === 'Preview' || state === 'Upcoming') status = 'Upcoming';
-    else if (state === 'Abandoned' || state === 'No Result' || state.includes('Delay') || state.includes('Rain')) status = 'Abandoned';
+    const terminalAbandonedTokens = [
+        'ABANDONED',
+        'MATCH ABANDONED',
+        'NO RESULT',
+        'NO-RESULT',
+        'CANCELLED',
+        'CANCELED'
+    ];
+    const nonTerminalDelayTokens = [
+        'DELAY',
+        'RAIN',
+        'WET OUTFIELD',
+        'TOSS DELAYED',
+        'START DELAYED',
+        'MATCH DELAYED',
+        'INSPECTION',
+        'STUMPS',
+        'INNINGS BREAK',
+        'LUNCH',
+        'TEA',
+        'BAD LIGHT',
+        'REDUCED OVERS',
+        'DELAYED START'
+    ];
+
+    const isTerminalAbandoned = terminalAbandonedTokens.some(token => stateUpper.includes(token));
+    const isNonTerminalDelay = nonTerminalDelayTokens.some(token => stateUpper.includes(token));
+
+    if (stateUpper === 'COMPLETE' || stateUpper === 'MOM' || stateUpper.includes('WON')) status = 'Completed';
+    else if (isTerminalAbandoned) status = 'Abandoned';
+    else if (isNonTerminalDelay) status = hasStarted ? 'Live' : 'Upcoming';
+    else if (stateUpper === 'IN PROGRESS' || stateUpper === 'LIVE' || stateUpper === 'TOSS' || stateUpper === 'STUMPS' || stateUpper === 'INNINGS BREAK') status = hasStarted ? 'Live' : 'Upcoming';
+    else if (stateUpper === 'PREVIEW' || stateUpper === 'UPCOMING') status = 'Upcoming';
 
     const t1 = info.team1 || {};
     const t2 = info.team2 || {};
@@ -949,11 +981,11 @@ function formatCricbuzzMatch(info) {
         team1ShortName: t1.teamSName || 'T1',
         team2ShortName: t2.teamSName || 'T2',
         matchDesc: `${t1.teamName} vs ${t2.teamName}`,
-        startDate: parseInt(info.startDate) || Date.now(),
+        startDate: startTimeMs,
         endDate: parseInt(info.endDate) || (parseInt(info.startDate) + 14400000),
         venue: info.venueInfo ? info.venueInfo.ground : 'TBD',
 
-        startTime: parseInt(info.startDate) || Date.now(),
+        startTime: startTimeMs,
 
         teamA: t1.teamName || 'Team A',
         teamB: t2.teamName || 'Team B',
