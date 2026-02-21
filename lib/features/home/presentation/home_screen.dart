@@ -385,59 +385,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         )),
         data: (allMatches) {
-           final now = DateTime.now().millisecondsSinceEpoch;
-           
-           // Major League Filter Keywords (Case Insensitive)
-           final majorKeywords = [
-             'IPL', 'Indian Premier League', 
-             'World Cup', 'T20 World Cup', '2026' 
-           ];
-
-            bool isMajorMatch(Map<String, dynamic> m) {
-               final title = (m['title'] as String? ?? '').toLowerCase();
-               final series = (m['seriesName'] as String? ?? '').toLowerCase();
-               final desc = (m['matchDesc'] as String? ?? '').toLowerCase();
-
-               // Combined string to check (Title often missing in Firestore/Model usage)
-               final fullText = "$title $series $desc";
-               
-               for (final k in majorKeywords) {
-                  if (fullText.contains(k.toLowerCase())) return true;
-               }
-               return false;
-            }
-
             final live = allMatches.where((m) {
               final status = m['status'];
               final isLive = status == 'Live' || status == 'In Progress';
-              
-              // NEW: If user has joined this match, ALWAYS show it in tabs
-              final isJoined = joinedMatchIds.contains(m['id'].toString());
-              if (!isJoined && !isMajorMatch(m)) return false;
-              
+
               return isLive;
            }).toList();
 
            final upcoming = allMatches.where((m) {
               final status = m['status'];
-              final start = m['start_time'] ?? m['startDate'] ?? 0;
-              
-              final isJoined = joinedMatchIds.contains(m['id'].toString());
-              if (!isJoined && !isMajorMatch(m)) return false;
-
-              return status == 'Upcoming' && start > now;
+              return status == 'Upcoming';
            }).toList();
            
            final completed = allMatches.where((m) {
               final status = m['status'];
-              final start = m['start_time'] ?? m['startDate'] ?? 0;
               final isFinished = status == 'Completed' || status == 'Finished' || status == 'Abandoned';
-              final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
-              
-              final isJoined = joinedMatchIds.contains(m['id'].toString());
-              if (!isJoined && !isMajorMatch(m)) return false;
-
-              return isFinished && start > sevenDaysAgo;
+              return isFinished;
            }).toList();
 
            return DefaultTabController(

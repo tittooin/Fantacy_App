@@ -360,7 +360,7 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
       itemBuilder: (context, index) {
         final player = players[index];
         final isSelected = _selectedIds.contains(player.id);
-        final isPlaying = widget.match.playingXI.contains(player.id);
+        final isPlaying = player.isPlaying || widget.match.playingXI.contains(player.id);
         
         // DEBUG: First player per tab
         if (index == 0) {

@@ -11,7 +11,7 @@ import { processLiveContests } from './contest_engine.js';
 import { createCashfreeOrder } from './payment_service.js';
 import { handleCashfreeWebhook } from './webhook_handler.js';
 import { processLeaderboards } from './leaderboard_engine.js';
-import { processSquads, syncMatchSquad, processRepairQueue } from './squad_engine.js';
+import { processSquads, syncMatchSquad, processRepairQueue, isPrioritySeries } from './squad_engine.js';
 import { processPayoutsForMatch } from './payout_engine.js';
 import { handleVoucherRequest, handleVoucherUserHistory, handleAdminVoucherList, handleAdminApproveVoucher } from './voucher_engine.js';
 import { syncMatchPointsToD1 } from './points_engine.js';
@@ -28,6 +28,130 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': '*',
 };
+
+const MAJOR_LEAGUE_SERIES_KEYWORDS = [
+    'IPL',
+    'INDIAN PREMIER',
+    'PSL',
+    'PAKISTAN SUPER',
+    'BIG BASH',
+    'BBL',
+    'THE HUNDRED',
+    "WOMEN'S PREMIER",
+    'WPL',
+    'SA20',
+    'ILT20',
+    'CARIBBEAN PREMIER',
+    'CPL',
+    'MAJOR LEAGUE CRICKET',
+    'MLC',
+    'LANKA PREMIER',
+    'LPL'
+];
+
+const INTERNATIONAL_TEAM_NAMES = new Set([
+    'AFGHANISTAN', 'AFG',
+    'AUSTRALIA', 'AUS',
+    'BANGLADESH', 'BAN',
+    'CANADA', 'CAN',
+    'ENGLAND', 'ENG',
+    'HONG KONG', 'HKG',
+    'INDIA', 'IND',
+    'IRELAND', 'IRE',
+    'NAMIBIA', 'NAM',
+    'NETHERLANDS', 'NED',
+    'NEPAL', 'NEP',
+    'NEW ZEALAND', 'NZ',
+    'OMAN', 'OMA',
+    'PAKISTAN', 'PAK',
+    'PAPUA NEW GUINEA', 'PNG',
+    'SCOTLAND', 'SCO',
+    'SOUTH AFRICA', 'SA',
+    'SRI LANKA', 'SL',
+    'UNITED ARAB EMIRATES', 'UAE',
+    'USA',
+    'WEST INDIES', 'WI',
+    'ZIMBABWE', 'ZIM'
+]);
+
+function normalizeMatchFilterText(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function normalizeMatchStatus(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function isActiveStatusBypass(status) {
+    return status === 'LIVE' ||
+        status === 'STARTED' ||
+        status === 'IN PROGRESS' ||
+        status === 'INNINGS BREAK';
+}
+
+function isAboutToStartBypass(status, startTime, nowMs) {
+    const start = Number(startTime || 0);
+    if (!Number.isFinite(start) || start <= 0) return false;
+    const activeOrUpcoming = status === 'UPCOMING' || isActiveStatusBypass(status);
+    return activeOrUpcoming && start <= (nowMs + (15 * 60 * 1000));
+}
+
+function isMajorLeagueSeries(seriesName) {
+    const normalizedSeries = normalizeMatchFilterText(seriesName);
+    if (!normalizedSeries) return false;
+    return MAJOR_LEAGUE_SERIES_KEYWORDS.some(keyword => normalizedSeries.includes(keyword));
+}
+
+function isInternationalTeamName(teamName) {
+    const normalizedTeam = normalizeMatchFilterText(teamName);
+    if (!normalizedTeam) return false;
+    if (INTERNATIONAL_TEAM_NAMES.has(normalizedTeam)) return true;
+
+    const withoutWomenSuffix = normalizedTeam
+        .replace(/\s+WOMEN$/, '')
+        .replace(/\s+W$/, '');
+    if (INTERNATIONAL_TEAM_NAMES.has(withoutWomenSuffix)) return true;
+
+    const withoutAgeSuffix = withoutWomenSuffix
+        .replace(/\s+U19$/, '')
+        .replace(/\s+UNDER[\s-]?19$/, '');
+    return INTERNATIONAL_TEAM_NAMES.has(withoutAgeSuffix);
+}
+
+function shouldServeCuratedMatch(matchRow) {
+    if (!matchRow || typeof matchRow !== 'object') return false;
+
+    const seriesName = matchRow.series_name || matchRow.seriesName || matchRow.title || '';
+    if (isPrioritySeries(seriesName) || isMajorLeagueSeries(seriesName)) {
+        return true;
+    }
+
+    const teamA = matchRow.team_a || matchRow.teamA || '';
+    const teamB = matchRow.team_b || matchRow.teamB || '';
+    return isInternationalTeamName(teamA) && isInternationalTeamName(teamB);
+}
+
+function isTeamRuleRegressionSafe({ validatedPids, contestInsertPids, rosterMap, teamACount, teamBCount }) {
+    if (!Array.isArray(validatedPids) || validatedPids.length === 0) return false;
+    if (!Array.isArray(contestInsertPids) || contestInsertPids.length !== validatedPids.length) return false;
+    if (!(rosterMap instanceof Map) || rosterMap.size === 0) return false;
+
+    const normalizedValidated = validatedPids.map(pid => String(pid || '').trim()).filter(Boolean);
+    const normalizedInsert = contestInsertPids.map(pid => String(pid || '').trim()).filter(Boolean);
+
+    if (normalizedValidated.length !== validatedPids.length) return false;
+    if (normalizedInsert.length !== contestInsertPids.length) return false;
+    if (new Set(normalizedValidated).size !== normalizedValidated.length) return false;
+    if (teamACount > 7 || teamBCount > 7) return false;
+
+    for (let i = 0; i < normalizedValidated.length; i += 1) {
+        if (normalizedValidated[i] !== normalizedInsert[i]) return false;
+        const mappedTeam = rosterMap.get(normalizedValidated[i]);
+        if (mappedTeam !== 'teamA' && mappedTeam !== 'teamB') return false;
+    }
+
+    return true;
+}
 
 // ...
 
@@ -518,6 +642,7 @@ async function handleJoinContest(request, env) {
         if (uniquePids.size !== pids.length) {
             return jsonResponse({ success: false, error: 'DUPLICATE_PLAYERS' }, 200);
         }
+        const validatedPids = pids.map((id) => String(id).trim());
 
         // Rule 2: Contest status must be "upcoming"
         if (contest.status?.toLowerCase() !== 'upcoming') {
@@ -574,10 +699,9 @@ async function handleJoinContest(request, env) {
             return jsonResponse({ success: false, error: 'TEAM_SPLIT_VALIDATION_UNAVAILABLE' }, 200);
         }
 
-        const selectedIds = pids.map((id) => String(id).trim());
         let teamACount = 0;
         let teamBCount = 0;
-        for (const pid of selectedIds) {
+        for (const pid of validatedPids) {
             const teamSide = rosterMap.get(pid);
             if (teamSide === 'teamA') {
                 teamACount++;
@@ -631,6 +755,17 @@ async function handleJoinContest(request, env) {
         // Rule 7 & 8: Wallet deduction + participant insert atomic transaction + Race protection
         const txnId = `join_${Date.now()}_${userId}`;
         const participationId = crypto.randomUUID();
+        const contestInsertPids = [...validatedPids];
+
+        if (!isTeamRuleRegressionSafe({
+            validatedPids,
+            contestInsertPids,
+            rosterMap,
+            teamACount,
+            teamBCount
+        })) {
+            return jsonResponse({ success: false, error: 'TEAM_RULE_REGRESSION_BLOCK' }, 200);
+        }
 
         const statements = [
             // A. Deduct Wallet (Atomic)
@@ -658,7 +793,7 @@ async function handleJoinContest(request, env) {
                 userId,
                 teamId,
                 authoritativeMatchId,
-                JSON.stringify(pids),
+                JSON.stringify(contestInsertPids),
                 teamName || 'User Team',
                 Date.now()
             ),
@@ -669,7 +804,7 @@ async function handleJoinContest(request, env) {
                 VALUES(?, ?, 'contest_join', ?, ?, ?, ?, 'success')
             `).bind(txnId, userId, entryFee, contestId, matchId, Date.now())
         ];
-        console.log(`[JOIN_INSERT_PIDS] count=${pids.length}, ids=${JSON.stringify(pids)}`);
+        console.log(`[JOIN_INSERT_PIDS] count=${contestInsertPids.length}, ids=${JSON.stringify(contestInsertPids)}`);
 
         try {
             const results = await env.DB.batch(statements);
@@ -911,7 +1046,37 @@ async function handleGetLeaderboard(contestId, env) {
 async function handleGetMatches(env) {
     try {
         const { results } = await env.DB.prepare('SELECT * FROM matches ORDER BY start_time ASC').all();
-        return jsonResponse({ success: true, matches: results });
+        const { results: lineupRows } = await env.DB.prepare(`
+            SELECT DISTINCT CAST(match_id AS TEXT) AS match_id
+            FROM match_squads
+            WHERE playing_11_a IS NOT NULL OR playing_11_b IS NOT NULL
+        `).all();
+        const { results: joinedRows } = await env.DB.prepare(`
+            SELECT DISTINCT CAST(match_id AS TEXT) AS match_id
+            FROM contest_participants
+        `).all();
+
+        const lineupMatchSet = new Set((lineupRows || []).map(r => String(r.match_id || '').trim()).filter(Boolean));
+        const joinedMatchSet = new Set((joinedRows || []).map(r => String(r.match_id || '').trim()).filter(Boolean));
+        const nowMs = Date.now();
+
+        const curatedMatches = Array.isArray(results)
+            ? results.filter((match) => {
+                const matchId = String(match?.id || '').trim();
+                const status = normalizeMatchStatus(match?.status);
+                const startTime = Number(match?.start_time || 0);
+
+                const activeMatchBypass =
+                    isActiveStatusBypass(status) ||
+                    lineupMatchSet.has(matchId) ||
+                    joinedMatchSet.has(matchId) ||
+                    isAboutToStartBypass(status, startTime, nowMs);
+
+                if (activeMatchBypass) return true;
+                return shouldServeCuratedMatch(match);
+            })
+            : [];
+        return jsonResponse({ success: true, matches: curatedMatches });
     } catch (error) {
         return jsonResponse({ success: false, error: error.message });
     }

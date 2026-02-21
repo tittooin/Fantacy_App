@@ -20,6 +20,10 @@ const STALE_LIVE_GRACE_ARM_AT = 4; // Arm grace one cycle before close
 const UPCOMING_EMPTY_CHECK_KEY = 'upcoming_empty_checked_at';
 const UPCOMING_EMPTY_CHECK_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const PREDICTIVE_CHECK_COOLDOWN_MS = 5 * 60 * 1000;
+const LIVE_SNAPSHOT_HASH_KEY = 'live_snapshot_hash';
+const LIVE_SNAPSHOT_SKIP_WINDOW_MS = 60 * 60 * 1000;
+const UPCOMING_SNAPSHOT_HASH_KEY = 'upcoming_snapshot_hash';
+const UPCOMING_SNAPSHOT_SKIP_WINDOW_MS = 4 * 60 * 60 * 1000;
 
 // --- PREDICTIVE GUARDED VERIFICATION (Target < 25 Calls) ---
 
@@ -65,6 +69,26 @@ export async function processCricketData(env) {
 export async function seedUpcomingMatches(env) {
     const nowMs = Date.now();
     const windowEndMs = nowMs + (48 * 60 * 60 * 1000);
+    const dbUpcomingRows = await env.DB.prepare(`
+        SELECT id, start_time
+        FROM matches
+        WHERE status = 'Upcoming'
+        AND start_time IS NOT NULL
+        AND CAST(start_time AS INTEGER) > ?
+    `).bind(nowMs).all();
+
+    const currentUpcomingHash = buildUpcomingSnapshotHash(dbUpcomingRows.results || []);
+    const upcomingSnapshotState = parseSnapshotState(
+        await readSysConfigValue(env, UPCOMING_SNAPSHOT_HASH_KEY)
+    );
+    if (
+        upcomingSnapshotState &&
+        upcomingSnapshotState.hash &&
+        upcomingSnapshotState.hash === currentUpcomingHash &&
+        upcomingSnapshotState.stableUntil > nowMs
+    ) {
+        return;
+    }
 
     const countRow = await env.DB.prepare(`
         SELECT COUNT(1) AS upcoming_count
@@ -98,6 +122,14 @@ export async function seedUpcomingMatches(env) {
     const incomingMatches = await fetchEndpoint('/matches/v1/upcoming', apiKey, apiHost);
     if (!Array.isArray(incomingMatches) || incomingMatches.length === 0) {
         await writeSysConfigTimestamp(env, UPCOMING_EMPTY_CHECK_KEY, nowMs);
+        const emptyHash = buildUpcomingSnapshotHash([]);
+        const stableUntil = (upcomingSnapshotState?.hash === emptyHash)
+            ? nowMs + UPCOMING_SNAPSHOT_SKIP_WINDOW_MS
+            : 0;
+        await writeSysConfigValue(env, UPCOMING_SNAPSHOT_HASH_KEY, JSON.stringify({
+            hash: emptyHash,
+            stableUntil
+        }));
         console.log('[UPCOMING_SEED_NO_DATA] /upcoming returned no matches.');
         return;
     }
@@ -188,6 +220,15 @@ export async function seedUpcomingMatches(env) {
     } else {
         await clearSysConfigTimestamp(env, UPCOMING_EMPTY_CHECK_KEY);
     }
+
+    const incomingUpcomingHash = buildUpcomingSnapshotHash(incomingMatches);
+    const upcomingStableUntil = (upcomingSnapshotState?.hash === incomingUpcomingHash)
+        ? nowMs + UPCOMING_SNAPSHOT_SKIP_WINDOW_MS
+        : 0;
+    await writeSysConfigValue(env, UPCOMING_SNAPSHOT_HASH_KEY, JSON.stringify({
+        hash: incomingUpcomingHash,
+        stableUntil: upcomingStableUntil
+    }));
 
     console.log(`[UPCOMING_SEED_DONE] inserted=${inserted}, updated=${updated}, scanned=${incomingMatches.length}`);
 }
@@ -452,6 +493,70 @@ async function clearSysConfigTimestamp(env, key) {
     await env.DB.prepare("DELETE FROM sys_config WHERE key = ?").bind(key).run();
 }
 
+async function readSysConfigValue(env, key) {
+    const row = await env.DB.prepare("SELECT value FROM sys_config WHERE key = ?").bind(key).first();
+    return row?.value ?? null;
+}
+
+async function writeSysConfigValue(env, key, value) {
+    await env.DB.prepare(
+        "INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)"
+    ).bind(key, String(value ?? ''), Date.now()).run();
+}
+
+function stableHash(input) {
+    const text = String(input || '');
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i += 1) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function normalizeSnapshotInt(value) {
+    const num = Number(value || 0);
+    return Number.isFinite(num) ? num : 0;
+}
+
+function buildUpcomingSnapshotHash(matches) {
+    const rows = (Array.isArray(matches) ? matches : [])
+        .map((m) => {
+            const matchId = String(m?.id ?? '').trim();
+            const startTime = normalizeSnapshotInt(m?.startTime ?? m?.start_time);
+            return `${matchId}|${startTime}`;
+        })
+        .filter(Boolean)
+        .sort();
+    return stableHash(rows.join('||'));
+}
+
+function buildLiveSnapshotHash(matches) {
+    const rows = (Array.isArray(matches) ? matches : [])
+        .map((m) => {
+            const matchId = String(m?.id ?? '').trim();
+            const status = String(m?.status ?? '').trim();
+            const lastUpdated = normalizeSnapshotInt(m?.lastUpdated ?? m?.last_updated);
+            return `${matchId}|${status}|${lastUpdated}`;
+        })
+        .filter(Boolean)
+        .sort();
+    return stableHash(rows.join('||'));
+}
+
+function parseSnapshotState(rawValue) {
+    if (!rawValue) return null;
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== 'object') return null;
+        const hash = String(parsed.hash || '').trim();
+        const stableUntil = normalizeSnapshotInt(parsed.stableUntil);
+        return { hash, stableUntil };
+    } catch {
+        return null;
+    }
+}
+
 function buildPredictiveCheckedKey(matchId) {
     return `predictive_checked:${String(matchId)}`;
 }
@@ -655,6 +760,9 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
         m => ['Live', 'In Progress', 'Innings Break'].includes(m.status)
     );
     const upcomingMatches = activeMatches.results.filter(m => m.status === 'Upcoming');
+    const liveSnapshotState = parseSnapshotState(
+        await readSysConfigValue(env, LIVE_SNAPSHOT_HASH_KEY)
+    );
 
     if (liveMatches.length === 0) {
         // Only allow if an upcoming match has just started (time reached)
@@ -663,6 +771,14 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
             console.log('[CONTROL_UNLOCK_SKIP] DB mein koi live match nahi. 0 API calls.');
             return [];
         }
+    }
+
+    if (
+        liveSnapshotState &&
+        liveSnapshotState.stableUntil > now &&
+        liveSnapshotState.hash
+    ) {
+        return [];
     }
 
     // --- RULE B: Atomic D1 lock ? race condition proof ---
@@ -725,6 +841,17 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
     console.log('[CONTROL_UNLOCK_STARTED] Lock acquired. 1 API call allow: /live');
     const data = await fetchEndpoint('/matches/v1/live', key, host);
     if (data) {
+        const liveSnapshotHash = buildLiveSnapshotHash(data);
+        const previousLiveHash = liveSnapshotState?.hash || '';
+        const sameLiveSnapshot = !!liveSnapshotHash && previousLiveHash === liveSnapshotHash;
+        await writeSysConfigValue(env, LIVE_SNAPSHOT_HASH_KEY, JSON.stringify({
+            hash: liveSnapshotHash,
+            stableUntil: sameLiveSnapshot ? (now + LIVE_SNAPSHOT_SKIP_WINDOW_MS) : 0
+        }));
+        if (sameLiveSnapshot) {
+            return [];
+        }
+
         parsed.push(...data);
         await updateDBTimestamp(env, 'last_fetch_live');
 
@@ -836,7 +963,12 @@ function formatCricbuzzMatch(info) {
         team1Id: (t1.teamId || '0').toString(),
         team2Id: (t2.teamId || '0').toString(),
 
-        lastUpdated: Date.now(),
+        lastUpdated: normalizeSnapshotInt(
+            info.lastUpdated ||
+            info.lastUpdatedTime ||
+            info.lastUpdatedTs ||
+            info.startDate
+        ),
 
         lastScore: score,
         lastWickets: 0,

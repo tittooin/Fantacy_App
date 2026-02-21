@@ -36,6 +36,18 @@ class D1PlayerService {
       final teamBBucket = data['teamB'] is Iterable
           ? List<dynamic>.from(data['teamB'] as Iterable)
           : const <dynamic>[];
+      final xiAIds = data['xiA'] is Iterable
+          ? (data['xiA'] as Iterable)
+              .map((e) => e?.toString().trim() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toSet()
+          : <String>{};
+      final xiBIds = data['xiB'] is Iterable
+          ? (data['xiB'] as Iterable)
+              .map((e) => e?.toString().trim() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toSet()
+          : <String>{};
 
       print(
         '[SQUADS_API_COUNTS][$matchId] teamA=${teamABucket.length} teamB=${teamBBucket.length}',
@@ -49,6 +61,7 @@ class D1PlayerService {
         bucketCode: 'A',
         teamIdFallback: (team1Id ?? '').trim(),
         shortNameFallback: (team1ShortName ?? '').trim(),
+        xiIds: xiAIds,
       );
       final parsedTeamB = _parseBucket(
         bucket: teamBBucket,
@@ -56,6 +69,7 @@ class D1PlayerService {
         bucketCode: 'B',
         teamIdFallback: (team2Id ?? '').trim(),
         shortNameFallback: (team2ShortName ?? '').trim(),
+        xiIds: xiBIds,
       );
 
       for (final player in [...parsedTeamA, ...parsedTeamB]) {
@@ -75,6 +89,7 @@ class D1PlayerService {
     required String bucketCode,
     required String teamIdFallback,
     required String shortNameFallback,
+    required Set<String> xiIds,
   }) {
     final parsed = <PlayerModel>[];
 
@@ -88,6 +103,7 @@ class D1PlayerService {
           json['player_id'],
         ]);
         if (id.isEmpty) continue;
+        final isXiByList = xiIds.contains(id);
 
         final roleEnum = _parseRole(json['role'], id);
         if (roleEnum == PlayerRole.unknown) {
@@ -127,7 +143,7 @@ class D1PlayerService {
             points: _parseDouble(json['points']),
             fantasyRating: _parseDouble(json['fantasy_rating']),
             imageUrl: _firstNonEmpty([json['imageUrl'], json['image_url']]),
-            isPlaying: json['isPlaying'] == true || json['is_playing'] == true,
+            isPlaying: isXiByList || json['isPlaying'] == true || json['is_playing'] == true,
             teamId: normalizedTeamId.isEmpty ? null : normalizedTeamId,
             teamShortName:
                 normalizedShortName.isEmpty ? null : normalizedShortName,

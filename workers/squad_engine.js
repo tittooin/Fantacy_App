@@ -36,6 +36,8 @@ export function isPrioritySeries(seriesName, liveSeriesSet = null) {
 
 const LIVE_SCARD_CHECK_PREFIX = 'live_scard_checked:';
 const LIVE_SCARD_CHECK_COOLDOWN_SECONDS = 15 * 60;
+const SCARD_SNAPSHOT_PREFIX = 'scard_snapshot:';
+const SCARD_SNAPSHOT_SKIP_SECONDS = 30 * 60;
 
 function buildLiveScardCheckKey(matchId) {
     return `${LIVE_SCARD_CHECK_PREFIX}${String(matchId)}`;
@@ -59,6 +61,54 @@ async function writeLiveScardCheckedAt(env, matchId, nowSeconds) {
 async function clearLiveScardCheckedAt(env, matchId) {
     const key = buildLiveScardCheckKey(matchId);
     await env.DB.prepare("DELETE FROM sys_config WHERE key = ?").bind(key).run();
+}
+
+function buildScardSnapshotKey(matchId) {
+    return `${SCARD_SNAPSHOT_PREFIX}${String(matchId)}`;
+}
+
+async function readScardSnapshot(env, matchId) {
+    const key = buildScardSnapshotKey(matchId);
+    const row = await env.DB.prepare("SELECT value FROM sys_config WHERE key = ?").bind(key).first();
+    if (!row || !row.value) return null;
+    try {
+        const parsed = JSON.parse(row.value);
+        if (!parsed || typeof parsed !== 'object') return null;
+        return {
+            hash: String(parsed.hash || '').trim(),
+            stableUntil: Number(parsed.stableUntil || 0)
+        };
+    } catch {
+        return null;
+    }
+}
+
+async function writeScardSnapshot(env, matchId, payload) {
+    const key = buildScardSnapshotKey(matchId);
+    await env.DB.prepare(
+        "INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)"
+    ).bind(
+        key,
+        JSON.stringify(payload || {}),
+        Date.now()
+    ).run();
+}
+
+function stableHash(input) {
+    const text = String(input || '');
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i += 1) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function buildScardSnapshotHash(data) {
+    const xiA = normalizeIdsForCompare(data?.xiA || []);
+    const xiB = normalizeIdsForCompare(data?.xiB || []);
+    const lastUpdated = String(data?.lastUpdated || '').trim();
+    return stableHash(`${xiA.join(',')}|${xiB.join(',')}|${lastUpdated}`);
 }
 
 function normalizeIdsForCompare(values) {
@@ -153,8 +203,12 @@ export async function processSquads(matches, env, apiKey, apiHost) {
                 const diff = now - lastFetch;
                 const lastCheckedAt = await readLiveScardCheckedAt(env, match.id);
                 const checkedDiff = lastCheckedAt > 0 ? (now - lastCheckedAt) : Number.MAX_SAFE_INTEGER;
+                const scardSnapshotState = await readScardSnapshot(env, match.id);
 
-                if (lastCheckedAt > 0 && checkedDiff < LIVE_SCARD_CHECK_COOLDOWN_SECONDS) {
+                if (scardSnapshotState && scardSnapshotState.stableUntil > now) {
+                    source = 'NONE';
+                    reason = `[FETCH_SKIPPED_COOLDOWN] SCARD hash window active`;
+                } else if (lastCheckedAt > 0 && checkedDiff < LIVE_SCARD_CHECK_COOLDOWN_SECONDS) {
                     source = 'NONE';
                     reason = `[FETCH_SKIPPED_COOLDOWN] Live Memory Wait (${checkedDiff}s < ${LIVE_SCARD_CHECK_COOLDOWN_SECONDS}s)`;
                 } else if (diff > 600) { // 10 Minutes (600s)
@@ -215,6 +269,21 @@ export async function processSquads(matches, env, apiKey, apiHost) {
                 // SAVE (Always call save, it handles errors/updates)
                 await saveToDB(env, String(match.id), data, targetState, source);
                 if (source === 'SCARD') {
+                    if (data && !data.error) {
+                        const scardSnapshotHash = buildScardSnapshotHash(data);
+                        const previousSnapshot = await readScardSnapshot(env, match.id);
+                        const stableUntil = (
+                            previousSnapshot &&
+                            previousSnapshot.hash &&
+                            previousSnapshot.hash === scardSnapshotHash
+                        ) ? (now + SCARD_SNAPSHOT_SKIP_SECONDS) : 0;
+
+                        await writeScardSnapshot(env, match.id, {
+                            hash: scardSnapshotHash,
+                            stableUntil
+                        });
+                    }
+
                     const meaningfulUpdate = await hasMeaningfulScardUpdate(env, String(match.id), data);
                     if (meaningfulUpdate) {
                         await clearLiveScardCheckedAt(env, match.id);
@@ -537,7 +606,14 @@ async function fetchMatchScard(matchId, key, host) {
         xiA: getIDs(tA.playingXI),
         benchA: getIDs(tA.bench),
         xiB: getIDs(tB.playingXI),
-        benchB: getIDs(tB.bench)
+        benchB: getIDs(tB.bench),
+        lastUpdated: String(
+            data.lastUpdated ||
+            data.lastUpdatedTime ||
+            data.lastUpdatedTs ||
+            data.miniScore?.lastUpdated ||
+            ''
+        )
     };
 }
 
