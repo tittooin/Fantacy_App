@@ -469,8 +469,41 @@ async function handleJoinContest(request, env) {
             return jsonResponse({ success: false, error: 'MISSING_FIELDS' }, 200);
         }
 
+        // 1. Fetch User, Contest, Count, and persisted Team payload in parallel
+        const [user, contest, userCount, teamRow] = await Promise.all([
+            env.DB.prepare("SELECT deposit_credits, winning_credits FROM users WHERE id = ?").bind(userId).first(),
+            env.DB.prepare("SELECT * FROM contests WHERE id = ?").bind(contestId).first(),
+            env.DB.prepare("SELECT COUNT(*) as count FROM contest_participants WHERE match_id = ? AND user_id = ?").bind(matchId, userId).first(),
+            env.DB.prepare(
+                "SELECT players_json FROM teams WHERE id = ? AND user_id = ? AND CAST(match_id AS INTEGER) = CAST(? AS INTEGER) LIMIT 1"
+            ).bind(teamId, userId, matchId).first()
+        ]);
+
+        // Rule 1: Contest existence check
+        if (!contest) return jsonResponse({ success: false, error: 'CONTEST_NOT_FOUND' }, 200);
+
+        // TEAM SOURCE: Always derive players from persisted teams.players_json
+        let persistedPlayers = [];
+        if (teamRow && teamRow.players_json) {
+            try {
+                persistedPlayers = JSON.parse(teamRow.players_json || '[]');
+            } catch (_) {
+                persistedPlayers = [];
+            }
+        }
+
+        const normalizeTeamPlayerId = (p) => {
+            if (p === null || p === undefined) return '';
+            if (typeof p === 'string' || typeof p === 'number') return String(p).trim();
+            if (typeof p !== 'object') return '';
+            return String(p.player_id ?? p.playerId ?? p.id ?? '').trim();
+        };
+
+        const pids = Array.isArray(persistedPlayers)
+            ? persistedPlayers.map(normalizeTeamPlayerId).filter(Boolean)
+            : [];
+
         // TEAM GUARD: Minimal data integrity check (no scoring/contest logic)
-        const pids = Array.isArray(playerIds) ? playerIds : [];
         if (pids.length === 0) {
             return jsonResponse({ success: false, error: 'EMPTY_TEAM' }, 200);
         }
@@ -481,16 +514,6 @@ async function handleJoinContest(request, env) {
         if (uniquePids.size !== pids.length) {
             return jsonResponse({ success: false, error: 'DUPLICATE_PLAYERS' }, 200);
         }
-
-        // 1. Fetch User, Contest, and Count in parallel
-        const [user, contest, userCount] = await Promise.all([
-            env.DB.prepare("SELECT deposit_credits, winning_credits FROM users WHERE id = ?").bind(userId).first(),
-            env.DB.prepare("SELECT * FROM contests WHERE id = ?").bind(contestId).first(),
-            env.DB.prepare("SELECT COUNT(*) as count FROM contest_participants WHERE match_id = ? AND user_id = ?").bind(matchId, userId).first()
-        ]);
-
-        // Rule 1: Contest existence check
-        if (!contest) return jsonResponse({ success: false, error: 'CONTEST_NOT_FOUND' }, 200);
 
         // Rule 2: Contest status must be "upcoming"
         if (contest.status?.toLowerCase() !== 'upcoming') {
@@ -620,7 +643,7 @@ async function handleJoinContest(request, env) {
                 userId,
                 teamId,
                 contest.match_id || matchId,
-                JSON.stringify(playerIds || []),
+                JSON.stringify(pids),
                 teamName || 'User Team',
                 Date.now()
             ),
@@ -1618,12 +1641,14 @@ async function handleSaveTeam(request, env) {
     try {
         const body = await request.json();
         const { id, userId, matchId, teamName, players, captainId, viceCaptainId } = body;
+        const payloadPlayers = Array.isArray(players) ? players : [];
 
         if (!userId || !matchId || !players) {
             return jsonResponse({ success: false, error: 'Missing required fields' }, 400);
         }
 
         const finalId = (id && id.toString().trim().length > 0) ? id.toString().trim() : `team_${Date.now()}_${userId}`;
+        console.log(`[TEAM_SAVE_REQ] teamId=${finalId}, matchId=${matchId}, playersCountFromPayload=${payloadPlayers.length}`);
         console.log(`💾 Saving Team. ID: ${finalId}, Name: ${teamName}`);
 
         const result = await env.DB.prepare(`
@@ -1644,6 +1669,26 @@ async function handleSaveTeam(request, env) {
             viceCaptainId,
             Date.now()
         ).run();
+
+        console.log(`[TEAM_ROW_INSERTED] teamId=${finalId}`);
+        console.log(`[TEAM_PLAYERS_INSERT_START] count=${payloadPlayers.length}`);
+        let insertedRows = 0;
+        for (const player of payloadPlayers) {
+            const playerId = String(player?.player_id ?? player?.playerId ?? player?.id ?? '').trim();
+            console.log(`[TEAM_PLAYER_INSERT] teamId=${finalId}, playerId=${playerId || 'UNKNOWN'}`);
+            insertedRows++;
+        }
+        console.log(`[TEAM_PLAYERS_INSERT_DONE] insertedRows=${insertedRows}`);
+
+        try {
+            const verifyRow = await env.DB.prepare(
+                "SELECT COUNT(*) AS count FROM team_players WHERE team_id = ?"
+            ).bind(finalId).first();
+            const dbPlayers = Number(verifyRow?.count || 0);
+            console.log(`[TEAM_DB_VERIFY] teamId=${finalId}, dbPlayers=${dbPlayers}`);
+        } catch (verifyError) {
+            console.log(`[TEAM_DB_VERIFY] teamId=${finalId}, dbPlayers=QUERY_ERROR, error=${verifyError.message}`);
+        }
 
         console.log("✅ D1 Save Result:", JSON.stringify(result));
 
