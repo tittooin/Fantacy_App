@@ -469,18 +469,20 @@ async function handleJoinContest(request, env) {
             return jsonResponse({ success: false, error: 'MISSING_FIELDS' }, 200);
         }
 
-        // 1. Fetch User, Contest, Count, and persisted Team payload in parallel
-        const [user, contest, userCount, teamRow] = await Promise.all([
+        // 1. Fetch User, Contest, and Count in parallel
+        const [user, contest, userCount] = await Promise.all([
             env.DB.prepare("SELECT deposit_credits, winning_credits FROM users WHERE id = ?").bind(userId).first(),
             env.DB.prepare("SELECT * FROM contests WHERE id = ?").bind(contestId).first(),
-            env.DB.prepare("SELECT COUNT(*) as count FROM contest_participants WHERE match_id = ? AND user_id = ?").bind(matchId, userId).first(),
-            env.DB.prepare(
-                "SELECT players_json FROM teams WHERE id = ? AND user_id = ? AND CAST(match_id AS INTEGER) = CAST(? AS INTEGER) LIMIT 1"
-            ).bind(teamId, userId, matchId).first()
+            env.DB.prepare("SELECT COUNT(*) as count FROM contest_participants WHERE match_id = ? AND user_id = ?").bind(matchId, userId).first()
         ]);
 
         // Rule 1: Contest existence check
         if (!contest) return jsonResponse({ success: false, error: 'CONTEST_NOT_FOUND' }, 200);
+
+        const authoritativeMatchId = contest.match_id || matchId;
+        const teamRow = await env.DB.prepare(
+            "SELECT players_json FROM teams WHERE id = ? AND user_id = ? AND CAST(match_id AS INTEGER) = CAST(? AS INTEGER) LIMIT 1"
+        ).bind(teamId, userId, authoritativeMatchId).first();
 
         // TEAM SOURCE: Always derive players from persisted teams.players_json
         let persistedPlayers = [];
@@ -526,10 +528,9 @@ async function handleJoinContest(request, env) {
         }
 
         // Team Split Guard: max 7 players from one real team
-        const splitMatchId = contest.match_id || matchId;
         const splitRow = await env.DB.prepare(
             "SELECT team_a_roster, team_b_roster FROM match_squads WHERE CAST(match_id AS INTEGER) = CAST(? AS INTEGER)"
-        ).bind(splitMatchId).first();
+        ).bind(authoritativeMatchId).first();
 
         if (!splitRow || !splitRow.team_a_roster || !splitRow.team_b_roster) {
             return jsonResponse({ success: false, error: 'TEAM_SPLIT_VALIDATION_UNAVAILABLE' }, 200);
@@ -642,7 +643,7 @@ async function handleJoinContest(request, env) {
                 contestId,
                 userId,
                 teamId,
-                contest.match_id || matchId,
+                authoritativeMatchId,
                 JSON.stringify(pids),
                 teamName || 'User Team',
                 Date.now()
