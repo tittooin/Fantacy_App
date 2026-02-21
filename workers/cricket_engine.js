@@ -17,6 +17,9 @@ const API_LOCK_ACTIVE = false; // CONTROLLED UNLOCK — D1 atomic lock active
 const STALE_LIVE_RECONCILE_ENABLED = true; // Feature flag for safe rollback
 const STALE_LIVE_MISS_THRESHOLD = 5; // Close after 5 consecutive misses
 const STALE_LIVE_GRACE_ARM_AT = 4; // Arm grace one cycle before close
+const UPCOMING_EMPTY_CHECK_KEY = 'upcoming_empty_checked_at';
+const UPCOMING_EMPTY_CHECK_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const PREDICTIVE_CHECK_COOLDOWN_MS = 5 * 60 * 1000;
 
 // --- PREDICTIVE GUARDED VERIFICATION (Target < 25 Calls) ---
 
@@ -78,6 +81,12 @@ export async function seedUpcomingMatches(env) {
         return;
     }
 
+    const lastEmptyCheckedAt = await readSysConfigTimestamp(env, UPCOMING_EMPTY_CHECK_KEY);
+    if (lastEmptyCheckedAt > 0 && (nowMs - lastEmptyCheckedAt) < UPCOMING_EMPTY_CHECK_COOLDOWN_MS) {
+        console.log('[UPCOMING_SEED_SKIP] Empty window cooldown active.');
+        return;
+    }
+
     const apiKey = env.RAPID_API_KEY;
     const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
 
@@ -88,6 +97,7 @@ export async function seedUpcomingMatches(env) {
 
     const incomingMatches = await fetchEndpoint('/matches/v1/upcoming', apiKey, apiHost);
     if (!Array.isArray(incomingMatches) || incomingMatches.length === 0) {
+        await writeSysConfigTimestamp(env, UPCOMING_EMPTY_CHECK_KEY, nowMs);
         console.log('[UPCOMING_SEED_NO_DATA] /upcoming returned no matches.');
         return;
     }
@@ -171,6 +181,12 @@ export async function seedUpcomingMatches(env) {
             AND status = 'Upcoming'
         `).bind(startTime, startTime, matchId).run();
         updated += 1;
+    }
+
+    if (inserted === 0) {
+        await writeSysConfigTimestamp(env, UPCOMING_EMPTY_CHECK_KEY, nowMs);
+    } else {
+        await clearSysConfigTimestamp(env, UPCOMING_EMPTY_CHECK_KEY);
     }
 
     console.log(`[UPCOMING_SEED_DONE] inserted=${inserted}, updated=${updated}, scanned=${incomingMatches.length}`);
@@ -418,6 +434,60 @@ async function updateDBTimestamp(env, key) {
     await env.DB.prepare("INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)").bind(key, now, Date.now()).run();
 }
 
+async function readSysConfigTimestamp(env, key) {
+    const row = await env.DB.prepare("SELECT value FROM sys_config WHERE key = ?").bind(key).first();
+    if (!row || row.value === null || row.value === undefined) return 0;
+    const ts = Number(row.value);
+    return Number.isFinite(ts) ? ts : 0;
+}
+
+async function writeSysConfigTimestamp(env, key, timestamp) {
+    const ts = Number(timestamp || 0);
+    await env.DB.prepare(
+        "INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)"
+    ).bind(key, String(ts), Date.now()).run();
+}
+
+async function clearSysConfigTimestamp(env, key) {
+    await env.DB.prepare("DELETE FROM sys_config WHERE key = ?").bind(key).run();
+}
+
+function buildPredictiveCheckedKey(matchId) {
+    return `predictive_checked:${String(matchId)}`;
+}
+
+function normalizeSnapshotValue(value) {
+    if (value === null || value === undefined) return '';
+    return String(value);
+}
+
+function isPredictiveStateUnchanged(dbMatch, apiMatch) {
+    if (!dbMatch) return false;
+
+    // Upcoming candidate that still doesn't appear in /live is treated as unchanged.
+    if (!apiMatch) {
+        return String(dbMatch.status || '') === 'Upcoming';
+    }
+
+    const dbStatus = normalizeSnapshotValue(dbMatch.status);
+    const apiStatus = normalizeSnapshotValue(apiMatch.status);
+    if (dbStatus !== apiStatus) return false;
+
+    const dbScore = normalizeSnapshotValue(dbMatch.last_score);
+    const apiScore = normalizeSnapshotValue(apiMatch.lastScore);
+    const dbWickets = Number(dbMatch.last_wickets || 0);
+    const apiWickets = Number(apiMatch.lastWickets || 0);
+    const dbOver = normalizeSnapshotValue(dbMatch.last_over);
+    const apiOver = normalizeSnapshotValue(apiMatch.lastOver);
+    const dbInnings = Number(dbMatch.last_innings || 0);
+    const apiInnings = Number(apiMatch.lastInnings || 0);
+
+    return dbScore === apiScore &&
+        dbWickets === apiWickets &&
+        dbOver === apiOver &&
+        dbInnings === apiInnings;
+}
+
 function buildStaleLiveKey(matchId) {
     return `stale_live:${String(matchId)}`;
 }
@@ -574,9 +644,9 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
         // Keep predictive guard flow unchanged if self-heal fails.
     }
 
-    // --- RULE A: DB mein live match nahi → 0 API calls ---
+    // --- RULE A: DB mein live match nahi -> 0 API calls ---
     const activeMatches = await env.DB.prepare(`
-        SELECT id, status, start_time, last_updated
+        SELECT id, status, start_time, last_updated, last_score, last_wickets, last_over, last_innings
         FROM matches
         WHERE status IN ('Live', 'In Progress', 'Innings Break', 'Upcoming')
     `).all();
@@ -595,13 +665,13 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
         }
     }
 
-    // --- RULE B: Atomic D1 lock — race condition proof ---
-    // Ensure row exists (first-run safe — INSERT OR IGNORE)
+    // --- RULE B: Atomic D1 lock ? race condition proof ---
+    // Ensure row exists (first-run safe ? INSERT OR IGNORE)
     await env.DB.prepare(
         "INSERT OR IGNORE INTO sys_config (key, value, updated_at) VALUES ('last_live_api_call', '0', 0)"
     ).run();
 
-    // Atomic conditional UPDATE — SQLite serializes writes, sirf 1 worker win karega
+    // Atomic conditional UPDATE ? SQLite serializes writes, sirf 1 worker win karega
     const lockResult = await env.DB.prepare(
         `UPDATE sys_config
          SET value = ?, updated_at = ?
@@ -626,20 +696,58 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
         const lastFetch = m.last_updated || 0;
         return now >= (lastFetch + 12 * 60 * 1000);
     });
-    const startingMatch = upcomingMatches.find(m => now >= m.start_time);
-    const shouldFetchLive = (dueMatches.length > 0 || !!startingMatch) === true;
+
+    const predictiveCandidates = [];
+    for (const match of dueMatches) {
+        const checkedAt = await readSysConfigTimestamp(env, buildPredictiveCheckedKey(match.id));
+        if (checkedAt > 0 && (now - checkedAt) < PREDICTIVE_CHECK_COOLDOWN_MS) {
+            continue;
+        }
+        predictiveCandidates.push(match);
+    }
+
+    let startingMatch = upcomingMatches.find(m => now >= m.start_time) || null;
+    if (startingMatch) {
+        const checkedAt = await readSysConfigTimestamp(env, buildPredictiveCheckedKey(startingMatch.id));
+        if (checkedAt > 0 && (now - checkedAt) < PREDICTIVE_CHECK_COOLDOWN_MS) {
+            startingMatch = null;
+        }
+    }
+
+    const shouldFetchLive = (predictiveCandidates.length > 0 || !!startingMatch) === true;
 
     if (shouldFetchLive !== true) {
         console.log('[CONTROL_UNLOCK_SKIP] Predictive window closed. 0 API calls.');
         return [];
     }
 
-    // --- RULE D: 1 call only — /matches/v1/live ---
+    // --- RULE D: 1 call only ? /matches/v1/live ---
     console.log('[CONTROL_UNLOCK_STARTED] Lock acquired. 1 API call allow: /live');
     const data = await fetchEndpoint('/matches/v1/live', key, host);
     if (data) {
         parsed.push(...data);
         await updateDBTimestamp(env, 'last_fetch_live');
+
+        const attempted = [...predictiveCandidates];
+        if (startingMatch && !attempted.some(m => String(m.id) === String(startingMatch.id))) {
+            attempted.push(startingMatch);
+        }
+        const liveApiById = new Map((data || []).map(m => [String(m?.id || ''), m]));
+        for (const candidate of attempted) {
+            const candidateId = String(candidate?.id || '').trim();
+            if (!candidateId) continue;
+
+            const apiMatch = liveApiById.get(candidateId);
+            const unchanged = isPredictiveStateUnchanged(candidate, apiMatch);
+            const keyName = buildPredictiveCheckedKey(candidateId);
+
+            if (unchanged) {
+                await writeSysConfigTimestamp(env, keyName, now);
+            } else {
+                await clearSysConfigTimestamp(env, keyName);
+            }
+        }
+
         try {
             await reconcileStaleLiveMatches(env, data, now);
         } catch (_) {
@@ -647,10 +755,10 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
         }
     }
 
-    // /upcoming — DISABLED for controlled unlock
+    // /upcoming ? DISABLED for controlled unlock
     console.log('[CONTROL_UNLOCK_DISABLED] /upcoming endpoint disabled.');
 
-    // /recent — DISABLED for controlled unlock
+    // /recent ? DISABLED for controlled unlock
     console.log('[CONTROL_UNLOCK_DISABLED] /recent endpoint disabled.');
 
     if (parsed.length === 0) return [];

@@ -34,6 +34,64 @@ export function isPrioritySeries(seriesName, liveSeriesSet = null) {
     return false;
 }
 
+const LIVE_SCARD_CHECK_PREFIX = 'live_scard_checked:';
+const LIVE_SCARD_CHECK_COOLDOWN_SECONDS = 15 * 60;
+
+function buildLiveScardCheckKey(matchId) {
+    return `${LIVE_SCARD_CHECK_PREFIX}${String(matchId)}`;
+}
+
+async function readLiveScardCheckedAt(env, matchId) {
+    const key = buildLiveScardCheckKey(matchId);
+    const row = await env.DB.prepare("SELECT value FROM sys_config WHERE key = ?").bind(key).first();
+    if (!row || row.value === null || row.value === undefined) return 0;
+    const checkedAt = Number(row.value);
+    return Number.isFinite(checkedAt) ? checkedAt : 0;
+}
+
+async function writeLiveScardCheckedAt(env, matchId, nowSeconds) {
+    const key = buildLiveScardCheckKey(matchId);
+    await env.DB.prepare(
+        "INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)"
+    ).bind(key, String(Number(nowSeconds || 0)), Date.now()).run();
+}
+
+async function clearLiveScardCheckedAt(env, matchId) {
+    const key = buildLiveScardCheckKey(matchId);
+    await env.DB.prepare("DELETE FROM sys_config WHERE key = ?").bind(key).run();
+}
+
+function normalizeIdsForCompare(values) {
+    return Array.from(new Set(
+        (Array.isArray(values) ? values : [])
+            .map(v => String(v || '').trim())
+            .filter(Boolean)
+    )).sort();
+}
+
+async function hasMeaningfulScardUpdate(env, matchId, data) {
+    if (!data || data.error) return false;
+
+    const nextA = normalizeIdsForCompare(data.xiA);
+    const nextB = normalizeIdsForCompare(data.xiB);
+    if (nextA.length === 0 && nextB.length === 0) return false;
+
+    const current = await env.DB.prepare(
+        "SELECT playing_11_a, playing_11_b FROM match_squads WHERE match_id = ?"
+    ).bind(matchId).first();
+    if (!current) return false;
+
+    let currentA = [];
+    let currentB = [];
+    try { currentA = normalizeIdsForCompare(JSON.parse(current.playing_11_a || '[]')); } catch (_) { currentA = []; }
+    try { currentB = normalizeIdsForCompare(JSON.parse(current.playing_11_b || '[]')); } catch (_) { currentB = []; }
+
+    const sameA = currentA.length === nextA.length && currentA.every((v, i) => v === nextA[i]);
+    const sameB = currentB.length === nextB.length && currentB.every((v, i) => v === nextB[i]);
+
+    return !(sameA && sameB);
+}
+
 // --- REVISED SQUAD ENGINE (STRICT API SAFETY) ---
 
 export async function processSquads(matches, env, apiKey, apiHost) {
@@ -93,8 +151,13 @@ export async function processSquads(matches, env, apiKey, apiHost) {
             if (match.status === 'Live' || match.status === 'In Progress') {
                 const lastFetch = meta?.scard_last_fetch || 0;
                 const diff = now - lastFetch;
+                const lastCheckedAt = await readLiveScardCheckedAt(env, match.id);
+                const checkedDiff = lastCheckedAt > 0 ? (now - lastCheckedAt) : Number.MAX_SAFE_INTEGER;
 
-                if (diff > 600) { // 10 Minutes (600s)
+                if (lastCheckedAt > 0 && checkedDiff < LIVE_SCARD_CHECK_COOLDOWN_SECONDS) {
+                    source = 'NONE';
+                    reason = `[FETCH_SKIPPED_COOLDOWN] Live Memory Wait (${checkedDiff}s < ${LIVE_SCARD_CHECK_COOLDOWN_SECONDS}s)`;
+                } else if (diff > 600) { // 10 Minutes (600s)
                     source = 'SCARD';
                     targetState = 2; // Move to State 2 (Playing XI Available)
                     reason = `Live Match (Last fetch: ${diff}s ago)`;
@@ -151,6 +214,14 @@ export async function processSquads(matches, env, apiKey, apiHost) {
 
                 // SAVE (Always call save, it handles errors/updates)
                 await saveToDB(env, String(match.id), data, targetState, source);
+                if (source === 'SCARD') {
+                    const meaningfulUpdate = await hasMeaningfulScardUpdate(env, String(match.id), data);
+                    if (meaningfulUpdate) {
+                        await clearLiveScardCheckedAt(env, match.id);
+                    } else {
+                        await writeLiveScardCheckedAt(env, match.id, now);
+                    }
+                }
 
             } else {
                 if (reason.includes("COOLDOWN") || reason.includes("EXISTS")) {
