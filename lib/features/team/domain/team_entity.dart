@@ -9,6 +9,7 @@ class TeamEntity {
   final String viceCaptainId;
   final double totalPoints;
   final String teamName;
+  final bool isPersisted;
 
   const TeamEntity({
     required this.id,
@@ -19,6 +20,7 @@ class TeamEntity {
     required this.viceCaptainId,
     required this.totalPoints,
     required this.teamName,
+    this.isPersisted = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -34,6 +36,30 @@ class TeamEntity {
     };
   }
 
+  TeamEntity copyWith({
+    String? id,
+    String? matchId,
+    String? userId,
+    List<PlayerModel>? players,
+    String? captainId,
+    String? viceCaptainId,
+    double? totalPoints,
+    String? teamName,
+    bool? isPersisted,
+  }) {
+    return TeamEntity(
+      id: id ?? this.id,
+      matchId: matchId ?? this.matchId,
+      userId: userId ?? this.userId,
+      players: players ?? this.players,
+      captainId: captainId ?? this.captainId,
+      viceCaptainId: viceCaptainId ?? this.viceCaptainId,
+      totalPoints: totalPoints ?? this.totalPoints,
+      teamName: teamName ?? this.teamName,
+      isPersisted: isPersisted ?? this.isPersisted,
+    );
+  }
+
   factory TeamEntity.fromMap(Map<String, dynamic> map) {
     return TeamEntity(
       id: map['id'] ?? '',
@@ -44,6 +70,7 @@ class TeamEntity {
       viceCaptainId: map['viceCaptainId'] ?? '',
       totalPoints: (map['totalPoints'] ?? 0.0).toDouble(),
       teamName: map['teamName'] ?? '',
+      isPersisted: true,
     );
   }
 }

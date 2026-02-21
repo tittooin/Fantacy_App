@@ -121,7 +121,7 @@ class TeamPreviewScreen extends StatelessWidget {
   }
 
   Widget _buildPlayerIcon(PlayerModel player) {
-    final isTeam1 = player.teamShortName == team1Name;
+    final isTeam1 = (player.teamBucket ?? '') == 'A';
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

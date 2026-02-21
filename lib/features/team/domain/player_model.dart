@@ -37,6 +37,8 @@ abstract class PlayerModel with _$PlayerModel {
     @Default(0.0) double fantasyRating, // NEW: Selection Helper (0-100)
     @Default(false) bool isPlaying, // For lineup announcement
     String? teamId, // Added for robust team matching
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    String? teamBucket, // Authoritative UI team mapping: A or B
   }) = _PlayerModel;
 
   factory PlayerModel.fromJson(Map<String, dynamic> json) => _$PlayerModelFromJson(json);

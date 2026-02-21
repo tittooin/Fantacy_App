@@ -5,6 +5,7 @@ import 'package:axevora11/features/contest/domain/user_contest_entity.dart';
 import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
+import 'package:axevora11/features/team/presentation/providers/team_provider.dart';
 
 class UserContestNotifier extends Notifier<List<UserContestEntity>> {
   @override
@@ -59,18 +60,43 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
     }
   }
 
-  Future<void> joinContest(UserContestEntity contest) async {
+  Future<void> joinContest(
+    UserContestEntity contest, {
+    List<String>? playerIds,
+  }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception("User not logged in");
 
     try {
+      var resolvedPlayerIds = (playerIds ?? [])
+          .map((id) => id.toString())
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      if (resolvedPlayerIds.isEmpty) {
+        final persistedTeam = await ref.read(teamProvider.notifier).getTeamById(
+              contest.teamId,
+              matchId: contest.matchId,
+            );
+        resolvedPlayerIds = persistedTeam.players
+            .map((p) => p.id)
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList();
+      }
+
+      if (resolvedPlayerIds.isEmpty) {
+        throw Exception("TEAM_DATA_CORRUPT");
+      }
+
       final payload = {
         'userId': user.uid,
         'contestId': contest.contestId,
         'matchId': contest.matchId,
         'teamName': contest.teamName,
         'teamId': contest.teamId,
-        'playerIds':  [], 
+        'playerIds': resolvedPlayerIds,
       };
 
       final apiService = ref.read(rapidApiServiceProvider); 

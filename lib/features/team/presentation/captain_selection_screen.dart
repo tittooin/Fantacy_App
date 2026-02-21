@@ -51,6 +51,8 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
     final newTeamNumber = existingTeams.length + 1;
     final teamName = widget.existingTeamName ?? "Team $newTeamNumber";
     final finalId = widget.existingTeamId ?? "team_${DateTime.now().millisecondsSinceEpoch}_${user.uid}";
+    final payloadPlayers = [...widget.selectedPlayers]
+      ..sort((a, b) => (a.teamBucket ?? 'B').compareTo(b.teamBucket ?? 'B'));
     
     debugPrint("CaptainSelection Debug: Saving Team. ID=$finalId, isEdit=${widget.existingTeamId != null}");
 
@@ -58,24 +60,41 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
       id: finalId,
       matchId: widget.matchId,
       userId: user.uid,
-      players: widget.selectedPlayers,
+      players: payloadPlayers,
       captainId: _captainId!,
       viceCaptainId: _viceCaptainId!,
       totalPoints: 0,
       teamName: teamName,
+      isPersisted: false,
     );
-    
-    ref.read(teamProvider.notifier).addTeam(newTeam);
-    
-    if (mounted) {
-       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Team $newTeamNumber Saved Successfully!"))
-      );
-      // Navigate back to Match Detail
-      context.goNamed('match_detail', pathParameters: {'matchId': widget.matchId});
-    }
 
-    setState(() => _isSaving = false);
+    debugPrint("[TEAM_SAVE_START] matchId=${widget.matchId}, playersCount=${payloadPlayers.length}");
+
+    try {
+      final persistedTeam = await ref.read(teamProvider.notifier).addTeam(newTeam);
+      final dbPlayersCount = persistedTeam.players.length;
+
+      debugPrint("[TEAM_SAVE_OK] teamId=${persistedTeam.id}, dbPlayersCount=$dbPlayersCount");
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Team $newTeamNumber Saved Successfully!"))
+        );
+        // Navigate back to Match Detail
+        context.goNamed('match_detail', pathParameters: {'matchId': widget.matchId});
+      }
+    } catch (e) {
+      debugPrint("[TEAM_SAVE_FAIL] error=$e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Team save failed: $e"))
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   String _getInitials(String name) {

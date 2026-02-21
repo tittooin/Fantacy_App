@@ -72,7 +72,13 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
 
   Future<void> _loadData() async {
     // 1. Load Players from D1 (Cloudflare Worker)
-    final fetched = await ref.read(d1PlayerServiceProvider).getPlayers(widget.match.id.toString());
+    final fetched = await ref.read(d1PlayerServiceProvider).getPlayers(
+      widget.match.id.toString(),
+      team1Id: widget.match.team1Id.toString(),
+      team2Id: widget.match.team2Id.toString(),
+      team1ShortName: widget.match.team1ShortName,
+      team2ShortName: widget.match.team2ShortName,
+    );
     
     // VERIFICATION STEP 1: LOG COUNTS
     final wkList = fetched.where((p) => p.role == PlayerRole.wicketKeeper).toList();
@@ -86,6 +92,10 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
     debugPrint("   BAT Count: ${batList.length}");
     debugPrint("   AR Count: ${arList.length}");
     debugPrint("   BOWL Count: ${bowlList.length}");
+    final parsedTeam1 = fetched.where(_isTeam1).length;
+    final parsedTeam2 = fetched.length - parsedTeam1;
+    debugPrint("   Team1 Parsed Count: $parsedTeam1");
+    debugPrint("   Team2 Parsed Count: $parsedTeam2");
     
     // Sample check
     if (batList.isNotEmpty) debugPrint("   Sample BAT: ${batList.first.name} (${batList.first.role})");
@@ -95,18 +105,20 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
        setState(() {
          _allPlayers = fetched;
          _isLoading = false;
+         final fetchedById = {for (final p in fetched) p.id: p};
          
          // Pre-fill if editing
           if (widget.initialPlayers != null) {
             for (var p in widget.initialPlayers!) {
-              _selectedIds.add(p.id);
-              _totalCreditsUsed += p.credits;
-              if (_isTeam1(p)) {
+              final normalized = fetchedById[p.id] ?? p;
+              _selectedIds.add(normalized.id);
+              _totalCreditsUsed += normalized.credits;
+              if (_isTeam1(normalized)) {
                 _team1Count++;
               } else {
                 _team2Count++;
               }
-              _updateRoleCount(p.role, 1);
+              _updateRoleCount(normalized.role, 1);
             }
           }
        });
@@ -114,11 +126,7 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
   }
 
   bool _isTeam1(PlayerModel player) {
-    if (player.teamId != null && _activeMatch?.team1Id != null) {
-      return player.teamId == _activeMatch!.team1Id;
-    }
-    // Fallback to name/shortname matching if IDs missing
-    return player.teamShortName == _activeMatch?.team1ShortName;
+    return (player.teamBucket ?? '') == 'A';
   }
 
   void _toggleSelection(PlayerModel player) {
@@ -361,11 +369,8 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
         
         final isTeam1 = _isTeam1(player);
         
-        // Use player's teamShortName directly from D1 data (most reliable)
-        // Fallback to match data only if player data is missing
-        final teamBadgeText = (player.teamShortName?.isNotEmpty == true) 
-            ? player.teamShortName! 
-            : (isTeam1 ? (_activeMatch?.team1ShortName ?? 'T1') : (_activeMatch?.team2ShortName ?? 'T2'));
+        final teamBadgeText =
+            isTeam1 ? (_activeMatch?.team1ShortName ?? 'T1') : (_activeMatch?.team2ShortName ?? 'T2');
         final teamBadgeColor = isTeam1 ? Colors.blue : Colors.red;
         
         return Container(

@@ -462,7 +462,7 @@ async function handlePaymentWebhook(request, env) {
 async function handleJoinContest(request, env) {
     try {
         const body = await request.json();
-        const { userId, contestId, matchId, teamName, playerIds, teamId } = body;
+        const { userId, contestId, matchId, teamName, teamId } = body;
 
         // Rule 9: Always return 200 with structured JSON.
         if (!userId || !contestId || !matchId || !teamId) {
@@ -483,6 +483,7 @@ async function handleJoinContest(request, env) {
         const teamRow = await env.DB.prepare(
             "SELECT players_json FROM teams WHERE id = ? AND user_id = ? AND CAST(match_id AS INTEGER) = CAST(? AS INTEGER) LIMIT 1"
         ).bind(teamId, userId, authoritativeMatchId).first();
+        console.log(`[JOIN_DB_TEAM] teamId=${teamId}, players_json=${teamRow?.players_json || 'null'}`);
 
         // TEAM SOURCE: Always derive players from persisted teams.players_json
         let persistedPlayers = [];
@@ -504,6 +505,7 @@ async function handleJoinContest(request, env) {
         const pids = Array.isArray(persistedPlayers)
             ? persistedPlayers.map(normalizeTeamPlayerId).filter(Boolean)
             : [];
+        console.log(`[JOIN_DERIVED_PIDS] count=${pids.length}, ids=${JSON.stringify(pids)}`);
 
         // TEAM GUARD: Minimal data integrity check (no scoring/contest logic)
         if (pids.length === 0) {
@@ -551,13 +553,24 @@ async function handleJoinContest(request, env) {
 
         const normalizeRosterPlayerId = (p) => {
             if (!p || typeof p !== 'object') return '';
-            return String(p.player_id ?? p.id ?? '').trim();
+            return String(p.player_id ?? p.playerId ?? p.id ?? '').trim();
         };
 
-        const teamASet = new Set(teamARoster.map(normalizeRosterPlayerId).filter(Boolean));
-        const teamBSet = new Set(teamBRoster.map(normalizeRosterPlayerId).filter(Boolean));
+        const rosterMap = new Map();
+        for (const player of teamARoster) {
+            const pid = normalizeRosterPlayerId(player);
+            if (!pid) continue;
+            if (!rosterMap.has(pid)) rosterMap.set(pid, 'teamA');
+        }
+        for (const player of teamBRoster) {
+            const pid = normalizeRosterPlayerId(player);
+            if (!pid) continue;
+            if (!rosterMap.has(pid)) rosterMap.set(pid, 'teamB');
+        }
 
-        if (teamASet.size === 0 || teamBSet.size === 0) {
+        const hasTeamA = Array.from(rosterMap.values()).some(v => v === 'teamA');
+        const hasTeamB = Array.from(rosterMap.values()).some(v => v === 'teamB');
+        if (!hasTeamA || !hasTeamB) {
             return jsonResponse({ success: false, error: 'TEAM_SPLIT_VALIDATION_UNAVAILABLE' }, 200);
         }
 
@@ -565,9 +578,10 @@ async function handleJoinContest(request, env) {
         let teamACount = 0;
         let teamBCount = 0;
         for (const pid of selectedIds) {
-            if (teamASet.has(pid)) {
+            const teamSide = rosterMap.get(pid);
+            if (teamSide === 'teamA') {
                 teamACount++;
-            } else if (teamBSet.has(pid)) {
+            } else if (teamSide === 'teamB') {
                 teamBCount++;
             } else {
                 return jsonResponse({ success: false, error: 'INVALID_PLAYER_ID' }, 200);
@@ -655,6 +669,7 @@ async function handleJoinContest(request, env) {
                 VALUES(?, ?, 'contest_join', ?, ?, ?, ?, 'success')
             `).bind(txnId, userId, entryFee, contestId, matchId, Date.now())
         ];
+        console.log(`[JOIN_INSERT_PIDS] count=${pids.length}, ids=${JSON.stringify(pids)}`);
 
         try {
             const results = await env.DB.batch(statements);

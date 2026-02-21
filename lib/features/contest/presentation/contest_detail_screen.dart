@@ -673,12 +673,48 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
+  bool _isTeamPreviewOutOfSync(TeamEntity previewTeam, TeamEntity persistedTeam) {
+    if (previewTeam.id != persistedTeam.id) return true;
+    if (previewTeam.teamName != persistedTeam.teamName) return true;
+    if (previewTeam.captainId != persistedTeam.captainId) return true;
+    if (previewTeam.viceCaptainId != persistedTeam.viceCaptainId) return true;
+
+    final previewIds = previewTeam.players
+        .map((p) => p.id)
+        .where((id) => id.isNotEmpty)
+        .toList()
+      ..sort();
+    final persistedIds = persistedTeam.players
+        .map((p) => p.id)
+        .where((id) => id.isNotEmpty)
+        .toList()
+      ..sort();
+
+    if (previewIds.length != persistedIds.length) return true;
+    for (var i = 0; i < previewIds.length; i++) {
+      if (previewIds[i] != persistedIds[i]) return true;
+    }
+    return false;
+  }
+
   void _confirmJoin(BuildContext context, TeamEntity team, CricketContestModel contest) {
+    final persistedTeamPreviewFuture = ref
+        .read(teamProvider.notifier)
+        .getTeamById(team.id, matchId: team.matchId);
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Join Contest Confirmation"),
-        content: Text("Join '${contest.category}' with Team '${team.teamName}'?\nEntry: ${contest.entryFee} Axe Coins"),
+        content: FutureBuilder<TeamEntity>(
+          future: persistedTeamPreviewFuture,
+          builder: (context, snapshot) {
+            final previewTeam = snapshot.data ?? team;
+            return Text(
+              "Join '${contest.category}' with Team '${previewTeam.teamName}'?\nEntry: ${contest.entryFee} Axe Coins",
+            );
+          },
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
@@ -702,20 +738,46 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                    return;
                 }
 
+                final persistedTeam = await ref
+                    .read(teamProvider.notifier)
+                    .getTeamById(team.id, matchId: team.matchId);
+
+                debugPrint("[JOIN_ATTEMPT] hasSavedTeam=${persistedTeam.isPersisted}");
+                if (!persistedTeam.isPersisted) {
+                  throw Exception("TEAM_NOT_SAVED");
+                }
+
+                if (_isTeamPreviewOutOfSync(team, persistedTeam)) {
+                  ref.invalidate(teamProvider);
+                }
+
+                final persistedPlayerIds = persistedTeam.players
+                    .map((p) => p.id)
+                    .where((id) => id.isNotEmpty)
+                    .toSet()
+                    .toList();
+                if (persistedPlayerIds.isEmpty) {
+                  throw Exception("TEAM_DATA_CORRUPT");
+                }
+
                 final joinedContest = UserContestEntity(
                   id: const Uuid().v4(),
                   userId: user.uid,
                   contestId: contest.id,
-                  matchId: team.matchId,
-                  teamId: team.id,
-                  teamName: team.teamName,
+                  matchId: persistedTeam.matchId,
+                  teamId: persistedTeam.id,
+                  teamName: persistedTeam.teamName,
                   entryFee: contest.entryFee,
                   joinedAt: DateTime.now(),
                   contestName: contest.category,
                 );
 
-                await ref.read(userContestProvider.notifier).joinContest(joinedContest);
+                await ref.read(userContestProvider.notifier).joinContest(
+                  joinedContest,
+                  playerIds: persistedPlayerIds,
+                );
 
+                if (!context.mounted) return;
                 Navigator.pop(context); // Close loading
                 
                 // Show Success Dialog with Animation
@@ -724,6 +786,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                 }
 
               } catch (e) {
+                if (!context.mounted) return;
                 Navigator.pop(context); // Close loading
                 ScaffoldMessenger.of(context).showSnackBar(
                    SnackBar(content: Text("Failed to join: $e"), backgroundColor: Colors.red)

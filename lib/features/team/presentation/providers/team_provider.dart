@@ -31,25 +31,50 @@ class TeamNotifier extends Notifier<List<TeamEntity>> {
     }
   }
 
-  Future<void> addTeam(TeamEntity team) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      
-      final apiService = ref.read(rapidApiServiceProvider);
-      
-      final teamData = team.toMap();
-      teamData['userId'] = user.uid;
-      
-      final result = await apiService.saveTeam(teamData);
-      debugPrint("TeamNotifier: Save Result: $result");
-      
-      if (result['success'] == true) {
-        await _fetchTeams();
-      }
-    } catch (e) {
-      debugPrint("Error saving team to D1: $e");
+  Future<TeamEntity> addTeam(TeamEntity team) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception("USER_NOT_LOGGED_IN");
     }
+
+    final apiService = ref.read(rapidApiServiceProvider);
+
+    final teamData = team.toMap();
+    teamData['userId'] = user.uid;
+
+    final result = await apiService.saveTeam(teamData);
+    debugPrint("TeamNotifier: Save Result: $result");
+
+    if (result['success'] != true) {
+      throw Exception(result['error'] ?? 'TEAM_SAVE_FAILED');
+    }
+
+    final savedId = (result['id'] ?? team.id).toString();
+    await _fetchTeams();
+
+    return state.firstWhere(
+      (t) => t.id == savedId,
+      orElse: () => team.copyWith(id: savedId, isPersisted: true),
+    );
+  }
+
+  Future<TeamEntity> getTeamById(String teamId, {String? matchId}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception("USER_NOT_LOGGED_IN");
+    }
+
+    final apiService = ref.read(rapidApiServiceProvider);
+    final teamsData = await apiService.fetchTeams(
+      user.uid,
+      matchId: (matchId != null && matchId.isNotEmpty) ? matchId : null,
+    );
+    final fetchedTeams = teamsData.map((data) => TeamEntity.fromMap(data)).toList();
+
+    return fetchedTeams.firstWhere(
+      (t) => t.id == teamId,
+      orElse: () => throw Exception("TEAM_NOT_FOUND"),
+    );
   }
 
   List<TeamEntity> getTeamsForMatch(String matchId) {
