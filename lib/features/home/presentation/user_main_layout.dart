@@ -49,35 +49,42 @@ class UserMainLayout extends ConsumerWidget {
       body: child,
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
-          labelTextStyle: MaterialStateProperty.all(const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          labelTextStyle: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.indigo);
+            }
+            return const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey);
+          }),
           iconTheme: MaterialStateProperty.resolveWith((states) {
              if (states.contains(MaterialState.selected)) {
-               return const IconThemeData(color: Colors.white);
+               return const IconThemeData(color: Colors.white, size: 28);
              }
-             return const IconThemeData(color: Colors.grey);
+             return const IconThemeData(color: Colors.grey, size: 24);
           }),
         ),
         child: NavigationBar(
           backgroundColor: Colors.white,
           indicatorColor: Colors.indigo,
-          elevation: 2,
+          elevation: 10,
+          shadowColor: Colors.black,
+          height: 70,
           selectedIndex: _calculateSelectedIndex(context),
           onDestinationSelected: (idx) => _onItemTapped(idx, context, ref),
           destinations: const [
              NavigationDestination(
-               icon: Icon(Icons.home_outlined), 
-               selectedIcon: Icon(Icons.home),
-               label: "Home"
+                icon: Icon(Icons.flash_on_outlined), 
+                selectedIcon: Icon(Icons.flash_on),
+                label: "Live"
              ),
              NavigationDestination(
-               icon: Icon(Icons.emoji_events_outlined), 
-               selectedIcon: Icon(Icons.emoji_events),
-               label: "My Matches"
+               icon: Icon(Icons.sports_cricket_outlined), 
+               selectedIcon: Icon(Icons.sports_cricket),
+               label: "My Rooms"
              ),
              NavigationDestination(
-               icon: Icon(Icons.card_giftcard_outlined), 
-               selectedIcon: Icon(Icons.card_giftcard),
-               label: "Rewards"
+               icon: Icon(Icons.chat_bubble_outline), 
+               selectedIcon: Icon(Icons.chat_bubble),
+               label: "Global"
              ),
              NavigationDestination(
                icon: Icon(Icons.person_outline), 

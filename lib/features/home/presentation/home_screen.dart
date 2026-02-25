@@ -1,19 +1,19 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Added for Nickname update
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
-import 'package:axevora11/features/user/domain/user_entity.dart'; // Added
+import 'package:axevora11/features/user/domain/user_entity.dart';
 import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
 import 'package:axevora11/core/utils/team_utils.dart';
 import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
-
-import 'package:shared_preferences/shared_preferences.dart'; // Added
+import 'package:axevora11/core/constants/app_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,7 +23,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-
   bool _isCheckingNickname = false;
 
   @override
@@ -108,13 +107,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _checkNickname(UserEntity? user) {
     if (user == null || _isCheckingNickname) return;
-    
     final name = user.displayName;
-    // Check if name implies default/missing
-    // We check for "Player User" explicitly as that seems to be the default set by current logic
     if (name == null || name.isEmpty || name.trim() == 'Player User' || name.startsWith('Player ')) {
        _isCheckingNickname = true;
-       // Schedule dialog to avoid "setState during build"
        WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showNicknameDialog(user.uid);
        });
@@ -123,10 +118,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _showNicknameDialog(String uid) {
     final TextEditingController _nameController = TextEditingController();
-    
     showDialog(
       context: context,
-      barrierDismissible: false, // Force them to set it
+      barrierDismissible: false,
       builder: (context) {
         return WillPopScope(
           onWillPop: () async => false,
@@ -162,18 +156,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nickname too short")));
                      return;
                    }
-                   
-                   // Update Firestore
-                   /* 
-                      Ideal: Use a UserNotifier method. 
-                      MVP: Direct Firestore update here to ensure it works immediately.
-                   */
                    try {
-                     await   // We need 'firebase_auth' and 'cloud_firestore' which are imported or available
-                     FirebaseFirestore.instance.collection('users').doc(uid).update({
+                     await FirebaseFirestore.instance.collection('users').doc(uid).update({
                        'displayName': name
                      });
-                     
                      if (context.mounted) Navigator.pop(context);
                    } catch (e) {
                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
@@ -189,7 +175,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _refreshMatches() async {
-    // Manual Refresh triggers provider update
     await ref.read(matchListProvider.notifier).fetchMatches();
   }
 
@@ -198,7 +183,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = DateTime(now.year, now.month, now.day + 1);
     final matchDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-
     if (matchDate == today) {
       return "Today, ${DateFormat('h:mm a').format(dateTime)}";
     } else if (matchDate == tomorrow) {
@@ -218,18 +202,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ]),
       );
     }
-
-    // Grouping Logic
     final groupedMatches = <String, List<Map<String, dynamic>>>{};
     for (var m in matches) {
-      // Prioritize 'seriesName' if available, fallback to 'title'
       final String series = m['seriesName'] ?? m['title'] ?? 'Other Matches';
       if (!groupedMatches.containsKey(series)) {
         groupedMatches[series] = [];
       }
       groupedMatches[series]!.add(m);
     }
-
     return RefreshIndicator(
       onRefresh: _refreshMatches,
       child: ListView.builder(
@@ -238,43 +218,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           itemBuilder: (context, index) {
             final seriesName = groupedMatches.keys.elementAt(index);
             final seriesMatches = groupedMatches[seriesName]!;
-
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSeriesHeader(seriesName),
                 ...seriesMatches.map((m) {
-                  // Adapter logic (D1 -> UI)
                   final id = m['id'].toString();
-                  // For the card, we might duplicate seriesName, but it's fine.
                   final title = m['title'] ?? seriesName; 
-                  
-                  // Schema Adapter: Admin (CricketMatchModel) vs Legacy
                   final teamA = m['team1ShortName'] ?? m['team_a'] ?? 'Team A';
                   final teamB = m['team2ShortName'] ?? m['team_b'] ?? 'Team B';
                   final teamAImg = m['team1Img'] ?? m['team_a_img'] ?? '';
                   final teamBImg = m['team2Img'] ?? m['team_b_img'] ?? '';
-                  
                   final startTime = m['startDate'] ?? m['start_time'] ?? 0;
                   final date = DateTime.fromMillisecondsSinceEpoch(startTime);
-                  
                    final status = m['status'] ?? 'Upcoming';
                    final isLive = status == 'Live' || status == 'In Progress';
                    final isJoined = joinedMatchIds.contains(id);
-
                   return MatchCard(
                     id: id,
                     teamA: teamA,
                     teamB: teamB,
                     teamAImg: teamAImg,
                     teamBImg: teamBImg,
-                    seriesName: title, // Keep passing specific match title/series
+                    seriesName: title, 
                     date: date,
                     status: status,
                     isLive: isLive,
                     isJoined: isJoined,
                     onPrivateContest: () {
-                       context.push('/match/$id/create-private-contest', extra: m);
+                       context.push('/match/$id/create-room', extra: m);
                     },
                     onTap: () {
                        if (status == 'Upcoming' || isLive || status == 'In Progress' || status == 'Completed' || status == 'Finished') {
@@ -315,7 +287,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Listen for User Changes to trigger Nickname Popup
     ref.listen<AsyncValue<UserEntity?>>(userEntityProvider, (previous, next) {
        final user = next.value;
        if (user != null) {
@@ -324,41 +295,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     final userAsync = ref.watch(userEntityProvider);
-    final walletBalance = ref.watch(walletBalanceProvider);
-    
-    // Watch the Match List Provider
     final matchesAsync = ref.watch(matchListProvider);
     final joinedContests = ref.watch(userContestProvider);
     final joinedMatchIds = joinedContests.map((c) => c.matchId.toString()).toSet();
 
     final mobileContent = Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: AppColors.offWhite,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF3949AB), 
-        title: Row(
-          children: [
-             const Icon(Icons.sports_cricket, color: Colors.orangeAccent, size: 28),
-             const SizedBox(width: 8),
-             const Text("Axe11", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, fontStyle: FontStyle.italic)),
-          ],
+        backgroundColor: AppColors.vibrantBlue,
+        title: Text(
+          "AxevoraLabs.com",
+          style: GoogleFonts.oswald(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 0.5,
+          ),
         ),
         actions: [
-          InkWell(
-            onTap: () => context.push('/wallet'),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), borderRadius: BorderRadius.circular(20)),
-              child: Row(
-                children: [
-                  const Icon(Icons.monetization_on, color: Colors.amber, size: 16),
-                  const SizedBox(width: 4),
-                  Text(walletBalance.toStringAsFixed(0), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                  const Icon(Icons.chevron_right, color: Colors.white54, size: 16)
-                ],
-              ),
-            ),
+          IconButton(
+            onPressed: () => context.push('/wallet'),
+            icon: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -368,7 +326,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               },
               child: CircleAvatar(
                 radius: 16,
-                backgroundImage: NetworkImage(userAsync.value?.photoUrl ?? "https://i.pravatar.cc/150?img=33"),
+                backgroundColor: Colors.white24,
+                backgroundImage: userAsync.value?.photoUrl != null 
+                    ? NetworkImage(userAsync.value!.photoUrl!) 
+                    : null,
+                child: userAsync.value?.photoUrl == null 
+                    ? const Icon(Icons.person, size: 18, color: Colors.white) 
+                    : null,
               ),
             ),
           )
@@ -387,77 +351,115 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         data: (allMatches) {
             bool isUpcomingLikeStatus(dynamic rawStatus) {
               final status = (rawStatus ?? '').toString().trim().toLowerCase();
-              if (status == 'upcoming' || status == 'scheduled') return true;
-              if (status.contains('start delayed')) return true;
-              if (status.contains('delay')) return true;
-              if (status.contains('rain')) return true;
-              return false;
+              return status == 'upcoming' || status == 'scheduled';
             }
-
             final live = allMatches.where((m) {
               final status = m['status'];
-              final isLive = status == 'Live' || status == 'In Progress';
-
-              return isLive;
-           }).toList();
-
-           final upcoming = allMatches.where((m) {
+              return status == 'Live' || status == 'In Progress';
+            }).toList();
+            final upcoming = allMatches.where((m) {
               final status = m['status'];
               return isUpcomingLikeStatus(status);
-           }).toList();
-           
-           final completed = allMatches.where((m) {
+            }).toList();
+            final completed = allMatches.where((m) {
               final status = m['status'];
-              final isFinished = status == 'Completed' || status == 'Finished' || status == 'Abandoned';
-              return isFinished;
-           }).toList();
+              return status == 'Completed' || status == 'Finished' || status == 'Abandoned';
+            }).toList();
 
-           return DefaultTabController(
+          return DefaultTabController(
             length: 3,
-            child: Column(
-              children: [
-                // Premium Banner Area
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF1A237E), Colors.black],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight
-                    )
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                       Text("AXEVORA", style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                       SizedBox(height: 4),
-                       Text("Premium Fantasy", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-                       Text("Elite Matches • Exclusive Vouchers", style: TextStyle(color: Colors.white60, fontSize: 12)),
-                    ],
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.vibrantBlue, Color(0xFF1D4ED8)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      image: DecorationImage(
+                        image: NetworkImage("https://www.transparentpng.com/download/stadium/cricket-stadium-lights-png-2.png"),
+                        fit: BoxFit.cover,
+                        opacity: 0.1,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          "Watch Matches.\nCreate Private Rooms!",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.oswald(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Enjoy Live Sports with Friends!\nJoin Exclusive Group Chats while you watch.",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () {},
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.stadiumRed,
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text("Download App", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
+                            const SizedBox(width: 12),
+                            OutlinedButton(
+                              onPressed: () => context.push('/social-safety'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white),
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text("Learn More"),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                
-                // My Matches Section
-                _buildMyMatchesSection(allMatches),
-                
-                // TABS
-                Container(
-                  color: Colors.white,
-                  child: const TabBar(
-                    labelColor: Color(0xFF1A237E),
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: Color(0xFF1A237E),
-                    indicatorWeight: 3,
-                    tabs: [
-                      Tab(text: "Live"),
-                      Tab(text: "Upcoming"), 
-                      Tab(text: "Completed")
-                    ],
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SliverAppBarDelegate(
+                    minHeight: 50,
+                    maxHeight: 50,
+                    child: Container(
+                      color: Colors.white,
+                      child: TabBar(
+                        labelColor: AppColors.vibrantBlue,
+                        unselectedLabelColor: Colors.grey,
+                        indicatorColor: AppColors.vibrantBlue,
+                        indicatorWeight: 3,
+                        labelStyle: GoogleFonts.oswald(fontWeight: FontWeight.bold),
+                        tabs: const [
+                          Tab(text: "Live Matches"),
+                          Tab(text: "Upcoming"), 
+                          Tab(text: "Completed")
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-
-                Expanded(
+                SliverFillRemaining(
                   child: TabBarView(
                     children: [
                       _buildMatchTab(matches: live, emptyMsg: "No Live Matches currently.", joinedMatchIds: joinedMatchIds),
@@ -482,126 +484,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     );
   }
-
-  Widget _buildMyMatchesSection(List<Map<String, dynamic>> allMatches) {
-    // Already defined in build()
-    final joinedContests = ref.watch(userContestProvider);
-    final joinedMatchIds = joinedContests.map((c) => c.matchId.toString()).toSet();
-    
-    final myMatches = allMatches.where((m) {
-      final id = m['id'].toString();
-      final status = m['status'] ?? 'Upcoming';
-      // Only show if user joined AND match is NOT completed
-      return joinedMatchIds.contains(id) && status != 'Completed' && status != 'Finished' && status != 'Abandoned';
-    }).toList();
-    
-    if (myMatches.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("MY MATCHES", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Colors.black87)),
-              Text("View All", style: TextStyle(fontSize: 10, color: Color(0xFF1A237E), fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: myMatches.length,
-            itemBuilder: (context, index) {
-              final m = myMatches[index];
-              return _buildMyMatchItem(m);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMyMatchItem(Map<String, dynamic> m) {
-    final teamA = m['team1Name'] ?? m['team1ShortName'] ?? m['team_a'] ?? 'T1';
-    final teamB = m['team2Name'] ?? m['team2ShortName'] ?? m['team_b'] ?? 'T2';
-    final status = m['status'] ?? 'Upcoming';
-    final isLive = status == 'Live' || status == 'In Progress';
-    
-    final t1Img = TeamUtils.getFlagUrl(teamA, fallbackUrl: m['team1Img'] ?? m['team_a_img']);
-    final t2Img = TeamUtils.getFlagUrl(teamB, fallbackUrl: m['team2Img'] ?? m['team_b_img']);
-
-    return GestureDetector(
-      onTap: () => context.push('/match/${m['id']}', extra: m),
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 2))]
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                  _buildTeamSmallAvatarWithText(t1Img, teamA),
-                  const Text("vs", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                  _buildTeamSmallAvatarWithText(t2Img, teamB),
-              ],
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isLive)
-                  const Text("● LIVE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 10))
-                else if (status == 'Upcoming')
-                   Text(
-                      "${DateFormat('d MMM').format(DateTime.fromMillisecondsSinceEpoch(m['startDate'] ?? m['startTime'] ?? 0))}, ${DateFormat('h:mm a').format(DateTime.fromMillisecondsSinceEpoch(m['startDate'] ?? m['startTime'] ?? 0))}",
-                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10)
-                   )
-                else
-                  Text(status, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10)),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTeamSmallAvatar(String img, String name) {
-    return CircleAvatar(
-      radius: 12,
-      backgroundColor: Colors.grey.shade100,
-      backgroundImage: img.isNotEmpty ? CachedNetworkImageProvider(img) : null,
-      child: img.isEmpty && name.isNotEmpty ? Text(name[0], style: const TextStyle(fontSize: 10)) : null,
-    );
-  }
-
-  // Helper inside HomeScreen for Small Team Avatar with Name
-  Widget _buildTeamSmallAvatarWithText(String img, String name) {
-     return Column(
-       children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: Colors.grey.shade100,
-            backgroundImage: img.isNotEmpty ? CachedNetworkImageProvider(img) : null,
-            child: img.isEmpty && name.isNotEmpty ? Text(name[0], style: const TextStyle(fontSize: 10)) : null,
-          ),
-          const SizedBox(height: 4),
-          Text(name, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-       ],
-     );
-  }
 }
 
 class MatchCard extends StatelessWidget {
@@ -615,7 +497,6 @@ class MatchCard extends StatelessWidget {
   final String status;
   final bool isLive;
   final bool isJoined;
-  
   final VoidCallback onPrivateContest;
   final VoidCallback onTap;
 
@@ -632,9 +513,8 @@ class MatchCard extends StatelessWidget {
     required this.isLive,
     this.isJoined = false,
     required this.onPrivateContest, 
-    required this.onTap
+    required this.onTap,
   });
-
 
   @override
   Widget build(BuildContext context) {
@@ -644,161 +524,178 @@ class MatchCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 8))],
-        border: Border.all(color: Colors.grey.withOpacity(0.1))
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: const BoxDecoration(
+                color: AppColors.offWhite,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    seriesName.toUpperCase(),
+                    style: GoogleFonts.oswald(
+                      fontSize: 10,
+                      color: AppColors.textLight,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  if (isLive)
+                    const Row(
+                      children: [
+                        Icon(Icons.circle, color: Colors.green, size: 8),
+                        SizedBox(width: 4),
+                        Text("LIVE", style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  _buildTeam(teamA, t1Img),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          "VS",
+                          style: GoogleFonts.oswald(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.vibrantBlue.withOpacity(0.3),
+                          ),
+                        ),
+                        if (!isLive)
+                          Text(
+                            DateFormat('h:mm a').format(date),
+                            style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
+                          ),
+                      ],
+                    ),
+                  ),
+                  _buildTeam(teamB, t2Img),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: SizedBox(
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: onTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.stadiumRed,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          "Join Match Rooms",
+                          style: GoogleFonts.oswald(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 1,
+                    child: SizedBox(
+                      height: 44,
+                      child: OutlinedButton(
+                        onPressed: onPrivateContest,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.vibrantBlue, width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(
+                          "Create Room",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.oswald(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.vibrantBlue,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildTeam(String name, String img) {
+    return SizedBox(
+      width: 100,
       child: Column(
         children: [
-          // Header Row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
-                      child: Text(seriesName, style: TextStyle(fontSize: 9, color: Colors.grey[800], fontWeight: FontWeight.bold, letterSpacing: 0.5), overflow: TextOverflow.ellipsis),
-                    ),
-                    if (isJoined) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.green.withOpacity(0.2))),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.check_circle, color: Colors.green, size: 10),
-                            SizedBox(width: 4),
-                            Text("JOINED", style: TextStyle(fontSize: 8, color: Colors.green, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    ]
-                  ],
-                ),
-                const Icon(Icons.notifications_none, size: 14, color: Colors.grey),
-              ],
-            ),
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.offWhite,
+            backgroundImage: img.isNotEmpty ? CachedNetworkImageProvider(img) : null,
+            child: img.isEmpty ? Text(name[0], style: const TextStyle(fontWeight: FontWeight.bold)) : null,
           ),
-          
-          const Divider(height: 24, thickness: 0.5),
-
-          // Teams Row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                 _buildTeamCircle(teamA, t1Img),
-                 Column(
-                   children: [
-                     if (isLive) 
-                        const Text("● LIVE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12))
-                     else
-                        Text(
-                          "${DateFormat('d MMM').format(date)}, ${DateFormat('h:mm a').format(date)}", 
-                          style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.bold)
-                        ),
-                     
-                     const SizedBox(height: 4),
-                     const Text("vs", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                   ],
-                 ),
-                 _buildTeamCircle(teamB, t2Img),
-              ],
-            ),
+          const SizedBox(height: 8),
+          Text(
+            name,
+            style: GoogleFonts.oswald(fontWeight: FontWeight.bold, fontSize: 13),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          
-          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
 
-          // Footer
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F4F9),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                  const Spacer(), // Replaces Voucher Pool
-                  
-                  if (status != 'Completed' && status != 'Finished' && status != 'Abandoned')
-                  Row(
-                    children: [
-                      // Join
-                      SizedBox(
-                        height: 28,
-                        child: ElevatedButton(
-                          onPressed: onTap,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF43A047),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
-                          ),
-                          child: const Text("Join", style: TextStyle(fontSize: 10, color: Colors.white)),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Private
-                      SizedBox(
-                        height: 28,
-                        child: OutlinedButton(
-                          onPressed: onPrivateContest,
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.indigo.shade200),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
-                          ),
-                          child: const Text("Create Private", style: TextStyle(fontSize: 10, color: Colors.indigo)),
-                        ),
-                      )
-                    ],
-                  )
-                  else
-                    const Padding(
-                      padding: EdgeInsets.only(right: 8.0),
-                      child: Text("Completed", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                    )
-               ],
-             ),
-           )
-         ],
-       ),
-     ));
-   }
- 
-   Widget _buildTeamCircle(String name, String img) {
-     // Show full name if short enough, else truncate gracefully or use short name if available?
-     // User wants "India vs Pakistan". 
-     // We will use the name as is, but handle overflow.
-     return Column(
-       children: [
-         CircleAvatar(
-           radius: 28,
-           backgroundColor: Colors.grey.shade100,
-           backgroundImage: (img.isNotEmpty) ? CachedNetworkImageProvider(img) : null,
-           child: img.isEmpty ? Text(name.isNotEmpty ? name[0] : '?', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)) : null,
-         ),
-         const SizedBox(height: 8),
-         SizedBox(
-            width: 80,
-            child: Text(
-              name, 
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 12),
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-            ),
-         ),
-       ],
-     );
-   }
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  @override
+  double get minExtent => minHeight;
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
+  }
 }

@@ -2,39 +2,40 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary Backgrounds
-  static const Color primaryBackground = Color(0xFF2EA7FF); // Bright Sky Blue
-  static const Color secondaryBackground = Color(0xFF0E1B3D); // Deep Blue for contrast
-  static const Color skyBlue = Color(0xFF3BB3FF);
+  // AxevoraLabs Social Brand Colors
+  static const Color skyBlue = Color(0xFF0EB0E2);     // Primary Social Blue
+  static const Color accentRed = Color(0xFFEA2027);   // Action & Highlights
+  static const Color darkNavy = Color(0xFF1E293B);    // Primary Text (Charcoal vibe)
   
-  // Cards & Surface
-  static const Color cardColor = Color(0xFFFFFFFF); // Solid White for Flat UI
-  static const Color cardSurface = Color(0xFFF1F5F9); // Light Slate
-  static const Color cardBorder = Color(0xFFE2E8F0);
-  
-  // Accents
-  static const Color accentBlue = Color(0xFF4FC3F7); // Cyan Accent
-  static const Color ctaColor = Color(0xFF26A69A); // Solid Blue-Green for CTA
-  static const Color accentGold = Color(0xFFFFD700); // Winner Gold
-  
-  // Backward Compatibility (Aliases for Blue/Red theme)
-  static const Color accentGreen = Color(0xFF4FC3F7); // Mapped to Cyan for sports look
-  static const Color accentRed = Color(0xFFEF4444); // Standard Soft Red for errors
-  
-  // Text
+  // Surface Colors
+  static const Color pureWhite = Color(0xFFFFFFFF);
+  static const Color offWhite = Color(0xFFF8FAFC);
+  static const Color lightBlueBackground = Color(0xFFF0F9FF);
+  static const Color glassWhite = Color(0xFFF1F5F9);
+
+  // Text Colors
+  static const Color textDark = Color(0xFF0F172A);
+  static const Color textLight = Color(0xFF64748B);
   static const Color textWhite = Color(0xFFFFFFFF);
-  static const Color textBlack = Color(0xFF1E293B);
-  static const Color textGrey = Color(0xFF64748B);
-  
-  // Gradients
-  static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  static const LinearGradient glassGradient = LinearGradient(
-    colors: [Color(0x26FFFFFF), Color(0x0DFFFFFF)],
+
+  // Status Colors
+  static const Color successGreen = Color(0xFF22C55E);
+  static const Color warningAmber = Color(0xFFF59E0B);
+  static const Color errorRed = Color(0xFFEF4444);
+
+  // Aliases for compatibility (Pivoted to Social)
+  static const Color vibrantBlue = skyBlue;
+  static const Color deepNavy = darkNavy;
+  static const Color stadiumRed = accentRed;
+  static const Color glossyRed = accentRed;
+  static const Color primaryBackground = pureWhite;
+  static const Color secondaryBackground = offWhite;
+  static const Color cardColor = pureWhite;
+  static const Color accentGreen = successGreen;
+
+  // Social Gradients
+  static const LinearGradient socialGradient = LinearGradient(
+    colors: [skyBlue, Color(0xFF0284C7)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

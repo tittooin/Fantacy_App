@@ -1,97 +1,89 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
 
 class AppTheme {
-  static ThemeData get darkTheme {
+  static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.primaryBackground,
-      primaryColor: AppColors.primaryBackground,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: AppColors.offWhite,
+      primaryColor: AppColors.skyBlue,
       
-      // Color Scheme
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.accentGreen,
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.skyBlue,
         secondary: AppColors.accentRed,
-        surface: AppColors.cardColor,
-        onSurface: Colors.black, // Ensure text on white cards is black
-        background: AppColors.primaryBackground,
-        onBackground: AppColors.textWhite,
-        error: AppColors.accentRed,
+        surface: AppColors.pureWhite,
+        onSurface: AppColors.textDark,
+        error: AppColors.errorRed,
       ),
 
-      // SnackBar Theme
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: Colors.white,
-        contentTextStyle: TextStyle(color: Colors.black),
-        actionTextColor: Colors.indigo,
-        behavior: SnackBarBehavior.floating,
-      ),
-      
-      // Text Theme
       textTheme: TextTheme(
         displayLarge: GoogleFonts.oswald(
           fontSize: 32,
           fontWeight: FontWeight.bold,
-          color: AppColors.textWhite,
+          color: AppColors.textDark,
         ),
         displayMedium: GoogleFonts.oswald(
           fontSize: 24,
           fontWeight: FontWeight.bold,
-          color: AppColors.textWhite,
+          color: AppColors.textDark,
         ),
-        bodyLarge: GoogleFonts.roboto(
+        titleLarge: GoogleFonts.oswald(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textDark,
+        ),
+        bodyLarge: GoogleFonts.inter(
           fontSize: 16,
+          color: AppColors.textDark,
+        ),
+        bodyMedium: GoogleFonts.inter(
+          fontSize: 14,
+          color: AppColors.textLight,
+        ),
+        labelLarge: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
           color: AppColors.textWhite,
         ),
-        bodyMedium: GoogleFonts.roboto(
-          fontSize: 14,
-          color: AppColors.textGrey,
-        ),
-        labelLarge: GoogleFonts.roboto(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.black
-        ),
       ),
       
-      /*
-      // Card Theme Removed to fix build error
-      cardTheme: CardTheme(
-        color: AppColors.cardColor,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      cardTheme: CardThemeData(
+        color: AppColors.pureWhite,
+        elevation: 1, // Subtle social elevation
+        shadowColor: Colors.black12,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      */
       
-      // AppBar Theme
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.primaryBackground,
+        backgroundColor: AppColors.skyBlue,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: GoogleFonts.oswald(
-          fontSize: 20,
+          fontSize: 22,
           fontWeight: FontWeight.bold,
           color: AppColors.textWhite,
         ),
         iconTheme: const IconThemeData(color: AppColors.textWhite),
       ),
       
-      // Button Theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.accentGreen,
-          foregroundColor: Colors.black, // Dark text on Neon Green
-          textStyle: GoogleFonts.oswald(
+          backgroundColor: AppColors.skyBlue, // Primary buttons are blue
+          foregroundColor: AppColors.textWhite,
+          textStyle: GoogleFonts.inter( // Inter for better readability in social apps
               fontSize: 16,
-              fontWeight: FontWeight.bold
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 2,
         )
       ),
     );
   }
+
+  static ThemeData get darkTheme => lightTheme; 
 }

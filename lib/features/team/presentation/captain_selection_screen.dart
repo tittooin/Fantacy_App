@@ -38,12 +38,12 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
       return;
     }
 
-    setState(() => _isSaving = true);
+    if (mounted) setState(() => _isSaving = true);
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User session lost. Please login again.")));
-      setState(() => _isSaving = false);
+      if (mounted) setState(() => _isSaving = false);
       return;
     }
 
@@ -54,8 +54,6 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
     final payloadPlayers = [...widget.selectedPlayers]
       ..sort((a, b) => (a.teamBucket ?? 'B').compareTo(b.teamBucket ?? 'B'));
     
-    debugPrint("CaptainSelection Debug: Saving Team. ID=$finalId, isEdit=${widget.existingTeamId != null}");
-
     final newTeam = TeamEntity(
       id: finalId,
       matchId: widget.matchId,
@@ -68,23 +66,15 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
       isPersisted: false,
     );
 
-    debugPrint("[TEAM_SAVE_START] matchId=${widget.matchId}, playersCount=${payloadPlayers.length}");
-
     try {
-      final persistedTeam = await ref.read(teamProvider.notifier).addTeam(newTeam);
-      final dbPlayersCount = persistedTeam.players.length;
-
-      debugPrint("[TEAM_SAVE_OK] teamId=${persistedTeam.id}, dbPlayersCount=$dbPlayersCount");
-
+      await ref.read(teamProvider.notifier).addTeam(newTeam);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Team $newTeamNumber Saved Successfully!"))
         );
-        // Navigate back to Match Detail
         context.goNamed('match_detail', pathParameters: {'matchId': widget.matchId});
       }
     } catch (e) {
-      debugPrint("[TEAM_SAVE_FAIL] error=$e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Team save failed: $e"))
@@ -98,8 +88,8 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
   }
 
   String _getInitials(String name) {
+    if (name.isEmpty) return '?';
     final parts = name.trim().split(' ');
-    if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
@@ -107,7 +97,7 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Dark Theme
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,37 +160,31 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
                   ),
                 ),
                 
-                // Captain Button
                 GestureDetector(
                   onTap: () {
                     setState(() {
                       _captainId = player.id;
-                      if (_viceCaptainId == player.id) {
-                        _viceCaptainId = null; // Cannot he both
-                      }
+                      if (_viceCaptainId == player.id) _viceCaptainId = null;
                     });
                   },
                   child: Container(
                     width: 40, height: 40,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isCaptain ? AppColors.accentGold : Colors.transparent,
+                      color: isCaptain ? AppColors.vibrantBlue : Colors.transparent,
                       border: Border.all(color: Colors.grey),
                     ),
                     alignment: Alignment.center,
-                    child: Text("C", style: TextStyle(fontWeight: FontWeight.bold, color: isCaptain ? Colors.black : Colors.grey)),
+                    child: Text("C", style: TextStyle(fontWeight: FontWeight.bold, color: isCaptain ? Colors.white : Colors.grey)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 
-                // Vice Captain Button
                 GestureDetector(
                   onTap: () {
                     setState(() {
                       _viceCaptainId = player.id;
-                       if (_captainId == player.id) {
-                        _captainId = null; // Cannot be both
-                      }
+                       if (_captainId == player.id) _captainId = null;
                     });
                   },
                   child: Container(
@@ -231,7 +215,7 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
           ),
           child: _isSaving 
             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-            : const Text("SAVE TEAM", style: TextStyle(fontWeight: FontWeight.bold)),
+            : const Text("SAVE TEAM", style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
       ),
     );

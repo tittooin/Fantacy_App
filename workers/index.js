@@ -1,5 +1,7 @@
 ﻿/**
  * Cloudflare Worker for Fantasy Cricket App
+/**
+ * Cloudflare Worker for Fantasy Cricket App
  * Hindi: RapidAPI se data fetch karke Firestore mein save karta hai
  * 
  * CORS issue solve karne ke liye server-side implementation
@@ -18,6 +20,8 @@ import { syncMatchPointsToD1 } from './points_engine.js';
 import { processEconomy } from './economy_engine.js';
 import { executeLoadTest } from './load_test_engine.js';
 import { processPlayerStats } from './player_stats_engine.js'; // NEW
+import { processAutoRefunds } from './refund_engine.js'; // AUTO REFUND
+
 
 // ...
 
@@ -814,9 +818,9 @@ async function handleJoinContest(request, env) {
 
             // D. Log Transaction
             env.DB.prepare(`
-                INSERT INTO transactions(id, user_id, type, amount, contest_id, match_id, created_at, status)
-                VALUES(?, ?, 'contest_join', ?, ?, ?, ?, 'success')
-            `).bind(txnId, userId, entryFee, contestId, matchId, Date.now())
+                INSERT INTO transactions(id, user_id, type, amount, contest_id, match_id, created_at, status, deposit_used, winning_used, contest_participant_id)
+                VALUES(?, ?, 'contest_join', ?, ?, ?, ?, 'success', ?, ?, ?)
+            `).bind(txnId, userId, entryFee, contestId, matchId, Date.now(), deductDeposit, deductWinnings, participationId)
         ];
         console.log(`[JOIN_INSERT_PIDS] count=${contestInsertPids.length}, ids=${JSON.stringify(contestInsertPids)}`);
 

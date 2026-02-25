@@ -18,7 +18,6 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
   String? _selectedState;
   bool _isLoading = false;
 
-  // List of all Indian States and UTs
   final List<String> _allStates = [
     'Andaman and Nicobar Islands',
     'Andhra Pradesh',
@@ -65,10 +64,8 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Save Locally
       await ref.read(locationServiceProvider).saveUserState(_selectedState!);
       
-      // 2. Save to Firestore (Sync)
       final user = ref.read(authRepositoryProvider).currentUser;
       if (user != null) {
         final isRestricted = RestrictedStates.list.contains(_selectedState);
@@ -76,7 +73,6 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
       }
 
       if (mounted) {
-        // Check if restricted to show a warning, or just proceed
         final isRestricted = RestrictedStates.list.contains(_selectedState);
         
         if (isRestricted) {
@@ -133,31 +129,30 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
               const SizedBox(height: 12),
               const Text(
                 "Please select your current state to comply with Indian Gaming Laws.",
-                style: TextStyle(color: AppColors.textGrey, fontSize: 16),
+                style: TextStyle(color: AppColors.textLight, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
               
-              // Dropdown
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.cardSurface,
+                  color: AppColors.cardColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.cardBorder),
+                  border: Border.all(color: Colors.white24),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedState,
-                    hint: const Text("Select State", style: TextStyle(color: AppColors.textGrey)),
-                    dropdownColor: AppColors.cardSurface,
+                    hint: const Text("Select State", style: TextStyle(color: AppColors.textLight)),
+                    dropdownColor: AppColors.cardColor,
                     isExpanded: true,
                     icon: const Icon(Icons.arrow_drop_down, color: AppColors.accentGreen),
-                    style: const TextStyle(color: AppColors.textBlack, fontSize: 16),
+                    style: const TextStyle(color: AppColors.textDark, fontSize: 16),
                     items: _allStates.map((state) {
                       return DropdownMenuItem(
                         value: state,
-                        child: Text(state, style: const TextStyle(color: AppColors.textBlack)),
+                        child: Text(state, style: const TextStyle(color: AppColors.textDark)),
                       );
                     }).toList(),
                     onChanged: (val) => setState(() => _selectedState = val),
@@ -173,7 +168,7 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
                   backgroundColor: AppColors.accentGreen,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  disabledBackgroundColor: AppColors.cardSurface,
+                  disabledBackgroundColor: Colors.grey,
                 ),
                 child: _isLoading 
                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:axevora11/core/constants/app_colors.dart';
+import 'package:axevora11/features/team/domain/player_model.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart'; // Removed for D1-only compliance
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart'; // Added
@@ -16,6 +18,7 @@ import 'package:uuid/uuid.dart';
 import 'package:axevora11/features/cricket_api/presentation/widgets/match_score_header.dart';
 import 'package:axevora11/features/contest/presentation/widgets/scorecard_tab.dart';
 import 'package:axevora11/features/contest/presentation/widgets/contest_card.dart';
+import 'package:axevora11/features/chat/presentation/match_chat_room.dart';
 
 class MatchDetailScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -82,11 +85,11 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
       builder: (context, constraints) {
         final isLargeScreen = constraints.maxWidth > 500;
         final mobileContent = DefaultTabController(
-          length: 4,
-          initialIndex: isLiveOrCompleted ? 1 : 0, // Default to "My Contests" if Live/Completed
+          length: 5,
+          initialIndex: (isLiveOrCompleted || myContests.isNotEmpty) ? 0 : 1, // Default to Match Room if Live or Joined
           child: Scaffold(
             appBar: AppBar(
-              backgroundColor: Colors.indigo,
+              backgroundColor: AppColors.vibrantBlue,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => context.go('/home'),
@@ -134,6 +137,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                       unselectedLabelColor: Colors.white60,
                       labelPadding: const EdgeInsets.symmetric(horizontal: 16),
                       tabs: [
+                        const Tab(text: "Match Room"),
                         const Tab(text: "Contests"),
                         Tab(text: "My Contests (${myContests.length})"),
                         Tab(text: "My Teams (${myTeams.length})"),
@@ -146,6 +150,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
             ),
             body: TabBarView(
               children: [
+                MatchChatRoom(matchId: widget.matchId),
                 _buildContestsTab(),
                 _buildMyContestsTab(),
                 _buildMyTeamsTab(myTeams),
@@ -424,10 +429,10 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
         final viceCaptain = team.players.firstWhere((p) => p.id == team.viceCaptainId, orElse: () => team.players.isNotEmpty ? team.players.last : team.players.last);
         
         // Count roles
-        final wk = team.players.where((p) => p.role == 'WK').length;
-        final bat = team.players.where((p) => p.role == 'BAT').length;
-        final ar = team.players.where((p) => p.role == 'AR').length;
-        final bowl = team.players.where((p) => p.role == 'BOWL').length;
+        final wk = team.players.where((p) => p.role == PlayerRole.wicketKeeper).length;
+        final bat = team.players.where((p) => p.role == PlayerRole.batsman).length;
+        final ar = team.players.where((p) => p.role == PlayerRole.allRounder).length;
+        final bowl = team.players.where((p) => p.role == PlayerRole.bowler).length;
 
         return Card(
            margin: const EdgeInsets.only(bottom: 12),

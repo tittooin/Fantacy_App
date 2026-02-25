@@ -24,6 +24,10 @@ const LIVE_SNAPSHOT_HASH_KEY = 'live_snapshot_hash';
 const LIVE_SNAPSHOT_SKIP_WINDOW_MS = 60 * 60 * 1000;
 const UPCOMING_SNAPSHOT_HASH_KEY = 'upcoming_snapshot_hash';
 const UPCOMING_SNAPSHOT_SKIP_WINDOW_MS = 4 * 60 * 60 * 1000;
+const MATCH_STATE_CLASS_PREFIX = 'match_state_class:';
+const TERMINAL_COMPLETED_TOKENS = ['won', 'beat', 'defeated', 'result', 'match over', 'innings win'];
+const TERMINAL_ABANDONED_TOKENS = ['abandoned', 'no result', 'cancelled', 'match abandoned'];
+const NON_TERMINAL_STATE_TOKENS = ['rain', 'delay', 'delayed', 'wet outfield', 'inspection', 'toss delayed', 'start delayed', 'bad light', 'interruption'];
 
 // --- PREDICTIVE GUARDED VERIFICATION (Target < 25 Calls) ---
 
@@ -460,6 +464,10 @@ async function syncMatchToD1(match, env) {
             }
         }
 
+        if (match.stateClass) {
+            await writeMatchStateClass(env, match.id, match.stateClass);
+        }
+
     } catch (e) {
         // DB write fail guard activate karo
         DB_WRITE_FAIL_BLOCK.set(match.id, Date.now());
@@ -557,6 +565,80 @@ function parseSnapshotState(rawValue) {
     }
 }
 
+function buildMatchStateClassKey(matchId) {
+    return `${MATCH_STATE_CLASS_PREFIX}${String(matchId)}`;
+}
+
+async function readMatchStateClass(env, matchId) {
+    const key = buildMatchStateClassKey(matchId);
+    const row = await env.DB.prepare("SELECT value FROM sys_config WHERE key = ?").bind(key).first();
+    return String(row?.value || '').trim();
+}
+
+async function writeMatchStateClass(env, matchId, stateClass) {
+    const key = buildMatchStateClassKey(matchId);
+    await env.DB.prepare(
+        "INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)"
+    ).bind(key, String(stateClass || ''), Date.now()).run();
+}
+
+function normalizeStateText(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function hasAnyToken(text, tokens) {
+    return tokens.some(token => text.includes(token));
+}
+
+function classifyMatchStateClass(stateText, statusText) {
+    const haystack = `${normalizeStateText(stateText)} ${normalizeStateText(statusText)}`.trim();
+    if (!haystack) return 'UNKNOWN';
+    if (hasAnyToken(haystack, TERMINAL_ABANDONED_TOKENS)) return 'TERMINAL_ABANDONED';
+    if (hasAnyToken(haystack, TERMINAL_COMPLETED_TOKENS)) return 'TERMINAL_COMPLETED';
+    if (hasAnyToken(haystack, NON_TERMINAL_STATE_TOKENS)) return 'NON_TERMINAL';
+    return 'UNKNOWN';
+}
+
+function deriveNonTerminalStatus(startTimeMs, nowMs) {
+    return startTimeMs > nowMs ? 'Upcoming' : 'Live';
+}
+
+function isTerminalDbStatus(status) {
+    const normalized = String(status || '').trim();
+    return normalized === 'Completed' || normalized === 'Finished' || normalized === 'Abandoned';
+}
+
+async function persistLiveStateClasses(env, liveApiMatches) {
+    if (!Array.isArray(liveApiMatches) || liveApiMatches.length === 0) return;
+    const writes = [];
+    for (const match of liveApiMatches) {
+        const matchId = String(match?.id || '').trim();
+        const stateClass = String(match?.stateClass || '').trim();
+        if (!matchId || !stateClass) continue;
+        writes.push(writeMatchStateClass(env, matchId, stateClass));
+    }
+    if (writes.length > 0) {
+        await Promise.all(writes);
+    }
+}
+
+async function restoreTerminalStatusesFromNonTerminalApi(env, liveApiMatches, nowMs) {
+    if (!Array.isArray(liveApiMatches) || liveApiMatches.length === 0) return;
+    for (const match of liveApiMatches) {
+        const matchId = String(match?.id || '').trim();
+        if (!matchId) continue;
+        if (String(match?.stateClass || '') !== 'NON_TERMINAL') continue;
+
+        const restoredStatus = deriveNonTerminalStatus(normalizeSnapshotInt(match?.startTime), nowMs);
+        await env.DB.prepare(`
+            UPDATE matches
+            SET status = ?, last_updated = ?
+            WHERE id = ?
+            AND status IN ('Completed', 'Finished', 'Abandoned')
+        `).bind(restoredStatus, nowMs, matchId).run();
+    }
+}
+
 function buildPredictiveCheckedKey(matchId) {
     return `predictive_checked:${String(matchId)}`;
 }
@@ -649,12 +731,6 @@ async function reconcileStaleLiveMatches(env, liveApiMatches, nowMs) {
     if (STALE_LIVE_RECONCILE_ENABLED !== true) return;
     if (!Array.isArray(liveApiMatches)) return;
 
-    const liveApiIds = new Set(
-        liveApiMatches
-            .map(m => String(m?.id ?? '').trim())
-            .filter(Boolean)
-    );
-
     const dbLive = await env.DB.prepare(`
         SELECT id, status, start_time, last_updated
         FROM matches
@@ -668,47 +744,33 @@ async function reconcileStaleLiveMatches(env, liveApiMatches, nowMs) {
         const matchId = String(match.id ?? '').trim();
         if (!matchId) continue;
 
-        // Safety guard: do not auto-close if start time is still in future.
-        const startTime = Number(match.start_time || 0);
-        if (startTime > 0 && nowMs < startTime) {
-            continue;
-        }
-        const lastUpdated = Number(match.last_updated || 0);
-        const isOldByStart = startTime > 0 && (nowMs - startTime) >= (6 * 60 * 60 * 1000);
-        const isStableByLastUpdate = lastUpdated > 0 && (nowMs - lastUpdated) >= (30 * 60 * 1000);
-
         const trackerKey = buildStaleLiveKey(matchId);
+        const stateClass = await readMatchStateClass(env, matchId);
 
-        if (liveApiIds.has(matchId)) {
+        if (stateClass === 'NON_TERMINAL') {
+            console.log(`[RECONCILE_BLOCKED_NON_TERMINAL] matchId=${matchId}`);
             await clearStaleLiveTracker(env, trackerKey);
             continue;
         }
 
-        const previous = await readStaleLiveTracker(env, trackerKey);
-        const previousMissCount = Number(previous?.missCount || 0);
-        const missCount = previousMissCount + 1;
-        const firstMissAt = Number(previous?.firstMissAt || nowMs);
-        const previouslyGraceArmed = previous?.graceArmed === true;
-        const graceArmed = previouslyGraceArmed || missCount >= STALE_LIVE_GRACE_ARM_AT;
+        const closeAllowedByStateAuthority =
+            stateClass === 'TERMINAL_COMPLETED' ||
+            stateClass === 'TERMINAL_ABANDONED';
 
-        if (missCount >= STALE_LIVE_MISS_THRESHOLD && previouslyGraceArmed && isOldByStart && isStableByLastUpdate) {
-            await env.DB.prepare(`
-                UPDATE matches
-                SET status = 'Completed', last_updated = ?
-                WHERE id = ?
-                AND status IN ('Live', 'In Progress', 'Innings Break')
-            `).bind(nowMs, match.id).run();
-
+        if (!closeAllowedByStateAuthority) {
             await clearStaleLiveTracker(env, trackerKey);
             continue;
         }
 
-        await writeStaleLiveTracker(env, trackerKey, {
-            missCount,
-            firstMissAt,
-            lastMissAt: nowMs,
-            graceArmed
-        });
+        const terminalStatus = stateClass === 'TERMINAL_ABANDONED' ? 'Abandoned' : 'Completed';
+        await env.DB.prepare(`
+            UPDATE matches
+            SET status = ?, last_updated = ?
+            WHERE id = ?
+            AND status IN ('Live', 'In Progress', 'Innings Break')
+        `).bind(terminalStatus, nowMs, match.id).run();
+
+        await clearStaleLiveTracker(env, trackerKey);
     }
 }
 
@@ -841,6 +903,9 @@ async function fetchMatchesWithPredictiveGuard(key, host, env) {
     console.log('[CONTROL_UNLOCK_STARTED] Lock acquired. 1 API call allow: /live');
     const data = await fetchEndpoint('/matches/v1/live', key, host);
     if (data) {
+        await persistLiveStateClasses(env, data);
+        await restoreTerminalStatusesFromNonTerminalApi(env, data, now);
+
         const liveSnapshotHash = buildLiveSnapshotHash(data);
         const previousLiveHash = liveSnapshotState?.hash || '';
         const sameLiveSnapshot = !!liveSnapshotHash && previousLiveHash === liveSnapshotHash;
@@ -925,46 +990,20 @@ function formatCricbuzzMatch(info) {
     let status = 'Upcoming';
     const state = String(info.state || '').trim();
     const stateUpper = state.toUpperCase();
+    const rawStatusText = String(info.status || '').trim();
     const startTimeMs = parseInt(info.startDate) || Date.now();
-    const hasStarted = startTimeMs <= Date.now();
+    const nowMs = Date.now();
+    const stateClass = classifyMatchStateClass(state, rawStatusText);
 
-    const terminalAbandonedTokens = [
-        'ABANDONED',
-        'MATCH ABANDONED',
-        'NO RESULT',
-        'NO-RESULT',
-        'CANCELLED',
-        'CANCELED'
-    ];
-    const nonTerminalDelayTokens = [
-        'DELAY',
-        'RAIN',
-        'WET OUTFIELD',
-        'TOSS DELAYED',
-        'START DELAYED',
-        'MATCH DELAYED',
-        'INSPECTION',
-        'STUMPS',
-        'INNINGS BREAK',
-        'LUNCH',
-        'TEA',
-        'BAD LIGHT',
-        'REDUCED OVERS',
-        'DELAYED START'
-    ];
-
-    const isTerminalAbandoned = terminalAbandonedTokens.some(token => stateUpper.includes(token));
-    const isNonTerminalDelay = nonTerminalDelayTokens.some(token => stateUpper.includes(token));
-
-    if (stateUpper === 'COMPLETE' || stateUpper === 'MOM' || stateUpper.includes('WON')) status = 'Completed';
-    else if (isTerminalAbandoned) status = 'Abandoned';
-    else if (isNonTerminalDelay) status = hasStarted ? 'Live' : 'Upcoming';
-    else if (stateUpper === 'IN PROGRESS' || stateUpper === 'LIVE' || stateUpper === 'TOSS' || stateUpper === 'STUMPS' || stateUpper === 'INNINGS BREAK') status = hasStarted ? 'Live' : 'Upcoming';
+    if (stateClass === 'TERMINAL_COMPLETED') status = 'Completed';
+    else if (stateClass === 'TERMINAL_ABANDONED') status = 'Abandoned';
+    else if (stateClass === 'NON_TERMINAL') status = deriveNonTerminalStatus(startTimeMs, nowMs);
+    else if (stateUpper === 'IN PROGRESS' || stateUpper === 'LIVE' || stateUpper === 'TOSS' || stateUpper === 'STUMPS' || stateUpper === 'INNINGS BREAK') status = deriveNonTerminalStatus(startTimeMs, nowMs);
     else if (stateUpper === 'PREVIEW' || stateUpper === 'UPCOMING') status = 'Upcoming';
 
     const t1 = info.team1 || {};
     const t2 = info.team2 || {};
-    const score = info.status || "";
+    const score = rawStatusText;
 
     return {
         id: info.matchId.toString(),
@@ -973,6 +1012,7 @@ function formatCricbuzzMatch(info) {
         title: `${t1.teamName || 'T1'} vs ${t2.teamName || 'T2'}`,
         shortTitle: `${t1.teamSName || 'T1'} vs ${t2.teamSName || 'T2'}`,
         status: status,
+        stateClass: stateClass,
         matchFormat: info.matchFormat ? info.matchFormat.toUpperCase() : 'T20',
 
         // COMPATIBILITY FIELDS

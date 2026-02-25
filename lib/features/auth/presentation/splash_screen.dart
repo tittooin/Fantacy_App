@@ -1,6 +1,4 @@
-
 import 'package:axevora11/core/constants/app_colors.dart';
-import 'package:axevora11/core/router/app_router.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -22,17 +20,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   void _navigate() async {
-    // Artificial delay for splash effect
     await Future.delayed(const Duration(milliseconds: 2500));
     
     if (mounted) {
-      // Logic is handled by Redirect in AppRouter, 
-      // but we force a refresh or push to trigger it if needed.
-      // Since initial route is '/', Router will decide where to go next based on Auth.
-      
       final user = ref.read(authRepositoryProvider).currentUser;
       if (user != null) {
-        debugPrint("Splash: User found, going to /home");
         context.go('/home');
       } else {
         context.go('/login');
@@ -47,21 +39,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background Image
           Image.asset(
             'assets/images/splash_bg.jpg',
             fit: BoxFit.cover,
             errorBuilder: (c, e, s) => Container(color: AppColors.primaryBackground),
           ),
           
-          // Overlay Gradient (to make logo pop)
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.black.withValues(alpha: 0.7),
-                  Colors.black.withValues(alpha: 0.3),
-                  Colors.black.withValues(alpha: 0.7),
+                  Colors.black.withOpacity(0.7),
+                  Colors.black.withOpacity(0.3),
+                  Colors.black.withOpacity(0.7),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -69,12 +59,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
           ),
           
-          // Logo & Text
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo
                 Image.asset(
                   'assets/images/logo_text.png',
                   width: 250,
@@ -85,7 +73,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                  
                  const SizedBox(height: 20),
                  
-                 // Loader
                  const CircularProgressIndicator(
                    color: AppColors.accentGreen,
                    strokeWidth: 2,
@@ -94,7 +81,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
           ),
           
-          // Footer
           Positioned(
             bottom: 40,
             left: 0,
@@ -103,7 +89,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               "India’s Skill-Based Fantasy Cricket Platform",
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppColors.textGrey,
+                color: AppColors.textLight,
                 letterSpacing: 1.2,
                 fontSize: 12,
               ),

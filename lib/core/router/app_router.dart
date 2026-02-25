@@ -20,6 +20,7 @@ import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/presentation/match_import_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
 import 'package:axevora11/features/contest/presentation/create_private_contest_screen.dart';
+import 'package:axevora11/features/contest/presentation/room_selection_screen.dart';
 import 'package:axevora11/features/location/presentation/state_selection_screen.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -42,6 +43,7 @@ import 'package:axevora11/features/wallet/presentation/wallet_screen.dart';
 import 'package:axevora11/features/wallet/presentation/redeem_screen.dart'; // Added
 import 'package:axevora11/features/user/presentation/profile_screen.dart';
 import 'package:axevora11/features/legal/presentation/legal_pages.dart';
+import 'package:axevora11/features/legal/presentation/social_safety_screen.dart';
 import 'package:axevora11/features/kyc/presentation/kyc_screen.dart';
 import 'package:axevora11/features/admin/presentation/kyc/admin_kyc_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart';
@@ -191,6 +193,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/contact',
         builder: (context, state) => const ContactUsScreen(),
+      ),
+      GoRoute(
+        path: '/social-safety',
+        builder: (context, state) => const SocialSafetyScreen(),
       ),
 
       GoRoute(
@@ -349,6 +355,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
            final match = state.extra as CricketMatchModel;
            return CreatePrivateContestScreen(match: match);
+        },
+      ),
+      GoRoute(
+        path: '/match/:matchId/create-room',
+        builder: (context, state) {
+           final match = state.extra as CricketMatchModel;
+           return RoomSelectionScreen(match: match);
         },
       ),
       

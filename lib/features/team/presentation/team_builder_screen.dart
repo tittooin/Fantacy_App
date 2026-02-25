@@ -354,18 +354,13 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
   Widget _buildPlayerList(PlayerRole role) {
     // STRICT Filtering by Enum
     final players = _allPlayers.where((p) => p.role == role).toList();
+    final bool isLineupAnnounced = _allPlayers.any((p) => p.isPlaying);
     
     return ListView.builder(
       itemCount: players.length,
       itemBuilder: (context, index) {
         final player = players[index];
         final isSelected = _selectedIds.contains(player.id);
-        final isPlaying = player.isPlaying || widget.match.playingXI.contains(player.id);
-        
-        // DEBUG: First player per tab
-        if (index == 0) {
-           debugPrint("📋 List for $role: First player is ${player.name}");
-        }
         
         final isTeam1 = _isTeam1(player);
         
@@ -407,12 +402,22 @@ class _TeamBuilderScreenState extends ConsumerState<TeamBuilderScreen> {
             title: Text(player.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
              subtitle: Row(
                children: [
-                 Text("Sel: ${player.fantasyRating.toStringAsFixed(0)}%", style: const TextStyle(fontSize: 10, color: Colors.amberAccent)), // NEW Rating
+                 Text("Sel: ${player.fantasyRating.toStringAsFixed(0)}%", style: const TextStyle(fontSize: 10, color: Colors.amberAccent)),
                  const SizedBox(width: 8),
                  Text("${player.points} pts", style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                 if (isPlaying) ...[
+                 if (isLineupAnnounced) ...[
                     const SizedBox(width: 8),
-                    const Text("● Playing", style: TextStyle(fontSize: 9, color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: player.isPlaying ? Colors.green : Colors.red,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        player.isPlaying ? "IN" : "OUT",
+                        style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                  ],
                ],
              ),

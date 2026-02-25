@@ -2,11 +2,10 @@
 import 'package:axevora11/features/auth/presentation/widgets/landing_page_content.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -16,126 +15,51 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _phoneController = TextEditingController();
-  final _otpController = TextEditingController();
   bool _isLoading = false;
-  String? _verificationId;
-  bool _codeSent = false;
-  bool _termsAccepted = false;
-
-  void _verifyPhone() async {
-    // Aggressive Sanitization: Only allow 0-9
-    String phone = _phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
-
-    // Normalize 12 or 11 digit inputs to 10 digits
-    if (phone.length > 10) {
-      if (phone.startsWith('91') && phone.length == 12) {
-         phone = phone.substring(2);
-      } else if (phone.startsWith('0') && phone.length == 11) {
-         phone = phone.substring(1);
-      }
-    }
-
-    debugPrint("DEBUG PHONE: Raw='${_phoneController.text}', Clean='$phone', Final='+91$phone'");
-
-    if (phone.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter valid 10-digit number")));
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final authRepo = ref.read(authRepositoryProvider);
-      await authRepo.verifyPhoneNumber(
-        phoneNumber: '+91\$phone',
-        verificationCompleted: (credential) async {
-           // Auto-resolution (Android only)
-           await authRepo.signInWithCredential(credential);
-        },
-        verificationFailed: (e) {
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Code: ${e.code}\nMsg: ${e.message}\nNum: +91$phone")));
-        },
-        codeSent: (verificationId, resendToken) {
-          setState(() {
-            _verificationId = verificationId;
-            _codeSent = true;
-            _isLoading = false;
-          });
-        },
-        codeAutoRetrievalTimeout: (verificationId) {
-           _verificationId = verificationId;
-        },
-      );
-    } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: \$e")));
-    }
-  }
-
-  void _verifyOTP() async {
-     final otp = _otpController.text.trim();
-     if (otp.length != 6 || _verificationId == null) {
-        return;
-     }
-     
-     setState(() => _isLoading = true);
-     
-     try {
-       final credential = PhoneAuthProvider.credential(
-         verificationId: _verificationId!,
-         smsCode: otp,
-       );
-       await ref.read(authRepositoryProvider).signInWithCredential(credential);
-       // User state listener in main will handle navigation
-     } catch (e) {
-       setState(() => _isLoading = false);
-       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Invalid OTP")));
-     }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
+      backgroundColor: AppColors.offWhite,
       body: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth > 900) {
             // Desktop Split View
             return Row(
               children: [
-                // Left Side: Login Panel (App Mockup)
+                // Left Side: Login Card (Phone Mockup Look)
                 Expanded(
                   flex: 2,
                   child: Container(
-                    color: const Color(0xFF0B1E3C),
+                    color: AppColors.skyBlue.withOpacity(0.1),
                     child: Center(
                       child: Container(
-                        width: 400,
-                        height: 750,
-                        margin: const EdgeInsets.symmetric(vertical: 40),
+                        width: 420,
+                        height: 850,
+                        margin: const EdgeInsets.symmetric(vertical: 24),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBackground,
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: Colors.white10, width: 8),
+                          color: AppColors.pureWhite,
+                          borderRadius: BorderRadius.circular(40),
+                          border: Border.all(color: Colors.white, width: 12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.5),
+                              color: AppColors.skyBlue.withOpacity(0.2),
                               blurRadius: 40,
-                              spreadRadius: 10,
+                              spreadRadius: 5,
                             ),
                           ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(22),
-                          child: _buildLoginForm(context),
+                          borderRadius: BorderRadius.circular(28),
+                          child: SingleChildScrollView(
+                            child: _buildLoginContent(context),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-                // Right Side: Landing Content (Brand Messaging)
+                // Right Side: Landing Content
                 const Expanded(
                   flex: 3,
                   child: LandingPageContent(),
@@ -143,12 +67,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ],
             );
           } else {
-            // Mobile Centered View
+            // Mobile View
             return Container(
-              color: AppColors.primaryBackground,
-              child: Center(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [AppColors.lightBlueBackground, Colors.white],
+                ),
+              ),
+              child: SafeArea(
                 child: SingleChildScrollView(
-                  child: _buildLoginForm(context),
+                  child: _buildLoginContent(context),
                 ),
               ),
             );
@@ -158,137 +88,262 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildLoginForm(BuildContext context) {
+  Widget _buildLoginContent(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(32.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Phone Login Section Hidden as per new requirement (Verify later)
-          /*
-          if (!_codeSent) ...[
-            const Text(
-              "Enter Mobile Number",
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            // ... (Phone Input Fields)
-          ]
-          */
-          
-           const Icon(Icons.sports_cricket, size: 80, color: Colors.white),
-           const SizedBox(height: 24),
-           const Text(
-             "AXEVORA11",
-             textAlign: TextAlign.center,
-             style: TextStyle(
-               color: Colors.white,
-               fontSize: 32,
-               fontWeight: FontWeight.w900,
-               letterSpacing: 4,
-               shadows: [Shadow(color: Colors.blueAccent, blurRadius: 20)]
-             ),
-           ),
-           const SizedBox(height: 12),
-           const Text(
-             "India's Premium Fantasy App",
-             textAlign: TextAlign.center,
-             style: TextStyle(color: Colors.white70, fontSize: 16),
-           ),
-           const SizedBox(height: 60),
-
-           // Google Sign-In Button (Primary)
-           Center(
-             child: Container(
-               width: double.infinity,
-               constraints: const BoxConstraints(maxWidth: 400),
-               child: OutlinedButton(
-                 onPressed: _isLoading ? null : () async {
-                    setState(() => _isLoading = true);
-                    try {
-                      await ref.read(authRepositoryProvider).signInWithGoogle();
-                    } catch (e) {
-                       if (context.mounted) {
-                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Google Sign-In Failed: $e")));
-                       }
-                    } finally {
-                      if(mounted) setState(() => _isLoading = false);
-                    }
-                 },
-                 style: OutlinedButton.styleFrom(
-                   backgroundColor: Colors.white,
-                   foregroundColor: Colors.black,
-                   side: const BorderSide(color: Colors.white),
-                   padding: const EdgeInsets.symmetric(vertical: 18),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                   elevation: 5,
-                 ),
-                 child: Row(
-                   mainAxisAlignment: MainAxisAlignment.center,
-                   children: [
-                     if (_isLoading)
-                       const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                     else ...[
-                       // Image.asset('assets/google_logo.png', height: 24), // Placeholder if we had asset
-                       const Icon(Icons.g_mobiledata, size: 32, color: Colors.black), 
-                       const SizedBox(width: 12),
-                       const Text("Continue with Google", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                     ]
-                   ],
-                 ),
-               ),
-             ),
-           ),
-           
-           const SizedBox(height: 16),
-           // Admin Button Removed - Secured in Profile
-           const SizedBox.shrink(),
-           
-           const Spacer(),
-           
-           // DISCLAIMER FOOTER
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black26,
-                  borderRadius: BorderRadius.circular(8)
-                ),
-                child: const Text(
-                  "DISCLAIMER: This is a skill-based platform. Users must be 18+ to play. Financial risk Element involved. Please play responsibly. No Gambling allowed.",
-                  style: TextStyle(color: Colors.white54, fontSize: 10),
-                  textAlign: TextAlign.center,
+          // 1. APP BRANDING (TOP)
+          Column(
+            children: [
+              Text(
+                "AXEVORA",
+                style: GoogleFonts.oswald(
+                  color: AppColors.darkNavy,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
                 ),
               ),
-              const SizedBox(height: 16),
-              // Legal Footer Links
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 16,
-                runSpacing: 8,
+              Text(
+                 "LABS",
+                 style: GoogleFonts.oswald(
+                   color: AppColors.skyBlue,
+                   fontSize: 32,
+                   fontWeight: FontWeight.w900,
+                   letterSpacing: 2,
+                 ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "A Social Interaction Platform",
+                style: GoogleFonts.inter(
+                  color: AppColors.textLight,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 48),
+
+          // 2. MAIN HEADLINE (CENTER)
+          Text(
+            "Watch. Talk. Connect.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.oswald(
+              color: AppColors.textDark,
+              fontSize: 36,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Join live interaction rooms around events,\ndiscuss moments in real-time with friends.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              color: AppColors.textLight,
+              fontSize: 16,
+              height: 1.5,
+            ),
+          ),
+
+          const SizedBox(height: 48),
+
+          // 3. PRIMARY CTA
+          Center(
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: Column(
                 children: [
-                   _buildFooterLink(context, "Privacy Policy", "/privacy"),
-                   _buildFooterLink(context, "Terms & Conditions", "/terms"),
-                   _buildFooterLink(context, "Fair Play", "/fair-play"),
-                   _buildFooterLink(context, "Contact Us", "/contact"),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _handleGoogleSignIn,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.textDark,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(color: Colors.grey.shade100, width: 2),
+                      ),
+                      elevation: 4,
+                      shadowColor: Colors.black.withOpacity(0.1),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isLoading)
+                          const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                        else ...[
+                           // Representing Google G with a colored circle for now or Icon
+                          const Icon(Icons.login_rounded, color: AppColors.skyBlue),
+                          const SizedBox(width: 12),
+                          Text(
+                            "Continue with Google", 
+                            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)
+                          ),
+                        ]
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Quick & secure sign-in",
+                    style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 12),
+                  ),
                 ],
               ),
-           const SizedBox(height: 20),
+            ),
+          ),
+
+          const SizedBox(height: 48),
+
+          // 4. SUPPORTING FEATURES SECTION
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children: [
+              _buildFeatureItem(Icons.forum_rounded, "Live Group\nDiscussions"),
+              _buildFeatureItem(Icons.lock_person_rounded, "Private Rooms\nfor Friends"),
+              _buildFeatureItem(Icons.public_rounded, "Global & Invite-\nOnly Rooms"),
+              _buildFeatureItem(Icons.bolt_rounded, "Real-Time\nEvent Updates"),
+            ],
+          ),
+
+          const SizedBox(height: 32),
+
+          // 5. INFO / EXPLANATION CARD
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.lightBlueBackground.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.skyBlue.withOpacity(0.1)),
+            ),
+            child: Text(
+              "AxevoraLabs lets you join global and private rooms to interact around live events and shared interests.",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: AppColors.textDark,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.5,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 40),
+
+          // 6. DISCLAIMER
+          Text(
+            "This platform is designed for social interaction and discussions only. No betting, gambling, or cash-based rewards are supported.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              color: AppColors.textLight,
+              fontSize: 11,
+              height: 1.4,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // 7. AGE DISCLAIMER
+          Text(
+            "18+ Only. Please use responsibly.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              color: AppColors.accentRed.withOpacity(0.8),
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // 8. FOOTER LINKS
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              _buildFooterLink("Privacy Policy", "/privacy"),
+              const Text("|", style: TextStyle(color: Colors.grey, fontSize: 12)),
+              _buildFooterLink("Terms & Conditions", "/terms"),
+              const Text("|", style: TextStyle(color: Colors.grey, fontSize: 12)),
+              _buildFooterLink("Community Guidelines", "/community"),
+              const Text("|", style: TextStyle(color: Colors.grey, fontSize: 12)),
+              _buildFooterLink("Contact Us", "/contact"),
+            ],
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildFooterLink(BuildContext context, String text, String route) {
+  Widget _buildFeatureItem(IconData icon, String label) {
+    return Container(
+      width: 140,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: AppColors.skyBlue, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.oswald(
+              color: AppColors.textDark,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterLink(String text, String route) {
     return InkWell(
       onTap: () => context.push(route),
       child: Text(
-        text, 
-        style: const TextStyle(
-          color: Colors.white60, 
-          fontSize: 11, 
-          decoration: TextDecoration.underline
-        )
+        text,
+        style: GoogleFonts.inter(
+          color: AppColors.textLight,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(authRepositoryProvider).signInWithGoogle();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Google Sign-In Failed: $e"))
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 }
