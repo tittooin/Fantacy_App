@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
-import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
-import 'package:axevora11/features/user/domain/user_entity.dart';
-import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
-import 'package:axevora11/core/utils/team_utils.dart';
-import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
+import 'package:intl/intl.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart';
+import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,679 +16,507 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  bool _isCheckingNickname = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkTutorial());
-  }
-
-  Future<void> _checkTutorial() async {
-    final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool('has_seen_tutorial') ?? false;
-
-    if (!seen && mounted) {
-       _showTutorialDialog();
-       await prefs.setBool('has_seen_tutorial', true);
-    }
-  }
-
-  void _showTutorialDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.white,
-          title: const Row(
-            children: [
-               Icon(Icons.help_outline, color: Colors.indigo),
-               SizedBox(width: 8),
-               Text("How to Play?", style: TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _tutorialStep("1. Select a Match", "Choose an upcoming match from the home screen.", Icons.sports_cricket),
-              _tutorialStep("2. Create Team", "Pick your best 11 players. Use your cricket knowledge!", Icons.group_add),
-              _tutorialStep("3. Join Contest", "Join a contest with your team to win prizes.", Icons.emoji_events),
-              const SizedBox(height: 12),
-              const Center(child: Text("Good Luck!", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo))),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
-              ),
-              child: const Text("Let's Play"),
-            )
-          ],
-        );
-      }
-    );
-  }
-
-  Widget _tutorialStep(String title, String desc, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: Colors.orange),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 2),
-                Text(desc, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  void _checkNickname(UserEntity? user) {
-    if (user == null || _isCheckingNickname) return;
-    final name = user.displayName;
-    if (name == null || name.isEmpty || name.trim() == 'Player User' || name.startsWith('Player ')) {
-       _isCheckingNickname = true;
-       WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _showNicknameDialog(user.uid);
-       });
-    }
-  }
-
-  void _showNicknameDialog(String uid) {
-    final TextEditingController _nameController = TextEditingController();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return WillPopScope(
-          onWillPop: () async => false,
-          child: AlertDialog(
-            title: const Text("Set Your Nickname"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("Welcome to Axe11! Choose a unique nickname to stand out on the leaderboard."),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _nameController,
-                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                  decoration: const InputDecoration(
-                    labelText: "Nickname",
-                    labelStyle: TextStyle(color: Colors.indigo),
-                    border: OutlineInputBorder(),
-                    hintText: "e.g. CricketKing7",
-                    hintStyle: TextStyle(color: Colors.grey),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              ElevatedButton(
-                onPressed: () async {
-                   final name = _nameController.text.trim();
-                   if (name.isEmpty) {
-                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nickname cannot be empty")));
-                     return;
-                   }
-                   if (name.length < 3) {
-                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nickname too short")));
-                     return;
-                   }
-                   try {
-                     await FirebaseFirestore.instance.collection('users').doc(uid).update({
-                       'displayName': name
-                     });
-                     if (context.mounted) Navigator.pop(context);
-                   } catch (e) {
-                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-                   }
-                },
-                child: const Text("Save & Continue"),
-              )
-            ],
-          ),
-        );
-      }
-    );
-  }
-
-  Future<void> _refreshMatches() async {
-    await ref.read(matchListProvider.notifier).fetchMatches();
-  }
-
-  String _formatTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    final matchDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-    if (matchDate == today) {
-      return "Today, ${DateFormat('h:mm a').format(dateTime)}";
-    } else if (matchDate == tomorrow) {
-      return "Tomorrow, ${DateFormat('h:mm a').format(dateTime)}";
-    } else {
-      return DateFormat('MMM d, h:mm a').format(dateTime);
-    }
-  }
-
-  Widget _buildMatchTab({required List<Map<String, dynamic>> matches, required String emptyMsg, required Set<String> joinedMatchIds}) {
-    if (matches.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _refreshMatches,
-        child: ListView(children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-          Center(child: Text(emptyMsg, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)))
-        ]),
-      );
-    }
-    final groupedMatches = <String, List<Map<String, dynamic>>>{};
-    for (var m in matches) {
-      final String series = m['seriesName'] ?? m['title'] ?? 'Other Matches';
-      if (!groupedMatches.containsKey(series)) {
-        groupedMatches[series] = [];
-      }
-      groupedMatches[series]!.add(m);
-    }
-    return RefreshIndicator(
-      onRefresh: _refreshMatches,
-      child: ListView.builder(
-          itemCount: groupedMatches.length,
-          padding: const EdgeInsets.only(bottom: 80),
-          itemBuilder: (context, index) {
-            final seriesName = groupedMatches.keys.elementAt(index);
-            final seriesMatches = groupedMatches[seriesName]!;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSeriesHeader(seriesName),
-                ...seriesMatches.map((m) {
-                  final id = m['id'].toString();
-                  final title = m['title'] ?? seriesName; 
-                  final teamA = m['team1ShortName'] ?? m['team_a'] ?? 'Team A';
-                  final teamB = m['team2ShortName'] ?? m['team_b'] ?? 'Team B';
-                  final teamAImg = m['team1Img'] ?? m['team_a_img'] ?? '';
-                  final teamBImg = m['team2Img'] ?? m['team_b_img'] ?? '';
-                  final startTime = m['startDate'] ?? m['start_time'] ?? 0;
-                  final date = DateTime.fromMillisecondsSinceEpoch(startTime);
-                   final status = m['status'] ?? 'Upcoming';
-                   final isLive = status == 'Live' || status == 'In Progress';
-                   final isJoined = joinedMatchIds.contains(id);
-                  return MatchCard(
-                    id: id,
-                    teamA: teamA,
-                    teamB: teamB,
-                    teamAImg: teamAImg,
-                    teamBImg: teamBImg,
-                    seriesName: title, 
-                    date: date,
-                    status: status,
-                    isLive: isLive,
-                    isJoined: isJoined,
-                    onPrivateContest: () {
-                       context.push('/match/$id/create-room', extra: m);
-                    },
-                    onTap: () {
-                       if (status == 'Upcoming' || isLive || status == 'In Progress' || status == 'Completed' || status == 'Finished') {
-                          context.push('/match/$id', extra: m);
-                       } else {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Match Unavailable")));
-                       }
-                    }
-                  );
-                }).toList()
-              ],
-            );
-          },
-        ),
-    );
-  }
-
-  Widget _buildSeriesHeader(String title) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF3949AB).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF3949AB).withOpacity(0.2))
-      ),
-      child: Text(
-        title.toUpperCase(),
-        style: const TextStyle(
-          color: Color(0xFF3949AB),
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-          letterSpacing: 1.0
-        ),
-      ),
-    );
-  }
+  int _selectedRoomTypeIndex = 0; // 0 for Global, 1 for Private
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<UserEntity?>>(userEntityProvider, (previous, next) {
-       final user = next.value;
-       if (user != null) {
-          _checkNickname(user);
-       }
-    });
-
     final userAsync = ref.watch(userEntityProvider);
     final matchesAsync = ref.watch(matchListProvider);
-    final joinedContests = ref.watch(userContestProvider);
-    final joinedMatchIds = joinedContests.map((c) => c.matchId.toString()).toSet();
 
-    final mobileContent = Scaffold(
-      backgroundColor: AppColors.offWhite,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: AppColors.vibrantBlue,
-        title: Text(
-          "AxevoraLabs.com",
-          style: GoogleFonts.oswald(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            letterSpacing: 0.5,
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: _buildAppBar(userAsync.value?.photoUrl),
+      drawer: const Drawer(), // Placeholder for hamburger menu
+      body: matchesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text("Error: $err")),
+        data: (allMatches) {
+          final liveMatches = allMatches.where((m) => m['status'] == 'Live' || m['status'] == 'In Progress').toList();
+          final featuredMatch = liveMatches.isNotEmpty ? liveMatches.first : (allMatches.isNotEmpty ? allMatches.first : null);
+
+          return RefreshIndicator(
+            onRefresh: () => ref.read(matchListProvider.notifier).fetchMatches(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Featured Live Match Card
+                  if (featuredMatch != null)
+                    _buildFeaturedMatchCard(featuredMatch),
+
+                  const SizedBox(height: 24),
+
+                  // 2. Section Title: Live Matches
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      "Live Matches",
+                      style: GoogleFonts.inter(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 3. Room Type Buttons
+                  _buildRoomTypeToggle(),
+
+                  const SizedBox(height: 32),
+
+                  // 4. Today's Live Events (Categories)
+                  _buildSectionHeader("Today's Live Events", onSeeAll: () {}),
+                  _buildEventsList(allMatches),
+
+                  const SizedBox(height: 32),
+
+                  // 5. Your Private Rooms Section
+                  _buildPrivateRoomsSection(),
+
+                  const SizedBox(height: 100), // Bottom padding for nav
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      bottomNavigationBar: _buildBottomNav(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {},
+        backgroundColor: AppColors.skyBlue,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: Text("Create Room", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(String? photoUrl) {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Colors.white,
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu, color: AppColors.textDark),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
+      title: Column(
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "AXEVORA",
+                style: GoogleFonts.oswald(
+                  color: AppColors.textDark,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                "LABS",
+                style: GoogleFonts.oswald(
+                  color: AppColors.skyBlue,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            "Social Interaction Platform",
+            style: GoogleFonts.inter(
+              color: AppColors.textLight,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+      centerTitle: true,
+      actions: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark),
+              onPressed: () {},
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(color: AppColors.accentRed, shape: BoxShape.circle),
+                child: const Text("3", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+              ),
+            )
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 16, left: 8),
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.glassWhite,
+            backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+            child: photoUrl == null ? const Icon(Icons.person, size: 20, color: AppColors.textLight) : null,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () => context.push('/wallet'),
-            icon: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white),
+      ],
+    );
+  }
+
+  Widget _buildFeaturedMatchCard(Map<String, dynamic> match) {
+    final teamA = match['team1ShortName'] ?? 'IND';
+    final teamB = match['team2ShortName'] ?? 'PAK';
+    final score = match['score'] ?? '178/6 (18.2)';
+    final isLive = match['status'] == 'Live' || match['status'] == 'In Progress';
+
+    return Container(
+      margin: const EdgeInsets.all(20),
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        image: const DecorationImage(
+          image: CachedNetworkImageProvider("https://img.freepik.com/free-vector/empty-cricket-stadium-background_1284-48419.jpg"),
+          fit: BoxFit.cover,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.skyBlue.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Glass Overlay
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.1),
+                  Colors.black.withOpacity(0.7),
+                ],
+              ),
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: InkWell(
-              onTap: () {
-                if(userAsync.value != null) context.push('/profile/${userAsync.value!.uid}');
-              },
-              child: CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.white24,
-                backgroundImage: userAsync.value?.photoUrl != null 
-                    ? NetworkImage(userAsync.value!.photoUrl!) 
-                    : null,
-                child: userAsync.value?.photoUrl == null 
-                    ? const Icon(Icons.person, size: 18, color: Colors.white) 
-                    : null,
-              ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (isLive)
+                      _buildBadge("• LIVE", AppColors.accentRed)
+                    else
+                      _buildBadge("UPCOMING", AppColors.skyBlue),
+                    Text(
+                      "25,638 Online",
+                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildFeaturedTeam(teamA, "https://flagsapi.com/IN/flat/64.png"),
+                        Text("vs", style: GoogleFonts.oswald(color: Colors.white54, fontSize: 24, fontWeight: FontWeight.bold)),
+                        _buildFeaturedTeam(teamB, "https://flagsapi.com/PK/flat/64.png"),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      score,
+                      style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text("Join Match Rooms", style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
           )
         ],
       ),
-      body: matchesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text("Error loading matches"),
-            const SizedBox(height: 8),
-            ElevatedButton(onPressed: _refreshMatches, child: const Text("Retry"))
-          ],
-        )),
-        data: (allMatches) {
-            bool isUpcomingLikeStatus(dynamic rawStatus) {
-              final status = (rawStatus ?? '').toString().trim().toLowerCase();
-              return status == 'upcoming' || status == 'scheduled';
-            }
-            final live = allMatches.where((m) {
-              final status = m['status'];
-              return status == 'Live' || status == 'In Progress';
-            }).toList();
-            final upcoming = allMatches.where((m) {
-              final status = m['status'];
-              return isUpcomingLikeStatus(status);
-            }).toList();
-            final completed = allMatches.where((m) {
-              final status = m['status'];
-              return status == 'Completed' || status == 'Finished' || status == 'Abandoned';
-            }).toList();
+    );
+  }
 
-          return DefaultTabController(
-            length: 3,
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
+  Widget _buildBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildFeaturedTeam(String name, String flagUrl) {
+    return Column(
+      children: [
+        CachedNetworkImage(
+          imageUrl: flagUrl,
+          width: 48,
+          height: 32,
+          placeholder: (context, url) => const SizedBox(width: 48, height: 32),
+        ),
+        const SizedBox(height: 4),
+        Text(name, style: GoogleFonts.oswald(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  Widget _buildRoomTypeToggle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          _buildToggleItem(0, "Global Room", null),
+          const SizedBox(width: 12),
+          _buildToggleItem(1, "Private Rooms", Icons.lock_outline_rounded),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleItem(int index, String label, IconData? icon) {
+    final isSelected = _selectedRoomTypeIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedRoomTypeIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.skyBlue : AppColors.glassWhite,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+            if (icon != null) ...[Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.textLight), const SizedBox(width: 6)],
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : AppColors.textLight,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, {required VoidCallback onSeeAll}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
+          ),
+          TextButton(
+            onPressed: onSeeAll,
+            child: Text("See All", style: GoogleFonts.inter(color: AppColors.skyBlue, fontWeight: FontWeight.bold)),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventsList(List<Map<String, dynamic>> matches) {
+    return SizedBox(
+      height: 180,
+      child: ListView.builder(
+        padding: const EdgeInsets.only(left: 20),
+        scrollDirection: Axis.horizontal,
+        itemCount: 4, // 4 Example categories
+        itemBuilder: (context, index) {
+          final categories = ["Cricket", "Football", "Gaming", "Music"];
+          final titles = ["IND vs PAK", "MUN vs CHE", "BGMI Finals", "Live Concert"];
+          final icons = [Icons.sports_cricket, Icons.sports_soccer, Icons.videogame_asset, Icons.music_note];
+          final status = [ "• LIVE", "UPCOMING", "UPCOMING", "COMING SOON"];
+          final statusColor = [AppColors.accentRed, AppColors.skyBlue, AppColors.skyBlue, AppColors.textLight];
+
+          return Container(
+            width: 160,
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: AppColors.offWhite,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.glassWhite),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                   child: Container(
+                    height: 80,
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.vibrantBlue, Color(0xFF1D4ED8)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      image: DecorationImage(
-                        image: NetworkImage("https://www.transparentpng.com/download/stadium/cricket-stadium-lights-png-2.png"),
-                        fit: BoxFit.cover,
-                        opacity: 0.1,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          "Watch Matches.\nCreate Private Rooms!",
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.oswald(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            height: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          "Enjoy Live Sports with Friends!\nJoin Exclusive Group Chats while you watch.",
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () {},
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.stadiumRed,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text("Download App", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(width: 12),
-                            OutlinedButton(
-                              onPressed: () => context.push('/social-safety'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: const BorderSide(color: Colors.white),
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text("Learn More"),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                    color: AppColors.glassWhite,
+                    child: Icon(icons[index], size: 40, color: AppColors.skyBlue.withOpacity(0.5)),
                   ),
                 ),
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _SliverAppBarDelegate(
-                    minHeight: 50,
-                    maxHeight: 50,
-                    child: Container(
-                      color: Colors.white,
-                      child: TabBar(
-                        labelColor: AppColors.vibrantBlue,
-                        unselectedLabelColor: Colors.grey,
-                        indicatorColor: AppColors.vibrantBlue,
-                        indicatorWeight: 3,
-                        labelStyle: GoogleFonts.oswald(fontWeight: FontWeight.bold),
-                        tabs: const [
-                          Tab(text: "Live Matches"),
-                          Tab(text: "Upcoming"), 
-                          Tab(text: "Completed")
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                SliverFillRemaining(
-                  child: TabBarView(
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildMatchTab(matches: live, emptyMsg: "No Live Matches currently.", joinedMatchIds: joinedMatchIds),
-                      _buildMatchTab(matches: upcoming, emptyMsg: "No Upcoming Matches.", joinedMatchIds: joinedMatchIds),
-                      _buildMatchTab(matches: completed, emptyMsg: "No Completed Matches.", joinedMatchIds: joinedMatchIds),
+                      _buildBadge(status[index], statusColor[index]),
+                      const SizedBox(height: 8),
+                      Text(
+                        categories[index],
+                        style: GoogleFonts.inter(fontSize: 10, color: AppColors.textLight, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        titles[index],
+                        style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark, fontWeight: FontWeight.w800),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
           );
-        }
-      ),
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth > 500) {
-          return Scaffold(backgroundColor: Colors.black, body: Center(child: Container(width: 450, color: Colors.white, child: mobileContent)));
-        }
-        return mobileContent;
-      },
-    );
-  }
-}
-
-class MatchCard extends StatelessWidget {
-  final String id;
-  final String teamA;
-  final String teamB;
-  final String teamAImg;
-  final String teamBImg;
-  final String seriesName;
-  final DateTime date;
-  final String status;
-  final bool isLive;
-  final bool isJoined;
-  final VoidCallback onPrivateContest;
-  final VoidCallback onTap;
-
-  const MatchCard({
-    super.key, 
-    required this.id,
-    required this.teamA,
-    required this.teamB,
-    required this.teamAImg,
-    required this.teamBImg,
-    required this.seriesName,
-    required this.date,
-    required this.status,
-    required this.isLive,
-    this.isJoined = false,
-    required this.onPrivateContest, 
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    String t1Img = TeamUtils.getFlagUrl(teamA, fallbackUrl: teamAImg);
-    String t2Img = TeamUtils.getFlagUrl(teamB, fallbackUrl: teamBImg);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: const BoxDecoration(
-                color: AppColors.offWhite,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    seriesName.toUpperCase(),
-                    style: GoogleFonts.oswald(
-                      fontSize: 10,
-                      color: AppColors.textLight,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  if (isLive)
-                    const Row(
-                      children: [
-                        Icon(Icons.circle, color: Colors.green, size: 8),
-                        SizedBox(width: 4),
-                        Text("LIVE", style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  _buildTeam(teamA, t1Img),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Text(
-                          "VS",
-                          style: GoogleFonts.oswald(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.vibrantBlue.withOpacity(0.3),
-                          ),
-                        ),
-                        if (!isLive)
-                          Text(
-                            DateFormat('h:mm a').format(date),
-                            style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
-                          ),
-                      ],
-                    ),
-                  ),
-                  _buildTeam(teamB, t2Img),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: SizedBox(
-                      height: 44,
-                      child: ElevatedButton(
-                        onPressed: onTap,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.stadiumRed,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 2,
-                        ),
-                        child: Text(
-                          "Join Match Rooms",
-                          style: GoogleFonts.oswald(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 1,
-                    child: SizedBox(
-                      height: 44,
-                      child: OutlinedButton(
-                        onPressed: onPrivateContest,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.vibrantBlue, width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text(
-                          "Create Room",
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.oswald(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.vibrantBlue,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+        },
       ),
     );
   }
 
-  Widget _buildTeam(String name, String img) {
-    return SizedBox(
-      width: 100,
-      child: Column(
+  Widget _buildPrivateRoomsSection() {
+    return Column(
+      children: [
+        _buildSectionHeader("Your Private Rooms", onSeeAll: () {}),
+        _buildPrivateRoomItem("Friends Lounge", "IND vs PAK", "6 Members", false),
+        _buildPrivateRoomItem("Team Warriors", "Private", "11 Members", true),
+      ],
+    );
+  }
+
+  Widget _buildPrivateRoomItem(String title, String subtitle, String members, bool isLocked) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.glassWhite),
+      ),
+      child: Row(
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: AppColors.offWhite,
-            backgroundImage: img.isNotEmpty ? CachedNetworkImageProvider(img) : null,
-            child: img.isEmpty ? Text(name[0], style: const TextStyle(fontWeight: FontWeight.bold)) : null,
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.lightBlueBackground,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isLocked ? Icons.lock_person_rounded : Icons.forum_rounded,
+              color: AppColors.skyBlue,
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            name,
-            style: GoogleFonts.oswald(fontWeight: FontWeight.bold, fontSize: 13),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: AppColors.textDark)),
+                Text("$subtitle • $members", style: GoogleFonts.inter(fontSize: 12, color: AppColors.textLight)),
+              ],
+            ),
           ),
+          ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isLocked ? AppColors.glassWhite : AppColors.skyBlue,
+              foregroundColor: isLocked ? AppColors.textLight : Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Row(
+              children: [
+                if (!isLocked) const Icon(Icons.check_circle, size: 14, color: Colors.white),
+                if (!isLocked) const SizedBox(width: 4),
+                Text(isLocked ? "Locked" : "Enter", style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
+              ],
+            ),
+          )
         ],
       ),
     );
   }
-}
 
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  _SliverAppBarDelegate({
-    required this.minHeight,
-    required this.maxHeight,
-    required this.child,
-  });
-  final double minHeight;
-  final double maxHeight;
-  final Widget child;
-
-  @override
-  double get minExtent => minHeight;
-  @override
-  double get maxExtent => maxHeight;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox.expand(child: child);
+  Widget _buildBottomNav() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(height: 1, color: AppColors.glassWhite),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 20, top: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(Icons.home_rounded, "Home", true),
+              _buildNavItem(Icons.calendar_month_rounded, "Events", false),
+              _buildNavItem(Icons.groups_rounded, "Rooms", false),
+              _buildNavItem(Icons.chat_bubble_rounded, "Chat", false),
+              _buildNavItem(Icons.person_rounded, "Profile", false),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
+  Widget _buildNavItem(IconData icon, String label, bool isSelected) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: isSelected ? AppColors.skyBlue : AppColors.textLight, size: 28),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            color: isSelected ? AppColors.skyBlue : AppColors.textLight,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ],
+    );
   }
 }
