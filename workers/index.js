@@ -224,6 +224,11 @@ export default {
 
             // 0. CRITICAL: Allow Test Routes immediately (Bypass all checks)
             // if (path === '/test-squad-sync' || path === '/test-squad-sync/') return handleManualSquadSync(env);
+            if (path.startsWith('/v/r/')) {
+                const matchId = path.split('/').pop();
+                return await handleSocialPreview(matchId, env);
+            }
+
             if (path === '/api/test-force-sync') {
                 const mid = url.searchParams.get('matchId');
                 if (!mid) return new Response("Missing matchId", { status: 400 });
@@ -2117,6 +2122,47 @@ async function ensureLiquidity(sourceContest, env) {
         } else {
             console.error("Liquidity Create Error:", e);
         }
+    }
+}
+
+async function handleSocialPreview(matchId, env) {
+    try {
+        const match = await env.DB.prepare('SELECT * FROM matches WHERE id = ?').bind(matchId).first();
+
+        if (!match) {
+            return new Response("Match not found", { status: 404 });
+        }
+
+        const title = match.title || `${match.team_a} vs ${match.team_b} - AxevoraLabs`;
+        const description = `Live Match Room: Join the conversation now on AxevoraLabs!`;
+
+        // Use team A image as primary preview if exists
+        const imageUrl = match.team_a_img
+            ? match.team_a_img
+            : 'https://axevoralabs.com/icons/Icon-192.png';
+
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+    <meta property="og:title" content="${title}">
+    <meta property="og:description" content="${description}">
+    <meta property="og:image" content="${imageUrl}">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${title}">
+    <meta name="twitter:description" content="${description}">
+    <meta name="twitter:image" content="${imageUrl}">
+    <meta http-equiv="refresh" content="0; url=https://axevoralabs.com/room/${matchId}">
+</head>
+<body>
+    <p>Redirecting to AxevoraLabs Room...</p>
+</body>
+</html>`;
+        return new Response(html, { headers: { 'Content-Type': 'text/html' } });
+    } catch (e) {
+        return new Response("Error: " + e.message, { status: 500 });
     }
 }
 

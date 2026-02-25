@@ -4,12 +4,14 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ShareUtils {
+  static const String _apiBase = "https://fantasy-cricket-api.moremagical4.workers.dev";
+
   static Future<void> shareMatchRoom({
     required String matchId,
     required String matchTitle,
     required BuildContext context,
   }) async {
-    final String shareUrl = "https://axevoralabs.com/room/$matchId";
+    final String shareUrl = "$_apiBase/v/r/$matchId";
     final String shareText = 
         "Join me on AxevoraLabs to discuss the live match: $matchTitle! 🏟️💬\n\n"
         "Enter the Global Room here: $shareUrl\n\n"
