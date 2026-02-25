@@ -16,12 +16,13 @@ class RoomSelectionScreen extends ConsumerWidget {
       backgroundColor: AppColors.offWhite,
       appBar: AppBar(
         title: Text(
-          "Create Private Room",
+          "Social Hub Selection",
           style: GoogleFonts.oswald(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: AppColors.vibrantBlue,
+        backgroundColor: AppColors.skyBlue,
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -29,16 +30,16 @@ class RoomSelectionScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Choose Your Experience",
+              "Start Your Social Hub",
               style: GoogleFonts.oswald(
-                fontSize: 24,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textDark,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              "Create a private room for you and your friends to watch the match and compete!",
+              "Create a private space for real-time discussion, voice chat, and social interaction with your friends.",
               style: GoogleFonts.inter(
                 fontSize: 14,
                 color: AppColors.textLight,
@@ -48,14 +49,16 @@ class RoomSelectionScreen extends ConsumerWidget {
             
             _buildRoomCard(
               context,
-              title: "Single Match Room",
-              price: "₹19",
-              description: "Full access to this match's private chat and contest.",
-              color: AppColors.vibrantBlue,
-              icon: Icons.sports_cricket,
+              title: "Friends Lounge (Private)",
+              subtitle: "Best for close friends",
+              description: "Invite-only room with host moderation, live voice chat, and ephemeral notes.",
+              color: AppColors.skyBlue,
+              icon: Icons.lock_person_rounded,
               onTap: () {
-                // Navigate to name creation with 19 as preset
-                context.push('/match/${match.id}/create-private-contest', extra: match);
+                context.push('/private-room/${match.id}', extra: {
+                  'matchData': match.toMap(),
+                  'isHost': true,
+                });
               },
             ),
             
@@ -63,23 +66,21 @@ class RoomSelectionScreen extends ConsumerWidget {
             
             _buildRoomCard(
               context,
-              title: "Full Day Pass",
-              price: "₹39",
-              description: "Create rooms for ALL matches happening today. Best value!",
-              color: AppColors.stadiumRed,
-              icon: Icons.flash_on,
-              isBestValue: true,
+              title: "Global Discussion (Public)",
+              subtitle: "Connect with everyone",
+              description: "Join the largest real-time conversation for this match with thousands of fans.",
+              color: AppColors.accentRed,
+              icon: Icons.public_rounded,
               onTap: () {
-                // Feature for full day
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Full Day Pass coming soon!")));
+                context.push('/room/${match.id}', extra: match.toMap());
               },
             ),
             
             const SizedBox(height: 40),
             
-            _buildBenefitRow(Icons.lock_person, "Private chat only for your circle"),
-            _buildBenefitRow(Icons.emoji_events, "Custom prize pools and winners"),
-            _buildBenefitRow(Icons.verified_user, "Safe and strictly social (no betting)"),
+            _buildBenefitRow(Icons.security_rounded, "Moderated and safe social environment"),
+            _buildBenefitRow(Icons.record_voice_over_rounded, "Real-time voice discussions (Live only)"),
+            _buildBenefitRow(Icons.verified_user, "Strictly social – No betting or wallet required"),
           ],
         ),
       ),
@@ -89,99 +90,87 @@ class RoomSelectionScreen extends ConsumerWidget {
   Widget _buildRoomCard(
     BuildContext context, {
     required String title,
-    required String price,
+    required String subtitle,
     required String description,
     required Color color,
     required IconData icon,
     required VoidCallback onTap,
-    bool isBestValue = false,
   }) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
       child: Container(
         width: double.infinity,
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isBestValue ? color : Colors.grey.shade200, width: isBestValue ? 2 : 1),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: color.withOpacity(0.1), width: 1),
           boxShadow: [
             BoxShadow(
               color: color.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
             )
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              if (isBestValue)
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(12)),
-                    ),
-                    child: const Text(
-                      "BEST VALUE",
-                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 32),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.oswald(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          subtitle.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.textLight,
+                      height: 1.4,
                     ),
                   ),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, color: color, size: 28),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: GoogleFonts.oswald(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textDark,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            description,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppColors.textLight,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      price,
-                      style: GoogleFonts.oswald(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: AppColors.textLight.withOpacity(0.5)),
+          ],
         ),
       ),
     );
@@ -189,16 +178,26 @@ class RoomSelectionScreen extends ConsumerWidget {
 
   Widget _buildBenefitRow(IconData icon, String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Colors.grey),
-          const SizedBox(width: 12),
-          Text(
-            text,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: AppColors.textLight,
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.glassWhite,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: AppColors.textLight),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.textLight,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
