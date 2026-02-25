@@ -63,8 +63,12 @@ class ShareUtils {
               ),
             ),
             const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            GridView.count(
+              shrinkWrap: true,
+              crossAxisCount: 4,
+              mainAxisSpacing: 24,
+              crossAxisSpacing: 12,
+              physics: const NeverScrollableScrollPhysics(),
               children: [
                 _ShareOption(
                   icon: Icons.chat_bubble_outline,
@@ -79,10 +83,40 @@ class ShareUtils {
                   onTap: () => _launchSocial("https://t.me/share/url?url=${Uri.encodeComponent(url)}&text=${Uri.encodeComponent(text)}"),
                 ),
                 _ShareOption(
-                  icon: Icons.close_rounded, // Using X-style close for X/Twitter
+                  icon: Icons.close_rounded,
                   label: "X",
                   color: Colors.white,
                   onTap: () => _launchSocial("https://twitter.com/intent/tweet?text=${Uri.encodeComponent(text)}"),
+                ),
+                 _ShareOption(
+                  icon: Icons.facebook_rounded,
+                  label: "Facebook",
+                  color: const Color(0xFF1877F2),
+                  onTap: () => _launchSocial("https://www.facebook.com/sharer/sharer.php?u=${Uri.encodeComponent(url)}"),
+                ),
+                 _ShareOption(
+                  icon: Icons.business_center_rounded,
+                  label: "LinkedIn",
+                  color: const Color(0xFF0A66C2),
+                  onTap: () => _launchSocial("https://www.linkedin.com/sharing/share-offsite/?url=${Uri.encodeComponent(url)}"),
+                ),
+                _ShareOption(
+                  icon: Icons.reddit_rounded,
+                  label: "Reddit",
+                  color: const Color(0xFFFF4500),
+                  onTap: () => _launchSocial("https://www.reddit.com/submit?url=${Uri.encodeComponent(url)}&title=${Uri.encodeComponent(text)}"),
+                ),
+                _ShareOption(
+                  icon: Icons.interests_rounded,
+                  label: "Pinterest",
+                  color: const Color(0xFFE60023),
+                  onTap: () => _launchSocial("https://pinterest.com/pin/create/button/?url=${Uri.encodeComponent(url)}&description=${Uri.encodeComponent(text)}"),
+                ),
+                _ShareOption(
+                  icon: Icons.email_rounded,
+                  label: "Email",
+                  color: Colors.grey,
+                  onTap: () => _launchSocial("mailto:?subject=${Uri.encodeComponent("Join AxevoraLabs")}&body=${Uri.encodeComponent(text)}"),
                 ),
                 _ShareOption(
                   icon: Icons.link_rounded,
