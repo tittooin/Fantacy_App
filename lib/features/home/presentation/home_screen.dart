@@ -255,7 +255,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      context.push('/room/${match['id']}', extra: match);
+                      context.push('/match/${match['id']}/create-room', extra: match);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accentRed,
@@ -263,7 +263,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: Text("Join Match Rooms", style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                    child: Text("Join Social Hubs", style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -374,47 +374,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final status = [ "• LIVE", "UPCOMING", "UPCOMING", "COMING SOON"];
           final statusColor = [AppColors.accentRed, AppColors.skyBlue, AppColors.skyBlue, AppColors.textLight];
 
-          return Container(
-            width: 160,
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: AppColors.offWhite,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.glassWhite),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: Container(
-                    height: 80,
-                    width: double.infinity,
-                    color: AppColors.glassWhite,
-                    child: Icon(icons[index], size: 40, color: AppColors.skyBlue.withOpacity(0.5)),
+          return GestureDetector(
+            onTap: () {
+              // Using a placeholder ID since these are mock categories for now
+              context.push('/match/match_${index + 1}/create-room');
+            },
+            child: Container(
+              width: 160,
+              margin: const EdgeInsets.only(right: 16),
+              decoration: BoxDecoration(
+                color: AppColors.offWhite,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.glassWhite),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: Container(
+                      height: 80,
+                      width: double.infinity,
+                      color: AppColors.glassWhite,
+                      child: Icon(icons[index], size: 40, color: AppColors.skyBlue.withOpacity(0.5)),
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildBadge(status[index], statusColor[index]),
-                      const SizedBox(height: 8),
-                      Text(
-                        categories[index],
-                        style: GoogleFonts.inter(fontSize: 10, color: AppColors.textLight, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        titles[index],
-                        style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark, fontWeight: FontWeight.w800),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildBadge(status[index], statusColor[index]),
+                        const SizedBox(height: 8),
+                        Text(
+                          categories[index],
+                          style: GoogleFonts.inter(fontSize: 10, color: AppColors.textLight, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          titles[index],
+                          style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark, fontWeight: FontWeight.w800),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -425,14 +431,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildPrivateRoomsSection() {
     return Column(
       children: [
-        _buildSectionHeader("Your Private Rooms", onSeeAll: () {}),
-        _buildPrivateRoomItem("Friends Lounge", "IND vs PAK", "6 Members", false),
-        _buildPrivateRoomItem("Team Warriors", "Private", "11 Members", true),
+        _buildSectionHeader("Active Social Lounges", onSeeAll: () {
+          context.go('/my-matches');
+        }),
+        _buildPrivateRoomItem("Friends Lounge", "IND vs PAK", "6 Online", false, "match_123"),
+        _buildPrivateRoomItem("Cricket Fanatics", "Private", "11 Members", true, "match_456"),
       ],
     );
   }
 
-  Widget _buildPrivateRoomItem(String title, String subtitle, String members, bool isLocked) {
+  Widget _buildPrivateRoomItem(String title, String subtitle, String members, bool isLocked, String matchId) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(16),
@@ -466,7 +474,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () {
+              context.push('/match/$matchId/create-room');
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: isLocked ? AppColors.glassWhite : AppColors.skyBlue,
               foregroundColor: isLocked ? AppColors.textLight : Colors.white,
@@ -488,42 +498,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildBottomNav() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(height: 1, color: AppColors.glassWhite),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 20, top: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(Icons.home_rounded, "Home", true),
-              _buildNavItem(Icons.calendar_month_rounded, "Events", false),
-              _buildNavItem(Icons.groups_rounded, "Rooms", false),
-              _buildNavItem(Icons.chat_bubble_rounded, "Chat", false),
-              _buildNavItem(Icons.person_rounded, "Profile", false),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, String label, bool isSelected) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: isSelected ? AppColors.skyBlue : AppColors.textLight, size: 28),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 10,
-            color: isSelected ? AppColors.skyBlue : AppColors.textLight,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          ),
-        ),
-      ],
-    );
+    return const SizedBox.shrink();
   }
 }

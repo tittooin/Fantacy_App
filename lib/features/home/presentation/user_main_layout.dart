@@ -12,7 +12,7 @@ class UserMainLayout extends ConsumerWidget {
     final String location = GoRouterState.of(context).uri.toString();
     if (location.startsWith('/home')) return 0;
     if (location.startsWith('/my-matches')) return 1;
-    if (location.startsWith('/rewards')) return 2;
+    if (location.contains('room')) return 2; // Highlighting Chat/Global
     if (location.startsWith('/profile')) return 3;
     return 0;
   }
@@ -26,7 +26,8 @@ class UserMainLayout extends ConsumerWidget {
         context.go('/my-matches');
         break;
       case 2:
-        context.go('/rewards');
+        // Point to a default live room or global chat
+        context.go('/home'); // Or a specific global route
         break;
       case 3:
         final uid = ref.read(authUserIdProvider);
@@ -51,20 +52,20 @@ class UserMainLayout extends ConsumerWidget {
         data: NavigationBarThemeData(
           labelTextStyle: MaterialStateProperty.resolveWith((states) {
             if (states.contains(MaterialState.selected)) {
-              return const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.indigo);
+              return const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0EB0E2)); // AppColors.skyBlue
             }
-            return const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey);
+            return const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Color(0xFF64748B)); // AppColors.textLight
           }),
           iconTheme: MaterialStateProperty.resolveWith((states) {
              if (states.contains(MaterialState.selected)) {
-               return const IconThemeData(color: Colors.white, size: 28);
+               return const IconThemeData(color: Colors.white, size: 24);
              }
-             return const IconThemeData(color: Colors.grey, size: 24);
+             return const IconThemeData(color: Color(0xFF64748B), size: 22);
           }),
         ),
         child: NavigationBar(
           backgroundColor: Colors.white,
-          indicatorColor: Colors.indigo,
+          indicatorColor: const Color(0xFF0EB0E2), // AppColors.skyBlue
           elevation: 10,
           shadowColor: Colors.black,
           height: 70,
@@ -72,23 +73,23 @@ class UserMainLayout extends ConsumerWidget {
           onDestinationSelected: (idx) => _onItemTapped(idx, context, ref),
           destinations: const [
              NavigationDestination(
-                icon: Icon(Icons.flash_on_outlined), 
-                selectedIcon: Icon(Icons.flash_on),
+                icon: Icon(Icons.bolt_outlined), 
+                selectedIcon: Icon(Icons.bolt_rounded),
                 label: "Live"
              ),
              NavigationDestination(
-               icon: Icon(Icons.sports_cricket_outlined), 
-               selectedIcon: Icon(Icons.sports_cricket),
+               icon: Icon(Icons.forum_outlined), 
+               selectedIcon: Icon(Icons.forum_rounded),
                label: "My Rooms"
              ),
              NavigationDestination(
-               icon: Icon(Icons.chat_bubble_outline), 
-               selectedIcon: Icon(Icons.chat_bubble),
+               icon: Icon(Icons.public_rounded), 
+               selectedIcon: Icon(Icons.public_rounded),
                label: "Global"
              ),
              NavigationDestination(
-               icon: Icon(Icons.person_outline), 
-               selectedIcon: Icon(Icons.person),
+               icon: Icon(Icons.person_outline_rounded), 
+               selectedIcon: Icon(Icons.person_rounded),
                label: "Profile"
              ),
           ],
