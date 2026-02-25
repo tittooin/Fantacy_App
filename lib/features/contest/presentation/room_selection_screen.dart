@@ -56,7 +56,7 @@ class RoomSelectionScreen extends ConsumerWidget {
               icon: Icons.lock_person_rounded,
               onTap: () {
                 context.push('/private-room/${match.id}', extra: {
-                  'matchData': match.toMap(),
+                  'matchData': match.toJson(),
                   'isHost': true,
                 });
               },
@@ -72,7 +72,7 @@ class RoomSelectionScreen extends ConsumerWidget {
               color: AppColors.accentRed,
               icon: Icons.public_rounded,
               onTap: () {
-                context.push('/room/${match.id}', extra: match.toMap());
+                context.push('/room/${match.id}', extra: match.toJson());
               },
             ),
             
