@@ -48,6 +48,7 @@ import 'package:axevora11/features/kyc/presentation/kyc_screen.dart';
 import 'package:axevora11/features/admin/presentation/kyc/admin_kyc_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart';
 import 'package:axevora11/features/rooms/presentation/global_room_screen.dart';
+import 'package:axevora11/features/rooms/presentation/private_room_screen.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -258,6 +259,20 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final matchId = state.pathParameters['matchId']!;
           final matchData = state.extra as Map<String, dynamic>?;
           return GlobalRoomScreen(matchId: matchId, matchData: matchData);
+        },
+      ),
+      GoRoute(
+        path: '/private-room/:matchId',
+        builder: (context, state) {
+          final matchId = state.pathParameters['matchId']!;
+          final extras = state.extra as Map<String, dynamic>?;
+          final matchData = extras?['matchData'] as Map<String, dynamic>?;
+          final isHost = extras?['isHost'] as bool? ?? false;
+          return PrivateRoomScreen(
+            matchId: matchId,
+            matchData: matchData,
+            isHost: isHost,
+          );
         },
       ),
       GoRoute(
