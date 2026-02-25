@@ -1,0 +1,275 @@
+﻿Analyzing Fantacy_App...                                        
+
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:44:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:58:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:72:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:80:8 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:83:8 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:88:8 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:91:8 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:105:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:116:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:127:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:145:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\api\fantasy_api_client.dart:159:7 - avoid_print
+warning - The receiver can't be null, so the null-aware operator '?.' is unnecessary - lib\core\router\app_router.dart:129:18 - invalid_null_aware_operator
+warning - The receiver can't be null, so the null-aware operator '?.' is unnecessary - lib\core\router\app_router.dart:132:75 - invalid_null_aware_operator
+warning - The value of the local variable 'matchId' isn't used - lib\core\router\app_router.dart:437:22 - unused_local_variable
+warning - Unused import: 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart' - lib\features\admin\presentation\admin_dashboard_screen.dart:5:8 - unused_import
+warning - Unused import: 'package:axevora11/features/admin/presentation/admin_logs_screen.dart' - lib\features\admin\presentation\admin_dashboard_screen.dart:6:8 - unused_import
+warning - Unused import: 'package:axevora11/features/admin/presentation/scoring_console_screen.dart' - lib\features\admin\presentation\admin_dashboard_screen.dart:7:8 - unused_import
+warning - Unused import: 'package:axevora11/features/cricket_api/presentation/contest_creator_screen.dart' - lib\features\admin\presentation\admin_dashboard_screen.dart:8:8 - unused_import
+warning - The value of the field '_isLoading' isn't used - lib\features\admin\presentation\admin_dashboard_screen.dart:31:8 - unused_field
+   info - Statements in an if should be enclosed in a block - lib\features\admin\presentation\admin_dashboard_screen.dart:77:19 - curly_braces_in_flow_control_structures
+warning - The declaration '_onTabChanged' isn't referenced - lib\features\admin\presentation\admin_dashboard_screen.dart:89:8 - unused_element
+warning - The declaration '_confirmAndDistribute' isn't referenced - lib\features\admin\presentation\admin_dashboard_screen.dart:105:16 - unused_element
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\presentation\admin_dashboard_screen.dart:127:46 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\presentation\admin_dashboard_screen.dart:129:46 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\presentation\admin_dashboard_screen.dart:132:44 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\presentation\admin_dashboard_screen.dart:150:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\presentation\admin_dashboard_screen.dart:156:31 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_dashboard_screen.dart:300:74 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_dashboard_screen.dart:301:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_dashboard_screen.dart:433:65 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_dashboard_screen.dart:568:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_dashboard_screen.dart:570:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_dashboard_screen.dart:608:52 - deprecated_member_use
+warning - Unused import: 'package:intl/intl.dart' - lib\features\admin\presentation\admin_logs_screen.dart:3:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_logs_screen.dart:38:62 - deprecated_member_use
+   info - The local variable '_bulkController' starts with an underscore - lib\features\admin\presentation\admin_manage_squad_screen.dart:155:33 - no_leading_underscores_for_local_identifiers
+   info - Statements in an if should be enclosed in a block - lib\features\admin\presentation\admin_manage_squad_screen.dart:366:36 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\features\admin\presentation\admin_manage_squad_screen.dart:366:64 - curly_braces_in_flow_control_structures
+   info - Statements in a for should be enclosed in a block - lib\features\admin\presentation\admin_manage_squad_screen.dart:439:41 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\presentation\admin_payout_leaderboard_screen.dart:52:34 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\presentation\admin_payout_leaderboard_screen.dart:55:27 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\presentation\admin_payout_leaderboard_screen.dart:57:34 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\presentation\admin_payout_leaderboard_screen.dart:64:32 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_payout_leaderboard_screen.dart:87:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_players_screen.dart:212:56 - deprecated_member_use
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\features\admin\presentation\admin_players_screen.dart:225:31 - deprecated_member_use
+warning - Unused import: 'package:axevora11/core/constants/app_colors.dart' - lib\features\admin\presentation\admin_scaffold.dart:1:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_scaffold.dart:68:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_scaffold.dart:78:55 - deprecated_member_use
+   info - Unnecessary use of multiple underscores - lib\features\admin\presentation\admin_scaffold.dart:85:43 - unnecessary_underscores
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_scaffold.dart:95:74 - deprecated_member_use
+   info - The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\features\admin\presentation\admin_voucher_screen.dart:5:8 - unnecessary_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\admin_wallet_screen.dart:63:66 - deprecated_member_use
+   info - Unnecessary use of multiple underscores - lib\features\admin\presentation\admin_wallet_screen.dart:88:43 - unnecessary_underscores
+warning - Unused import: 'package:intl/intl.dart' - lib\features\admin\presentation\kyc\admin_kyc_screen.dart:5:8 - unused_import
+warning - Unused import: 'package:axevora11/core/constants/app_colors.dart' - lib\features\admin\presentation\league_management_screen.dart:4:8 - unused_import
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\features\admin\presentation\league_management_screen.dart:69:21 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\league_management_screen.dart:88:26 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\league_management_screen.dart:145:29 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\lineup_management_screen.dart:42:29 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\lineup_management_screen.dart:106:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\lineup_management_screen.dart:107:21 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\lineup_management_screen.dart:109:28 - use_build_context_synchronously
+   info - The local variable '_controller' starts with an underscore - lib\features\admin\presentation\lineup_management_screen.dart:215:33 - no_leading_underscores_for_local_identifiers
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\match_control_screen.dart:80:31 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\match_control_screen.dart:82:31 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\match_control_screen.dart:85:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\match_control_screen.dart:145:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\admin\presentation\match_control_screen.dart:151:30 - use_build_context_synchronously
+warning - The value of the local variable 'workerUrl' isn't used - lib\features\admin\presentation\match_control_screen.dart:187:13 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\match_control_screen.dart:316:68 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\presentation\scoring_console_screen.dart:220:50 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\admin\presentation\scoring_console_screen.dart:361:7 - deprecated_member_use
+   info - 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope. This feature was deprecated after v3.12.0-1.0.pre - lib\features\app_update\data\version_check_service.dart:55:29 - deprecated_member_use
+  error - The getter 'accentGreen' isn't defined for the type 'AppColors' - lib\features\app_update\data\version_check_service.dart:74:74 - undefined_getter
+warning - Unused import: 'package:axevora11/features/user/domain/user_entity.dart' - lib\features\auth\data\auth_repository.dart:1:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\login_screen.dart:34:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\login_screen.dart:46:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\login_screen.dart:173:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\login_screen.dart:223:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\login_screen.dart:225:59 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\login_screen.dart:259:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\login_screen.dart:297:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\splash_screen.dart:52:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\splash_screen.dart:53:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\splash_screen.dart:54:32 - deprecated_member_use
+  error - Invalid constant value - lib\features\auth\presentation\splash_screen.dart:69:97 - invalid_constant
+  error - The getter 'accentGreen' isn't defined for the type 'AppColors' - lib\features\auth\presentation\splash_screen.dart:69:107 - undefined_getter
+  error - Invalid constant value - lib\features\auth\presentation\splash_screen.dart:77:27 - invalid_constant
+  error - The getter 'accentGreen' isn't defined for the type 'AppColors' - lib\features\auth\presentation\splash_screen.dart:77:37 - undefined_getter
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\widgets\landing_page_content.dart:53:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\widgets\landing_page_content.dart:83:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\widgets\landing_page_content.dart:116:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\widgets\landing_page_content.dart:146:35 - deprecated_member_use
+warning - This method overrides a method annotated as '@mustCallSuper' in 'State', but doesn't invoke the overridden method - lib\features\chat\presentation\match_chat_room.dart:25:8 - must_call_super
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chat\presentation\match_chat_room.dart:102:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chat\presentation\match_chat_room.dart:189:45 - deprecated_member_use
+warning - Unused import: 'package:axevora11/features/team/domain/team_entity.dart' - lib\features\contest\data\leaderboard_service.dart:3:8 - unused_import
+   info - Statements in an if should be enclosed in a block - lib\features\contest\data\leaderboard_service.dart:77:35 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\features\contest\data\leaderboard_service.dart:78:35 - curly_braces_in_flow_control_structures
+warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\features\contest\presentation\contest_detail_screen.dart:6:8 - unused_import
+warning - Unused import: 'package:axevora11/features/user/domain/user_entity.dart' - lib\features\contest\presentation\contest_detail_screen.dart:15:8 - unused_import
+warning - Unused import: 'package:axevora11/features/cricket_api/data/providers/fantasy_points_provider.dart' - lib\features\contest\presentation\contest_detail_screen.dart:18:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\contest_detail_screen.dart:199:49 - deprecated_member_use
+   info - Unnecessary use of multiple underscores - lib\features\contest\presentation\contest_detail_screen.dart:223:28 - unnecessary_underscores
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\contest_detail_screen.dart:311:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\contest_detail_screen.dart:313:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\contest_detail_screen.dart:326:144 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\contest_detail_screen.dart:382:59 - deprecated_member_use
+   info - Unnecessary use of 'toList' in a spread - lib\features\contest\presentation\contest_detail_screen.dart:392:18 - unnecessary_to_list_in_spreads
+warning - The declaration '_buildWinningRow' isn't referenced - lib\features\contest\presentation\contest_detail_screen.dart:410:10 - unused_element
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\contest_detail_screen.dart:441:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\contest_detail_screen.dart:498:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\contest_detail_screen.dart:540:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\create_private_contest_screen.dart:186:61 - deprecated_member_use
+warning - Unused import: 'package:axevora11/features/contest/domain/user_contest_entity.dart' - lib\features\contest\presentation\match_detail_screen.dart:14:8 - unused_import
+warning - Unused import: 'package:firebase_auth/firebase_auth.dart' - lib\features\contest\presentation\match_detail_screen.dart:16:8 - unused_import
+warning - Unused import: 'package:uuid/uuid.dart' - lib\features\contest\presentation\match_detail_screen.dart:17:8 - unused_import
+warning - The value of the local variable 'matchTitle' isn't used - lib\features\contest\presentation\match_detail_screen.dart:68:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\match_detail_screen.dart:112:72 - deprecated_member_use
+warning - The value of the local variable 't1' isn't used - lib\features\contest\presentation\match_detail_screen.dart:448:22 - unused_local_variable
+warning - The value of the local variable 't2' isn't used - lib\features\contest\presentation\match_detail_screen.dart:449:22 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\room_selection_screen.dart:109:28 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\room_selection_screen.dart:142:38 - deprecated_member_use
+warning - Unused import: 'package:axevora11/features/user/presentation/providers/user_provider.dart' - lib\features\contest\presentation\widgets\contest_card.dart:12:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\widgets\contest_card.dart:114:72 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\contest\presentation\widgets\contest_card.dart:298:38 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\contest\presentation\widgets\contest_card.dart:304:38 - use_build_context_synchronously
+   info - Unnecessary braces in a string interpolation - lib\features\contest\presentation\widgets\scorecard_tab.dart:201:23 - unnecessary_brace_in_string_interps
+   info - Unnecessary braces in a string interpolation - lib\features\contest\presentation\widgets\scorecard_tab.dart:201:32 - unnecessary_brace_in_string_interps
+   info - Unnecessary braces in a string interpolation - lib\features\contest\presentation\widgets\scorecard_tab.dart:202:24 - unnecessary_brace_in_string_interps
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:70:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:94:55 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:104:49 - deprecated_member_use
+   info - The type of the right operand ('String') isn't a subtype or a supertype of the left operand ('PlayerRole') - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:158:65 - unrelated_type_equality_checks
+   info - The type of the right operand ('String') isn't a subtype or a supertype of the left operand ('PlayerRole') - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:159:66 - unrelated_type_equality_checks
+   info - The type of the right operand ('String') isn't a subtype or a supertype of the left operand ('PlayerRole') - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:160:65 - unrelated_type_equality_checks
+   info - The type of the right operand ('String') isn't a subtype or a supertype of the left operand ('PlayerRole') - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:161:67 - unrelated_type_equality_checks
+warning - Dead code - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:167:94 - dead_code
+warning - The left operand can't be null, so the right operand is never executed - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:167:97 - dead_null_aware_expression
+warning - Dead code - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:168:89 - dead_code
+warning - The left operand can't be null, so the right operand is never executed - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:168:92 - dead_null_aware_expression
+warning - Dead code - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:169:92 - dead_code
+warning - The left operand can't be null, so the right operand is never executed - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:169:95 - dead_null_aware_expression
+warning - Dead code - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:170:91 - dead_code
+warning - The left operand can't be null, so the right operand is never executed - lib\features\contest\presentation\widgets\team_pitch_view_sheet.dart:170:94 - dead_null_aware_expression
+warning - The value of the local variable 'currentDisplay' isn't used - lib\features\cricket_api\data\manual_scoring_service.dart:143:14 - unused_local_variable
+   info - Don't invoke 'print' in production code - lib\features\cricket_api\data\match_repository.dart:17:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\cricket_api\data\match_repository.dart:20:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\cricket_api\data\match_repository.dart:22:7 - avoid_print
+warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\features\cricket_api\data\providers\leaderboard_provider.dart:3:8 - unused_import
+warning - Unused import: 'package:flutter/foundation.dart' - lib\features\cricket_api\data\providers\leaderboard_provider.dart:4:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\features\cricket_api\data\result_service.dart:16:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\cricket_api\data\result_service.dart:29:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\cricket_api\data\result_service.dart:33:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\cricket_api\data\result_service.dart:87:9 - avoid_print
+   info - The private field _lastBallWasWicket could be 'final' - lib\features\cricket_api\data\services\polling_service.dart:16:8 - prefer_final_fields
+warning - The value of the field '_lastBallWasWicket' isn't used - lib\features\cricket_api\data\services\polling_service.dart:16:8 - unused_field
+   info - The private field _wicketBurstCount could be 'final' - lib\features\cricket_api\data\services\polling_service.dart:17:7 - prefer_final_fields
+warning - The value of the field '_wicketBurstCount' isn't used - lib\features\cricket_api\data\services\polling_service.dart:17:7 - unused_field
+warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\features\cricket_api\presentation\contest_creator_screen.dart:4:8 - unused_import
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\cricket_api\presentation\contest_creator_screen.dart:386:17 - deprecated_member_use
+warning - The value of the field '_matchesStream' isn't used - lib\features\cricket_api\presentation\match_import_screen.dart:19:30 - unused_field
+   info - Unnecessary use of multiple underscores - lib\features\cricket_api\presentation\match_import_screen.dart:120:29 - unnecessary_underscores
+   info - Unnecessary use of string interpolation - lib\features\cricket_api\presentation\match_import_screen.dart:132:27 - unnecessary_string_interpolations
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\cricket_api\presentation\match_import_screen.dart:155:54 - use_build_context_synchronously
+   info - Unnecessary use of multiple underscores - lib\features\cricket_api\presentation\widgets\match_score_header.dart:16:17 - unnecessary_underscores
+warning - The value of the local variable 'over' isn't used - lib\features\cricket_api\presentation\widgets\match_score_header.dart:23:16 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\cricket_api\presentation\widgets\match_score_header.dart:42:37 - deprecated_member_use
+warning - Unused import: 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart' - lib\features\home\presentation\home_screen.dart:7:8 - unused_import
+warning - Unused import: 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart' - lib\features\home\presentation\home_screen.dart:14:8 - unused_import
+   info - The local variable '_nameController' starts with an underscore - lib\features\home\presentation\home_screen.dart:120:33 - no_leading_underscores_for_local_identifiers
+   info - 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope. This feature was deprecated after v3.12.0-1.0.pre - lib\features\home\presentation\home_screen.dart:125:16 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\features\home\presentation\home_screen.dart:165:43 - use_build_context_synchronously
+warning - The declaration '_formatTime' isn't referenced - lib\features\home\presentation\home_screen.dart:181:10 - unused_element
+   info - Unnecessary use of 'toList' in a spread - lib\features\home\presentation\home_screen.dart:259:20 - unnecessary_to_list_in_spreads
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\home\presentation\home_screen.dart:272:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\home\presentation\home_screen.dart:274:59 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\home\presentation\home_screen.dart:532:43 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\home\presentation\home_screen.dart:579:58 - deprecated_member_use
+   info - 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre - lib\features\home\presentation\user_main_layout.dart:52:27 - deprecated_member_use
+   info - 'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre - lib\features\home\presentation\user_main_layout.dart:53:33 - deprecated_member_use
+   info - 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre - lib\features\home\presentation\user_main_layout.dart:58:22 - deprecated_member_use
+   info - 'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre - lib\features\home\presentation\user_main_layout.dart:59:34 - deprecated_member_use
+warning - Unused import: 'package:axevora11/core/theme/app_theme.dart' - lib\features\kyc\presentation\kyc_screen.dart:2:8 - unused_import
+   info - Don't use 'BuildContext's across async gaps - lib\features\kyc\presentation\kyc_screen.dart:79:37 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\kyc\presentation\kyc_screen.dart:155:44 - deprecated_member_use
+warning - Unused import: 'package:axevora11/core/constants/app_colors.dart' - lib\features\legal\presentation\contact_us_screen.dart:2:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\legal\presentation\social_safety_screen.dart:140:28 - deprecated_member_use
+  error - Invalid constant value - lib\features\location\presentation\state_selection_screen.dart:119:62 - invalid_constant
+  error - The getter 'accentGreen' isn't defined for the type 'AppColors' - lib\features\location\presentation\state_selection_screen.dart:119:72 - undefined_getter
+  error - The getter 'cardColor' isn't defined for the type 'AppColors' - lib\features\location\presentation\state_selection_screen.dart:140:36 - undefined_getter
+  error - The getter 'cardColor' isn't defined for the type 'AppColors' - lib\features\location\presentation\state_selection_screen.dart:148:46 - undefined_getter
+  error - Invalid constant value - lib\features\location\presentation\state_selection_screen.dart:150:68 - invalid_constant
+  error - The getter 'accentGreen' isn't defined for the type 'AppColors' - lib\features\location\presentation\state_selection_screen.dart:150:78 - undefined_getter
+  error - The getter 'accentGreen' isn't defined for the type 'AppColors' - lib\features\location\presentation\state_selection_screen.dart:168:46 - undefined_getter
+   info - Don't invoke 'print' in production code - lib\features\team\data\d1_player_service.dart:23:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\team\data\d1_player_service.dart:31:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\team\data\d1_player_service.dart:52:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\team\data\d1_player_service.dart:81:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\team\data\d1_player_service.dart:110:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\team\data\d1_player_service.dart:154:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\team\data\d1_player_service.dart:158:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\team\data\d1_player_service.dart:192:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\team\data\firestore_player_service.dart:39:7 - avoid_print
+  error - The getter 'accentGreen' isn't defined for the type 'AppColors' - lib\features\team\presentation\captain_selection_screen.dart:212:40 - undefined_getter
+   info - Unnecessary 'const' keyword - lib\features\team\presentation\captain_selection_screen.dart:218:46 - unnecessary_const
+warning - Unused import: 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart' - lib\features\team\presentation\team_builder_screen.dart:7:8 - unused_import
+warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\features\team\presentation\team_builder_screen.dart:8:8 - unused_import
+   info - The private field _selectedIds could be 'final' - lib\features\team\presentation\team_builder_screen.dart:32:15 - prefer_final_fields
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\team\presentation\team_builder_screen.dart:298:78 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\team\presentation\team_builder_screen.dart:307:78 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\team\presentation\team_builder_screen.dart:342:66 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\team\presentation\team_builder_screen.dart:373:57 - deprecated_member_use
+warning - The value of the local variable 'paint' isn't used - lib\features\team\presentation\team_preview_screen.dart:190:11 - unused_local_variable
+warning - The value of the local variable 'pitchRect' isn't used - lib\features\team\presentation\team_preview_screen.dart:197:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\team\presentation\team_preview_screen.dart:207:30 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\features\user\data\user_repository.dart:53:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\user\data\user_repository.dart:55:7 - avoid_print
+warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\features\user\presentation\profile_screen.dart:3:8 - unused_import
+warning - Unused import: 'package:firebase_auth/firebase_auth.dart' - lib\features\user\presentation\profile_screen.dart:4:8 - unused_import
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\user\presentation\profile_screen.dart:104:22 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\user\presentation\profile_screen.dart:157:33 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\features\user\presentation\providers\user_provider.dart:28:13 - avoid_print
+   info - 'stream' is deprecated and shouldn't be used. .stream will be removed in 3.0.0. As a replacement, either listen to the provider itself (AsyncValue) or .future - lib\features\user\presentation\providers\user_provider.dart:43:43 - deprecated_member_use
+warning - Unused import: 'package:axevora11/features/user/domain/user_entity.dart' - lib\features\wallet\data\payment_repository.dart:4:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\features\wallet\presentation\providers\wallet_provider.dart:38:7 - avoid_print
+   info - Parameter 'key' could be a super parameter - lib\features\wallet\presentation\redeem_screen.dart:7:9 - use_super_parameters
+   info - Don't invoke 'print' in production code - lib\features\wallet\presentation\redeem_screen.dart:41:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\wallet\presentation\redeem_screen.dart:45:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\wallet\presentation\redeem_screen.dart:46:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\wallet\presentation\redeem_screen.dart:61:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\wallet\presentation\redeem_screen.dart:82:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\features\wallet\presentation\redeem_screen.dart:115:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\wallet\presentation\redeem_screen.dart:120:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\wallet\presentation\redeem_screen.dart:123:28 - use_build_context_synchronously
+   info - Unnecessary use of string interpolation - lib\features\wallet\presentation\redeem_screen.dart:165:27 - unnecessary_string_interpolations
+   info - Unnecessary use of string interpolation - lib\features\wallet\presentation\redeem_screen.dart:169:27 - unnecessary_string_interpolations
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\wallet\presentation\redeem_screen.dart:192:23 - deprecated_member_use
+warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\features\wallet\presentation\wallet_screen.dart:5:8 - unused_import
+warning - Unused import: 'package:http/http.dart' - lib\features\wallet\presentation\wallet_screen.dart:8:8 - unused_import
+warning - Unused import: 'dart:convert' - lib\features\wallet\presentation\wallet_screen.dart:9:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\features\wallet\presentation\wallet_screen.dart:37:7 - avoid_print
+   info - Unnecessary use of string interpolation - lib\features\wallet\presentation\wallet_screen.dart:205:16 - unnecessary_string_interpolations
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\wallet\presentation\wallet_screen.dart:267:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\wallet\presentation\wallet_screen.dart:268:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\wallet\presentation\wallet_screen.dart:363:70 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\wallet\presentation\wallet_screen.dart:363:100 - deprecated_member_use
+warning - Unused import: 'package:axevora11/features/user/data/user_repository.dart' - lib\main.dart:8:8 - unused_import
+warning - Unused import: 'package:axevora11/features/auth/data/auth_repository.dart' - lib\main.dart:9:8 - unused_import
+   info - The imported package 'flutter_web_plugins' isn't a dependency of the importing package - lib\main.dart:16:8 - depend_on_referenced_packages
+   info - Don't invoke 'print' in production code - lib\scripts\fix_team_short_names.dart:8:3 - avoid_print
+   info - Don't invoke 'print' in production code - lib\scripts\fix_team_short_names.dart:14:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\scripts\fix_team_short_names.dart:37:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\scripts\fix_team_short_names.dart:40:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\scripts\fix_team_short_names.dart:45:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\scripts\fix_team_short_names.dart:46:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\scripts\fix_team_short_names.dart:47:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\scripts\fix_team_short_names.dart:50:5 - avoid_print
+warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\scripts\probe_temp.dart:2:8 - unused_import
+   info - Don't invoke 'print' in production code - verify_sync.dart:58:3 - avoid_print
+   info - Don't invoke 'print' in production code - verify_sync.dart:64:3 - avoid_print
+   info - Don't invoke 'print' in production code - verify_sync.dart:66:21 - avoid_print
+   info - Statements in an if should be enclosed in a block - verify_sync.dart:66:21 - curly_braces_in_flow_control_structures
+   info - Don't invoke 'print' in production code - verify_sync.dart:66:43 - avoid_print
+   info - Statements in an if should be enclosed in a block - verify_sync.dart:66:43 - curly_braces_in_flow_control_structures
+   info - Don't invoke 'print' in production code - verify_sync.dart:73:3 - avoid_print
+   info - Don't invoke 'print' in production code - verify_sync.dart:75:21 - avoid_print
+   info - Statements in an if should be enclosed in a block - verify_sync.dart:75:21 - curly_braces_in_flow_control_structures
+   info - Don't invoke 'print' in production code - verify_sync.dart:75:43 - avoid_print
+   info - Statements in an if should be enclosed in a block - verify_sync.dart:75:43 - curly_braces_in_flow_control_structures
+
