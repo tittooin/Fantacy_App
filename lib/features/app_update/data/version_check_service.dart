@@ -3,7 +3,7 @@ import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+// import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class VersionCheckService {
@@ -16,10 +16,9 @@ class VersionCheckService {
   Future<void> checkVersion(BuildContext context) async {
     if (kIsWeb) return; // Web doesn't need update checks (auto-updates)
 
-    try {
       // 1. Get Local Version
-      final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version;
+      // final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = "1.0.0"; // Hardcoded for web compatibility
 
       // 2. Get Remote Version
       final doc = await FirebaseFirestore.instance.collection('app_config').doc('general').get();

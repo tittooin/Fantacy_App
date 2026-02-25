@@ -144,11 +144,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         elevation: 0,
         backgroundColor: Colors.indigo,
         actions: [
-           IconButton(
-             icon: const Icon(Icons.help_outline),
-             onPressed: () {},
-           ),
-           if (_isMe) 
+          IconButton(
+            icon: const Icon(Icons.share_rounded, color: Colors.white),
+            onPressed: () => ShareUtils.shareApp(),
+          ),
+          IconButton(
              PopupMenuButton<String>(
                icon: const Icon(Icons.settings),
                onSelected: (value) async {

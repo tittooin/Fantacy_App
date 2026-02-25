@@ -141,6 +141,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       centerTitle: true,
       actions: [
+        IconButton(
+          icon: const Icon(Icons.share_rounded, color: AppColors.skyBlue),
+          onPressed: () => ShareUtils.shareApp(),
+        ),
         Stack(
           alignment: Alignment.center,
           children: [
@@ -249,7 +253,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      context.push('/room/${match['id']}', extra: match);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accentRed,
                       foregroundColor: Colors.white,
