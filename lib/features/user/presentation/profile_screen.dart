@@ -147,7 +147,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.share_rounded, color: Colors.white),
-            onPressed: () => ShareUtils.shareApp(),
+            onPressed: () => ShareUtils.shareApp(context: context),
           ),
           PopupMenuButton<String>(
                icon: const Icon(Icons.settings, color: Colors.white),

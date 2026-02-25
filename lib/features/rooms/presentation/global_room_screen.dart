@@ -125,6 +125,7 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
           icon: const Icon(Icons.share_rounded, color: AppColors.skyBlue),
           onPressed: () {
             ShareUtils.shareMatchRoom(
+              context: context,
               matchId: widget.matchId,
               matchTitle: widget.matchData?['title'] ?? "India vs Pakistan",
             );

@@ -144,7 +144,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       actions: [
         IconButton(
           icon: const Icon(Icons.share_rounded, color: AppColors.skyBlue),
-          onPressed: () => ShareUtils.shareApp(),
+          onPressed: () => ShareUtils.shareApp(context: context),
         ),
         Stack(
           alignment: Alignment.center,
