@@ -6,6 +6,7 @@ import 'package:axevora11/features/user/domain/user_entity.dart';
 import 'package:axevora11/features/user/data/user_repository.dart';
 import 'package:axevora11/features/auth/data/auth_repository.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:axevora11/core/utils/share_utils.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -148,9 +149,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             icon: const Icon(Icons.share_rounded, color: Colors.white),
             onPressed: () => ShareUtils.shareApp(),
           ),
-          IconButton(
-             PopupMenuButton<String>(
-               icon: const Icon(Icons.settings),
+          PopupMenuButton<String>(
+               icon: const Icon(Icons.settings, color: Colors.white),
                onSelected: (value) async {
                  if (value == 'logout') {
                    await ref.read(authRepositoryProvider).signOut();

@@ -1,4 +1,4 @@
-import 'dart:io';
+// import 'dart:io';
 import 'package:axevora11/core/theme/app_theme.dart';
 import 'package:axevora11/features/kyc/data/kyc_repository.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
@@ -20,9 +20,9 @@ class _KYCScreenState extends ConsumerState<KYCScreen> {
   final _panController = TextEditingController();
   DateTime? _dob;
   
-  File? _panImage;
-  File? _aadhaarFront;
-  File? _aadhaarBack;
+  XFile? _panImage;
+  XFile? _aadhaarFront;
+  XFile? _aadhaarBack;
   
   bool _isGlobalLoading = false;
 
@@ -32,9 +32,9 @@ class _KYCScreenState extends ConsumerState<KYCScreen> {
     
     if (picked != null) {
       setState(() {
-        if (type == 'pan') _panImage = File(picked.path);
-        if (type == 'front') _aadhaarFront = File(picked.path);
-        if (type == 'back') _aadhaarBack = File(picked.path);
+        if (type == 'pan') _panImage = picked;
+        if (type == 'front') _aadhaarFront = picked;
+        if (type == 'back') _aadhaarBack = picked;
       });
     }
   }
@@ -239,7 +239,7 @@ class _KYCScreenState extends ConsumerState<KYCScreen> {
 
 class _UploadBox extends StatelessWidget {
   final String label;
-  final File? file;
+  final XFile? file;
   final VoidCallback onTap;
   const _UploadBox({required this.label, required this.file, required this.onTap});
 
@@ -256,7 +256,7 @@ class _UploadBox extends StatelessWidget {
           borderRadius: BorderRadius.circular(8)
         ),
         child: file != null 
-          ? Image.file(file!, fit: BoxFit.cover)
+          ? Image.network(file!.path, fit: BoxFit.cover)
           : Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

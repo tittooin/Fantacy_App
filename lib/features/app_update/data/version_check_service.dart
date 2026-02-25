@@ -16,6 +16,7 @@ class VersionCheckService {
   Future<void> checkVersion(BuildContext context) async {
     if (kIsWeb) return; // Web doesn't need update checks (auto-updates)
 
+    try {
       // 1. Get Local Version
       // final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = "1.0.0"; // Hardcoded for web compatibility

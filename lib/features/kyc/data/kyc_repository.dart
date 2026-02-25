@@ -1,13 +1,14 @@
-import 'dart:io';
+// import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 final kycRepositoryProvider = Provider((ref) => KYCRepository());
 
 class KYCRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  // final FirebaseStorage _storage = FirebaseStorage.instance;
 
   /// Submit KYC Documents
   Future<void> submitKYC({
@@ -15,14 +16,14 @@ class KYCRepository {
     required String fullName,
     required String panNumber,
     required String dob,
-    required File panImage,
-    required File aadhaarFrontImage,
-    required File aadhaarBackImage,
+    required XFile panImage,
+    required XFile aadhaarFrontImage,
+    required XFile aadhaarBackImage,
   }) async {
-    // 1. Upload Images
-    final panUrl = await _uploadFile(userId, 'pan', panImage);
-    final aadharFrontUrl = await _uploadFile(userId, 'aadhaar_front', aadhaarFrontImage);
-    final aadharBackUrl = await _uploadFile(userId, 'aadhaar_back', aadhaarBackImage);
+    // 1. Client-side path handling (No backend storage upload as per user requirement)
+    final panUrl = "client_path://${panImage.name}";
+    final aadharFrontUrl = "client_path://${aadhaarFrontImage.name}";
+    final aadharBackUrl = "client_path://${aadhaarBackImage.name}";
 
     // 2. Create KYC Request in Firestore
     await _firestore.collection('kyc_requests').doc(userId).set({
@@ -44,11 +45,13 @@ class KYCRepository {
     });
   }
 
+  /*
   Future<String> _uploadFile(String userId, String type, File file) async {
     final ref = _storage.ref().child('kyc_docs/$userId/$type.jpg');
     await ref.putFile(file);
     return await ref.getDownloadURL();
   }
+  */
 
   /// Get KYC Status for User
   Stream<DocumentSnapshot> getKYCStatus(String userId) {
