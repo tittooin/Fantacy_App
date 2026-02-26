@@ -123,15 +123,12 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
                   onEmojiSelected: (category, emoji) {
                     _textController.text = _textController.text + emoji.emoji;
                   },
-                  config: Config(
-                    height: 256,
-                    checkPlatformCompatibility: true,
+                  config: const Config(
                     emojiViewConfig: EmojiViewConfig(
                       backgroundColor: Colors.white,
                       columns: 7,
-                      emojiSizeMax: 32 * (foundation.defaultTargetPlatform == TargetPlatform.iOS ? 1.30 : 1.0),
                     ),
-                    categoryViewConfig: const CategoryViewConfig(
+                    categoryViewConfig: CategoryViewConfig(
                       backgroundColor: Colors.white,
                       indicatorColor: AppColors.skyBlue,
                       iconColorSelected: AppColors.skyBlue,
