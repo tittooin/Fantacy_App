@@ -1,4 +1,5 @@
 name = "fantasy-cricket-api"
+account_id = "c986632a81b447fffc4caeea39130869"
 main = "workers/index.js"
 compatibility_date = "2024-01-01"
 
@@ -18,8 +19,8 @@ WORKER_URL = "https://fantasy-cricket-api.moremagical4.workers.dev"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "fantasy-db"
-database_id = "63832775-2a84-428c-9120-9258c3aaf226"
+database_name = "cricbuzz_d1_prod"
+database_id = "118ed0ed-c0c5-44ce-bae7-783876d95878"
 
 [triggers]
 crons = ["*/5 * * * *"]
