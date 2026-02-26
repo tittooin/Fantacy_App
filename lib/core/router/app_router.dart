@@ -257,7 +257,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/room/:matchId',
         builder: (context, state) {
           final matchId = state.pathParameters['matchId']!;
-          final matchData = state.extra as Map<String, dynamic>?;
+          final extra = state.extra;
+          Map<String, dynamic>? matchData;
+          if (extra is Map<String, dynamic>) {
+            matchData = extra;
+          } else if (extra is CricketMatchModel) {
+            matchData = extra.toJson();
+          }
           return GlobalRoomScreen(matchId: matchId, matchData: matchData);
         },
       ),
@@ -265,7 +271,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/private-room/:matchId',
         builder: (context, state) {
           final matchId = state.pathParameters['matchId']!;
-          final extras = state.extra as Map<String, dynamic>?;
+          final extra = state.extra;
+          Map<String, dynamic>? extras;
+          if (extra is Map<String, dynamic>) {
+            extras = extra;
+          }
           final matchData = extras?['matchData'] as Map<String, dynamic>?;
           final isHost = extras?['isHost'] as bool? ?? false;
           return PrivateRoomScreen(
@@ -377,15 +387,29 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/match/:matchId/create-private-contest',
         builder: (context, state) {
-           final match = state.extra as CricketMatchModel;
-           return CreatePrivateContestScreen(match: match);
+          final matchId = state.pathParameters['matchId']!;
+          CricketMatchModel? match;
+          final extra = state.extra;
+          if (extra is CricketMatchModel) {
+            match = extra;
+          } else if (extra is Map<String, dynamic>) {
+            match = CricketMatchModel.fromMap(extra);
+          }
+          return CreatePrivateContestScreen(match: match ?? CricketMatchModel.fromMap({'id': int.tryParse(matchId) ?? 0}));
         },
       ),
       GoRoute(
         path: '/match/:matchId/create-room',
         builder: (context, state) {
-           final match = state.extra as CricketMatchModel;
-           return RoomSelectionScreen(match: match);
+          final matchId = state.pathParameters['matchId']!;
+          CricketMatchModel? match;
+          final extra = state.extra;
+          if (extra is CricketMatchModel) {
+            match = extra;
+          } else if (extra is Map<String, dynamic>) {
+            match = CricketMatchModel.fromMap(extra);
+          }
+          return RoomSelectionScreen(match: match ?? CricketMatchModel.fromMap({'id': int.tryParse(matchId) ?? 0}));
         },
       ),
       
