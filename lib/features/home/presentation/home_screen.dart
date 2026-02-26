@@ -315,12 +315,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       label: "Global Discussion (Cricket)",
                       onTap: () {
                         Navigator.pop(context);
-                        // Navigate to global room of first live match
-                        final matches = ref.read(matchListProvider).value;
-                        final liveMatch = matches?.firstWhere(
-                          (m) => m['status'] == 'Live' || m['status'] == 'In Progress',
-                          orElse: () => matches?.isNotEmpty == true ? matches!.first : {},
-                        );
+                        final allMatches = ref.read(matchListProvider).value ?? [];
+                        Map<String, dynamic>? liveMatch;
+                        try {
+                          liveMatch = allMatches.firstWhere(
+                            (m) => m['status'] == 'Live' || m['status'] == 'In Progress',
+                          );
+                        } catch (_) {
+                          liveMatch = allMatches.isNotEmpty ? allMatches.first : null;
+                        }
                         if (liveMatch != null && liveMatch['id'] != null) {
                           context.push('/room/${liveMatch['id']}', extra: liveMatch);
                         }
