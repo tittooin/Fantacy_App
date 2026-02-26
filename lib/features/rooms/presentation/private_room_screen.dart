@@ -316,16 +316,6 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
     );
   }
 
-  Widget _buildTabBar() {
-    return TabBar(
-      controller: _tabController,
-      labelColor: AppColors.skyBlue,
-      unselectedLabelColor: AppColors.textLight,
-      indicatorColor: AppColors.skyBlue,
-      tabs: const [Tab(text: 'Chat'), Tab(text: 'Members'), Tab(text: 'Rules')],
-    );
-  }
-
   Widget _buildChatSection({required bool isLoggedIn}) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
