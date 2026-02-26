@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
@@ -87,10 +88,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       bottomNavigationBar: _buildBottomNav(),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () {
+          final user = userAsync.value;
+          if (user == null) {
+            context.push('/login');
+            return;
+          }
+          // Navigate to match selection for room creation
+          if (matchesAsync.value?.isNotEmpty == true) {
+            final featured = matchesAsync.value!.first;
+            context.push('/match/${featured['id']}/create-room', extra: featured);
+          }
+        },
         backgroundColor: AppColors.skyBlue,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: Text("Create Room", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
+        label: Text('Create Room', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
       ),
     );
   }
@@ -766,18 +778,91 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildPrivateRoomsSection() {
+    final user = ref.read(userEntityProvider).value;
+    if (user == null) {
+      // Guest: show CTA to login
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Social Lounges', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: AppColors.lightBlueBackground, borderRadius: BorderRadius.circular(20)),
+              child: Column(children: [
+                const Icon(Icons.lock_outline_rounded, color: AppColors.skyBlue, size: 32),
+                const SizedBox(height: 8),
+                Text('Login to join and create private social lounges', textAlign: TextAlign.center, style: GoogleFonts.inter(color: AppColors.textDark)),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => context.push('/login'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.skyBlue, foregroundColor: Colors.white),
+                  child: const Text('Sign In'),
+                ),
+              ]),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader("Active Social Lounges", onSeeAll: () {
-          context.go('/my-matches');
-        }),
-        _buildPrivateRoomItem("Friends Lounge", "IND vs PAK", "6 Online", false, "match_123"),
-        _buildPrivateRoomItem("Cricket Fanatics", "Private", "11 Members", true, "match_456"),
+        _buildSectionHeader('Active Social Lounges', onSeeAll: () => context.go('/my-matches')),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('user_rooms')
+              .where('members', arrayContains: user.uid)
+              .orderBy('updatedAt', descending: true)
+              .limit(5)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: CircularProgressIndicator(color: AppColors.skyBlue)),
+              );
+            }
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.glassWhite)),
+                  child: Column(children: [
+                    const Icon(Icons.forum_outlined, color: AppColors.glassWhite, size: 32),
+                    const SizedBox(height: 8),
+                    Text("You haven't joined any rooms yet.", textAlign: TextAlign.center, style: GoogleFonts.inter(color: AppColors.textLight)),
+                    const SizedBox(height: 8),
+                    Text('Tap a match above to enter the Global Room!', textAlign: TextAlign.center, style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 12)),
+                  ]),
+                ),
+              );
+            }
+            return Column(
+              children: docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final title = data['roomName'] as String? ?? 'Social Lounge';
+                final matchTitle = data['matchTitle'] as String? ?? 'Match';
+                final members = (data['members'] as List?)?.length ?? 0;
+                final isLocked = data['isPrivate'] == true;
+                return _buildPrivateRoomItem(
+                  title, matchTitle, '$members Members', isLocked, doc.id,
+                  data: data,
+                );
+              }).toList(),
+            );
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildPrivateRoomItem(String title, String subtitle, String members, bool isLocked, String matchId) {
+  Widget _buildPrivateRoomItem(String title, String subtitle, String members, bool isLocked, String matchId, {Map<String, dynamic>? data}) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(16),
