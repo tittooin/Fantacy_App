@@ -49,6 +49,7 @@ import 'package:axevora11/features/admin/presentation/kyc/admin_kyc_screen.dart'
 import 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart';
 import 'package:axevora11/features/rooms/presentation/global_room_screen.dart';
 import 'package:axevora11/features/rooms/presentation/private_room_screen.dart';
+import 'package:axevora11/features/rooms/presentation/team_selection_screen.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -281,6 +282,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             matchData: matchData,
             isHost: isHost,
           );
+        },
+      ),
+      GoRoute(
+        path: '/team-selection',
+        builder: (context, state) {
+          final extras = state.extra as Map<String, dynamic>;
+          final matchId = extras['matchId'] as String;
+          return TeamSelectionScreen(matchId: matchId);
         },
       ),
       GoRoute(

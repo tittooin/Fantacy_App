@@ -160,4 +160,32 @@ class FantasyApiClient {
       return [];
     }
   }
+
+  /// 9. Save/Create Team (D1)
+  Future<Map<String, dynamic>> saveTeam(Map<String, dynamic> payload) async {
+    try {
+      final response = await _dio.post('/api/teams/save', data: payload);
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      return {'success': false, 'error': 'Failed to save team'};
+    } catch (e) {
+      print('❌ Error saving team: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// 10. Fetch Room Leaderboard (D1)
+  Future<List<Map<String, dynamic>>> getRoomLeaderboard(String matchId) async {
+    try {
+      final response = await _dio.get('/api/room/leaderboard', queryParameters: {'matchId': matchId});
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return List<Map<String, dynamic>>.from(response.data['leaderboard'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      print('❌ Error fetching room leaderboard: $e');
+      return [];
+    }
+  }
 }

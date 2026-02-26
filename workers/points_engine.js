@@ -7,8 +7,8 @@
 const POINTS_CONFIG = {
     'T20': {
         run: 1,
-        boundary: 1,
-        six: 2,
+        boundary: 2, // Four = 4 runs + 2 bonus
+        six: 3,      // Six = 6 runs + 3 bonus
         half_century: 8,
         century: 16,
         duck: -2,
@@ -255,6 +255,20 @@ export async function syncMatchPointsToD1(matchId, env) {
         const playerStats = extractPlayerStatsFromScorecard(data);
         console.log(`Found stats for ${playerStats.length} players in scorecard.`);
 
+        // --- NEW: Fetch Commentary for real-time feed ---
+        let commentary = [];
+        try {
+            const commResp = await fetch(`https://${apiHost}/mcenter/v1/${matchId}/comm`, {
+                headers: { 'x-rapidapi-key': apiKey, 'x-rapidapi-host': apiHost }
+            });
+            if (commResp.ok) {
+                const commData = await commResp.json();
+                commentary = (commData.commentaryList || []).slice(0, 20); // Keep last 20 balls
+            }
+        } catch (commErr) {
+            console.error("Failed to fetch commentary:", commErr);
+        }
+
         // Batch Update D1
         const queries = [];
         for (const stats of playerStats) {
@@ -279,14 +293,15 @@ export async function syncMatchPointsToD1(matchId, env) {
         try {
             const details = processScorecardData(data);
             await env.DB.prepare(`
-                INSERT INTO live_scores (match_id, status_note, team_a_score, team_b_score, current_over, score_details, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO live_scores (match_id, status_note, team_a_score, team_b_score, current_over, score_details, commentary, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(match_id) DO UPDATE SET
                     status_note = excluded.status_note,
                     team_a_score = excluded.team_a_score,
                     team_b_score = excluded.team_b_score,
                     current_over = excluded.current_over,
                     score_details = excluded.score_details,
+                    commentary = excluded.commentary,
                     updated_at = excluded.updated_at
             `).bind(
                 matchId,
@@ -295,6 +310,7 @@ export async function syncMatchPointsToD1(matchId, env) {
                 details.team2Score,
                 details.overs,
                 JSON.stringify(details.fullData),
+                JSON.stringify(commentary),
                 Date.now()
             ).run();
             // console.log(`✅ Updated live_scores for ${matchId}`);

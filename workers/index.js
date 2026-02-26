@@ -252,6 +252,7 @@ export default {
             // Team API
             if (url.pathname === '/api/teams/save') return await handleSaveTeam(request, env);
             if (url.pathname === '/api/teams/get') return await handleGetTeams(url.searchParams, env);
+            if (url.pathname === '/api/room/leaderboard') return await handleGetRoomLeaderboard(url.searchParams, env);
 
             // Wallet API (User)
             if (url.pathname === '/api/wallet/balance') {
@@ -1934,6 +1935,57 @@ async function handleGetTeams(queryParams, env) {
 
         return jsonResponse({ success: true, teams: formatted });
     } catch (e) {
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+async function handleGetRoomLeaderboard(queryParams, env) {
+    const matchId = queryParams.get('matchId');
+    if (!matchId) return jsonResponse({ success: false, error: 'matchId required' }, 400);
+
+    try {
+        // 1. Get Player Points
+        const { results: pointRows } = await env.DB.prepare(
+            "SELECT player_id, points FROM fantasy_points WHERE match_id = ?"
+        ).bind(matchId).all();
+        const pointsMap = {};
+        pointRows.forEach(r => pointsMap[r.player_id] = (r.points || 0));
+
+        // 2. Get All Teams for this Match
+        const { results: teams } = await env.DB.prepare(
+            "SELECT id, user_id, team_name, players_json FROM teams WHERE match_id = ?"
+        ).bind(matchId).all();
+
+        // 3. Calculate Results
+        const leaderboard = teams.map(t => {
+            let total = 0;
+            let pIds = [];
+            try {
+                const parsed = JSON.parse(t.players_json || '[]');
+                pIds = Array.isArray(parsed) ? parsed : [];
+            } catch (e) { pIds = []; }
+
+            pIds.forEach(p => {
+                const pid = p.player_id || p.playerId || p.id;
+                if (pid) {
+                    total += (pointsMap[pid] || 0);
+                }
+            });
+
+            return {
+                teamId: t.id,
+                userId: t.user_id,
+                teamName: t.team_name,
+                points: total
+            };
+        });
+
+        // Sort descending
+        leaderboard.sort((a, b) => b.points - a.points);
+
+        return jsonResponse({ success: true, leaderboard });
+    } catch (e) {
+        console.error("Room Leaderboard Error:", e);
         return jsonResponse({ success: false, error: e.message }, 500);
     }
 }

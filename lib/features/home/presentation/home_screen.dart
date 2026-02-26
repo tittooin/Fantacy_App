@@ -172,7 +172,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(color: AppColors.accentRed, shape: BoxShape.circle),
-                child: const Text("3", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                child: const Text("0", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
               ),
             )
           ],
@@ -557,7 +557,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     else
                       _buildBadge("UPCOMING", AppColors.skyBlue),
                     Text(
-                      "25,638 Online",
+                      "Real-time Lounge",
                       style: GoogleFonts.inter(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -692,7 +692,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Use real matches, cap at 6. Fallback to 1 placeholder if empty.
     final displayMatches = allMatches.isNotEmpty
         ? allMatches.take(6).toList()
-        : [<String, dynamic>{'id': 'demo_1', 'team1ShortName': 'IND', 'team2ShortName': 'PAK', 'status': 'Live', 'seriesName': 'Cricket'}];
+        : [];
 
     return SizedBox(
       height: 180,

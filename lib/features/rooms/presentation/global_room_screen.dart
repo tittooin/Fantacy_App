@@ -6,6 +6,10 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:axevora11/core/utils/share_utils.dart';
+import 'dart:convert';
+import 'package:axevora11/features/rooms/presentation/widgets/scorecard_widget.dart';
+import 'package:axevora11/features/rooms/presentation/widgets/commentary_widget.dart';
+import 'package:axevora11/features/cricket_api/data/providers/scorecard_provider.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 
 class GlobalRoomScreen extends ConsumerStatefulWidget {
@@ -159,34 +163,113 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
   Widget _buildEventSummaryCard() {
     final title = widget.matchData?['title'] ?? widget.matchData?['matchDesc'] ?? 'Live Match';
     final score = widget.matchData?['score'] ?? '';
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: AppColors.socialGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: AppColors.skyBlue.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: GoogleFonts.oswald(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+
+    return Consumer(builder: (context, ref, _) {
+      final scorecardAsync = ref.watch(scorecardProvider(widget.matchId));
+
+      return Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: AppColors.skyBlue.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
+          border: Border.all(color: AppColors.skyBlue.withOpacity(0.1)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            backgroundColor: Colors.white,
+            collapsedBackgroundColor: Colors.white,
+            iconColor: AppColors.skyBlue,
+            collapsedIconColor: AppColors.skyBlue,
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.oswald(color: AppColors.textDark, fontSize: 16, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.accentRed, shape: BoxShape.circle)),
+                          const SizedBox(width: 4),
+                          Text('LIVE SCORECARD', style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (score.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: AppColors.skyBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                    child: Text(score, style: GoogleFonts.inter(color: AppColors.skyBlue, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+              ],
             ),
+            children: [
+              Container(
+                height: 400, // Fixed height for expansion
+                decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.offWhite))),
+                child: DefaultTabController(
+                  length: 2,
+                  child: Column(
+                    children: [
+                      TabBar(
+                        tabs: const [Tab(text: 'SCORECARD'), Tab(text: 'FEED')],
+                        labelColor: AppColors.skyBlue,
+                        unselectedLabelColor: AppColors.textLight,
+                        indicatorColor: AppColors.skyBlue,
+                        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            scorecardAsync.when(
+                              data: (data) => data != null ? ScorecardWidget(scorecardData: data) : const Center(child: Text('No data')),
+                              loading: () => const Center(child: CircularProgressIndicator()),
+                              error: (e, _) => Center(child: Text('Error: $e')),
+                            ),
+                            scorecardAsync.when(
+                              data: (data) {
+                                final commentary = data?['scorecard']?['commentary'];
+                                List list = [];
+                                if (commentary != null) {
+                                  try {
+                                    if (commentary is String) {
+                                      list = jsonDecode(commentary);
+                                    } else {
+                                      list = commentary as List;
+                                    }
+                                  } catch (e) {
+                                    print("Commentary Parse Error: $e");
+                                  }
+                                }
+                                return CommentaryWidget(commentaryList: list);
+                              },
+                              loading: () => const Center(child: CircularProgressIndicator()),
+                              error: (e, _) => Center(child: Text('Error: $e')),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          if (score.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-              child: Text(score, style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-            ),
-        ],
-      ),
-    );
+        ),
+      );
+    });
   }
 
   Widget _buildChatFeed() {

@@ -7,6 +7,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:axevora11/core/utils/share_utils.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'dart:convert';
+import 'package:axevora11/features/rooms/presentation/widgets/scorecard_widget.dart';
+import 'package:axevora11/features/rooms/presentation/widgets/commentary_widget.dart';
+import 'package:axevora11/features/cricket_api/data/providers/scorecard_provider.dart';
+import 'package:axevora11/features/rooms/presentation/widgets/leaderboard_widget.dart';
+import 'package:axevora11/features/rooms/data/providers/room_leaderboard_provider.dart';
 
 class PrivateRoomScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -41,7 +47,7 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() => setState(() {}));
   }
 
@@ -164,6 +170,7 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
               children: [
                 _buildChatSection(isLoggedIn: isLoggedIn),
                 _buildMembersSection(),
+                _buildStatsSection(),
                 _buildRulesSection(),
               ],
             ),
@@ -174,14 +181,86 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
     );
   }
 
+  Widget _buildTabBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.offWhite)),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        tabs: const [
+          Tab(text: 'CHAT'),
+          Tab(text: 'MEMBERS'),
+          Tab(text: 'STATS'),
+          Tab(text: 'RULES'),
+        ],
+        labelColor: AppColors.skyBlue,
+        unselectedLabelColor: AppColors.textLight,
+        indicatorColor: AppColors.skyBlue,
+        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+      ),
+    );
+  }
+
+  Widget _buildStatsSection() {
+    return Consumer(builder: (context, ref, _) {
+      final scorecardAsync = ref.watch(scorecardProvider(widget.matchId));
+      return DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            TabBar(
+              tabs: const [Tab(text: 'SCORECARD'), Tab(text: 'FEED')],
+              labelColor: AppColors.skyBlue,
+              unselectedLabelColor: AppColors.textLight,
+              indicatorColor: AppColors.skyBlue,
+              labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  scorecardAsync.when(
+                    data: (data) => data != null ? ScorecardWidget(scorecardData: data) : const Center(child: Text('No data')),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error: $e')),
+                  ),
+                  scorecardAsync.when(
+                    data: (data) {
+                      final commentary = data?['scorecard']?['commentary'];
+                      List list = [];
+                      if (commentary != null) {
+                        try {
+                          if (commentary is String) {
+                            list = jsonDecode(commentary);
+                          } else {
+                            list = commentary as List;
+                          }
+                        } catch (e) {
+                          print("Commentary Parse Error: $e");
+                        }
+                      }
+                      return CommentaryWidget(commentaryList: list);
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error: $e')),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
   PreferredSizeWidget _buildAppBar() {
     final roomName = widget.matchData?['roomName'] as String? ?? 'Private Room';
     return AppBar(
       elevation: 0,
       backgroundColor: Colors.white,
-      leading: const Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Icon(Icons.lock_outline_rounded, color: AppColors.skyBlue, size: 20),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textDark, size: 20),
+        onPressed: () => Navigator.pop(context),
       ),
       title: Column(
         children: [
@@ -198,13 +277,10 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
       ),
       centerTitle: true,
       actions: [
-        IconButton(
-          icon: const Icon(Icons.share_rounded, color: AppColors.skyBlue),
-          onPressed: () => ShareUtils.shareMatchRoom(
-            context: context,
-            matchId: widget.matchId,
-            matchTitle: widget.matchData?['title'] ?? 'Private Room',
-          ),
+        TextButton.icon(
+          onPressed: () => context.push('/team-selection', extra: {'matchId': widget.matchId}),
+          icon: const Icon(Icons.stars_rounded, color: AppColors.skyBlue, size: 18),
+          label: Text('SET TEAM', style: GoogleFonts.oswald(color: AppColors.skyBlue, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(width: 8),
       ],
@@ -355,46 +431,14 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
   }
 
   Widget _buildMembersSection() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection(_membersPath).snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: AppColors.skyBlue));
-        }
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return Center(child: Text('No members yet.', style: GoogleFonts.inter(color: AppColors.textLight)));
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final data = docs[index].data() as Map<String, dynamic>;
-            final name = data['displayName'] as String? ?? 'Member';
-            final isRoomHost = data['isHost'] == true;
-            final uid = docs[index].id;
-            final photoUrl = data['photoUrl'] as String? ?? '';
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppColors.offWhite,
-                backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                child: photoUrl.isEmpty ? Text(name[0].toUpperCase()) : null,
-              ),
-              title: Text(name, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              subtitle: Text(isRoomHost ? 'Room Owner' : 'Member', style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 12)),
-              trailing: isRoomHost
-                  ? const Icon(Icons.star_rounded, color: Colors.amber)
-                  : (widget.isHost
-                      ? IconButton(
-                          icon: const Icon(Icons.more_vert_rounded),
-                          onPressed: () => _showModerationMenu(name, uid),
-                        )
-                      : null),
-            );
-          },
-        );
-      },
-    );
+    return Consumer(builder: (context, ref, _) {
+      final leaderboardAsync = ref.watch(roomLeaderboardProvider(widget.matchId));
+      return leaderboardAsync.when(
+        data: (list) => LeaderboardWidget(leaderboard: list),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.skyBlue)),
+        error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.inter(color: AppColors.textLight))),
+      );
+    });
   }
 
   Widget _buildRulesSection() {
