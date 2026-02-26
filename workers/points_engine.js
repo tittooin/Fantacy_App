@@ -1,64 +1,62 @@
 
 /**
- * Fantasy Points Engine
+ * Stats Metrics Engine
  * Supports Multiple Formats: T20, ODI, TEST, T10
  */
 
 const POINTS_CONFIG = {
     'T20': {
         run: 1,
-        boundary: 2, // Four = 4 runs + 2 bonus
-        six: 3,      // Six = 6 runs + 3 bonus
-        half_century: 8,
-        century: 16,
-        duck: -2,
+        boundary: 1, // Four = 4 runs + 1 bonus = 5
+        six: 2,      // Six = 6 runs + 2 bonus = 8
+        half_century: 0,
+        century: 0,
+        duck: 0,
         wicket: 25,
-        lbw_bowled: 8,
-        three_wickets: 4,
-        four_wickets: 8,
-        five_wickets: 16,
-        maiden: 12,
+        lbw_bowled: 0,
+        three_wickets: 0,
+        four_wickets: 0,
+        five_wickets: 0,
+        maiden: 0,
         catch: 8,
-        stump: 12,
-        runout: 6
+        stump: 0,
+        runout: 0
     },
     'ODI': {
-        // Placeholder for ODI rules
         run: 1,
         boundary: 1,
         six: 2,
-        half_century: 4, // ODI usually has lower bonus
-        century: 8,
-        duck: -3,
+        half_century: 0,
+        century: 0,
+        duck: 0,
         wicket: 25,
-        lbw_bowled: 8,
-        four_wickets: 4,
-        five_wickets: 8,
-        maiden: 4,
+        lbw_bowled: 0,
+        four_wickets: 0,
+        five_wickets: 0,
+        maiden: 0,
         catch: 8,
-        stump: 12,
-        runout: 6
+        stump: 0,
+        runout: 0
     },
     'TEST': {
-        // Placeholder for TEST rules
         run: 1,
         boundary: 1,
         six: 2,
-        half_century: 4,
-        century: 8,
-        duck: -4,
-        wicket: 16,
-        lbw_bowled: 8,
-        four_wickets: 4,
-        five_wickets: 8,
-        maiden: 0, // No points for maiden in test usually
+        half_century: 0,
+        century: 0,
+        duck: 0,
+        wicket: 25,
+        lbw_bowled: 0,
+        four_wickets: 0,
+        five_wickets: 0,
+        maiden: 0,
         catch: 8,
-        stump: 12,
-        runout: 6
+        stump: 0,
+        runout: 0
     }
 };
 
-export function calculateFantasyPoints(stats, format = 'T20') {
+export function calculateStatsMetrics(stats, format = 'T20') {
     let points = 0;
     let breakdown = {};
 
@@ -190,7 +188,7 @@ function isPrioritySeries(seriesName) {
  * - Strict Time Window: start_time <= now <= start_time + 8 hours
  * - Strict Whitelist: Only Major Leagues
  */
-export async function syncMatchPointsToD1(matchId, env) {
+export async function syncMatchMetricsToD1(matchId, env) {
     const API_LOCK_ACTIVE = true;
     if (API_LOCK_ACTIVE) {
         console.log(`[API_LOCK_ACTIVE] Points sync skip: ${matchId}`);
@@ -272,10 +270,10 @@ export async function syncMatchPointsToD1(matchId, env) {
         // Batch Update D1
         const queries = [];
         for (const stats of playerStats) {
-            const fantasy = calculateFantasyPoints(stats, 'T20'); // TODO: Detect format from match info
+            const fantasy = calculateStatsMetrics(stats, 'T20'); // TODO: Detect format from match info
             queries.push(
                 env.DB.prepare(`
-                    INSERT INTO fantasy_points (match_id, player_id, points, breakdown)
+                    INSERT INTO stats_metrics (match_id, player_id, points, breakdown)
                     VALUES (?, ?, ?, ?)
                     ON CONFLICT(match_id, player_id) DO UPDATE SET
                         points = excluded.points,

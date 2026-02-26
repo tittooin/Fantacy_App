@@ -423,10 +423,43 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
   Widget _buildMembersSection() {
     return Consumer(builder: (context, ref, _) {
       final leaderboardAsync = ref.watch(roomLeaderboardProvider(widget.matchId));
-      return leaderboardAsync.when(
-        data: (list) => LeaderboardWidget(leaderboard: list),
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.skyBlue)),
-        error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.inter(color: AppColors.textLight))),
+      return Column(
+        children: [
+          // Mandatory Disclaimer — always visible above rankings
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3CD),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFFCC00), width: 1),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, color: Color(0xFF856404), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '⚠️ Rankings are for informational/discussion purposes only. No rewards are associated.',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: const Color(0xFF856404),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: leaderboardAsync.when(
+              data: (list) => LeaderboardWidget(leaderboard: list),
+              loading: () => const Center(child: CircularProgressIndicator(color: AppColors.skyBlue)),
+              error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.inter(color: AppColors.textLight))),
+            ),
+          ),
+        ],
       );
     });
   }

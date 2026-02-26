@@ -1,14 +1,14 @@
 ﻿/**
- * Cloudflare Worker for Fantasy Cricket App
+ * Cloudflare Worker for Stats & Social Interaction App
 /**
- * Cloudflare Worker for Fantasy Cricket App
+ * Cloudflare Worker for Stats & Social Interaction App
  * Hindi: RapidAPI se data fetch karke Firestore mein save karta hai
  * 
  * CORS issue solve karne ke liye server-side implementation
  */
 
 import { processCricketData, seedUpcomingMatches, warmupMissingUpcomingSquads } from './cricket_engine.js';
-import { calculateFantasyPoints } from './points_engine.js';
+import { calculateStatsMetrics } from './points_engine.js';
 import { processLiveContests } from './contest_engine.js';
 import { createCashfreeOrder } from './payment_service.js';
 import { handleCashfreeWebhook } from './webhook_handler.js';
@@ -16,7 +16,7 @@ import { processLeaderboards } from './leaderboard_engine.js';
 import { processSquads, syncMatchSquad, processRepairQueue, isPrioritySeries } from './squad_engine.js';
 import { processPayoutsForMatch } from './payout_engine.js';
 import { handleVoucherRequest, handleVoucherUserHistory, handleAdminVoucherList, handleAdminApproveVoucher } from './voucher_engine.js';
-import { syncMatchPointsToD1 } from './points_engine.js';
+import { syncMatchMetricsToD1 } from './points_engine.js';
 import { processEconomy } from './economy_engine.js';
 import { executeLoadTest } from './load_test_engine.js';
 import { processPlayerStats } from './player_stats_engine.js'; // NEW
@@ -232,7 +232,7 @@ export default {
             if (path === '/api/test-force-sync') {
                 const mid = url.searchParams.get('matchId');
                 if (!mid) return new Response("Missing matchId", { status: 400 });
-                const count = await syncMatchPointsToD1(mid, env);
+                const count = await syncMatchMetricsToD1(mid, env);
                 return new Response(`Synced ${count} players for ${mid}`, { status: 200 });
             }
             if (path === '/api/test-squad-sync') {
@@ -247,12 +247,14 @@ export default {
             }
 
 
-            if (url.pathname === '/api/leaderboard') return await handleGetLeaderboard(request, env);
+            // POLICY: Global ranking is BLOCKED. Rankings are only for Private Rooms.
+            if (url.pathname === '/api/ranking') return jsonResponse({ success: false, error: 'RANKING_RESTRICTED', message: 'Rankings are only available inside Private Rooms for informational purposes.' }, 403);
 
             // Team API
             if (url.pathname === '/api/teams/save') return await handleSaveTeam(request, env);
             if (url.pathname === '/api/teams/get') return await handleGetTeams(url.searchParams, env);
-            if (url.pathname === '/api/room/leaderboard') return await handleGetRoomLeaderboard(url.searchParams, env);
+            // POLICY: Room ranking is only served for Private Rooms
+            if (url.pathname === '/api/room/ranking') return await handleGetRoomRanking(url.searchParams, env);
 
             // Wallet API (User)
             if (url.pathname === '/api/wallet/balance') {
@@ -274,7 +276,7 @@ export default {
             if (url.pathname === '/api/admin/user/search') return await handleAdminUserSearch(request, env);
             if (url.pathname === '/api/admin/users') return await handleAdminListUsers(request, env);
             // --- ROOT & COMPLIANCE (For Domain Verification) ---
-            if (path === '/' || path === '') return new Response("Fantasy Cricket API - v2.2 (Normalization Fix)", { status: 200 });
+            if (path === '/' || path === '') return new Response("AxevoraLabs Social Interaction API - v3.0", { status: 200 });
             if (path === '/terms' || path === '/terms-and-conditions') return handleStaticPage('terms');
             if (path === '/refund' || path === '/refund-policy' || path === '/cancellation') return handleStaticPage('refund');
             if (path === '/privacy' || path === '/privacy-policy') return handleStaticPage('privacy');
@@ -351,15 +353,14 @@ export default {
 
             // Contest routes moved to section below
 
-            // --- LEADERBOARD ROUTES ---
-            if (path === '/api/leaderboard') {
-                const contestId = url.searchParams.get('contestId');
-                if (!contestId) return jsonResponse({ success: false, error: 'contestId required' }, 400);
-                return handleGetLeaderboard(contestId, env);
+            // --- RANKING ROUTES ---
+            // POLICY: Global /api/ranking is BLOCKED. Rankings are Private Rooms only.
+            if (path === '/api/ranking') {
+                return jsonResponse({ success: false, error: 'RANKING_RESTRICTED', message: 'Rankings are only available inside Private Rooms for informational purposes.' }, 403);
             }
-            if (path === '/api/calc-leaderboard') {
-                await processLeaderboards(env);
-                return jsonResponse({ success: true, message: 'Leaderboard Calc Triggered' });
+            if (path === '/api/calc-ranking') {
+                await processRankings(env);
+                return jsonResponse({ success: true, message: 'Ranking Calc Triggered' });
             }
 
             // --- ADMIN D1 STATS (Zero Firestore) ---
@@ -417,36 +418,36 @@ export default {
             if (path === '/api/admin/voucher/approve') return handleAdminApproveVoucher(request, env);
 
             // --- CONTEST ROUTES (D1-Only) ---
-            if (path === '/api/admin/contests/create') return handleAdminCreateContest(request, env);
-            if (path === '/api/contests' || path === '/api/contests/list') {
+            if (path === '/api/rooms/create') return await handleCreateRoom(request, env);
+            if (path === '/api/rooms' || path === '/api/rooms/list') {
                 const matchId = url.searchParams.get('matchId');
                 if (!matchId) return jsonResponse({ success: false, error: 'matchId required' }, 400);
-                return handleGetContests(matchId, env);
+                return handleGetRooms(matchId, env);
             }
-            if (path === '/api/contests/join' || path === '/api/join-contest') return handleJoinContest(request, env);
-            if (path === '/api/contests/joined') {
+            if (path === '/api/rooms/join' || path === '/api/join-room') return handleJoinRoom(request, env);
+            if (path === '/api/rooms/joined') {
                 const uid = url.searchParams.get('userId');
                 if (!uid) return jsonResponse({ error: 'userId required' }, 400);
-                return handleGetUserContests(uid.trim(), env);
+                return handleGetUserRooms(uid.trim(), env);
             }
-            if (path === '/api/contest') {
-                const contestId = url.searchParams.get('contestId');
-                if (!contestId) return jsonResponse({ success: false, error: 'contestId required' }, 400);
-                return handleGetContestById(contestId, env);
+            if (path === '/api/room') {
+                const roomId = url.searchParams.get('roomId');
+                if (!roomId) return jsonResponse({ success: false, error: 'roomId required' }, 400);
+                return handleGetRoomById(roomId, env);
             }
-            // Fix for Flutter App Mismatch (GET /api/contest/:id)
-            if (path.startsWith('/api/contest/')) {
-                const contestId = path.split('/').pop();
-                return handleGetContestById(contestId, env);
+            // Fix for Flutter App Mismatch (GET /api/room/:id)
+            if (path.startsWith('/api/room/')) {
+                const roomId = path.split('/').pop();
+                return handleGetRoomById(roomId, env);
             }
-            if (path === '/api/user/contests') {
+            if (path === '/api/user/rooms') {
                 const userId = url.searchParams.get('userId');
                 if (!userId) return jsonResponse({ success: false, error: 'userId required' }, 400);
-                return handleGetUserContests(userId, env);
+                return handleGetUserRooms(userId, env);
             }
 
             if (path === '/diag') return handleGlobalDiag(env);
-            if (path === '/fantasy-points') return handleGetFantasyPoints(url.searchParams.get('match_id'), env);
+            if (path === '/stats-metrics') return handleGetStatsMetrics(url.searchParams.get('match_id'), env);
             if (path === '/debug-api' || path === '/api/debug-api') return handleDebugApi(env);
 
             if (path.startsWith('/api/')) {
@@ -455,7 +456,7 @@ export default {
 
             // --- Safety Logging for unknown routes ---
             console.log(`⚠️ Unhandled route: ${path} [${request.method}]`);
-            return new Response("Fantasy Cricket Worker (D1-Core) - Access Denied", { status: 403, headers: corsHeaders });
+            return new Response("AxevoraLabs Social Interaction Worker - Access Denied", { status: 403, headers: corsHeaders });
 
         } catch (e) {
             return new Response(`Worker Error: ${e.message}`, { status: 500, headers: corsHeaders });
@@ -2225,4 +2226,219 @@ async function handleAdminListUsers(request, env) {
     } catch (e) {
         return jsonResponse({ success: false, error: e.message }, 500);
     }
+}
+
+// ============================================================
+// === PRIVATE ROOM HANDLERS (D1-backed) ======================
+// ============================================================
+
+/**
+ * POLICY: Rankings are ONLY served for Private Rooms.
+ * Global rooms and general ranking endpoints are BLOCKED.
+ *
+ * Validates the room is private before serving ranking data.
+ * Attaches the mandatory informational disclaimer.
+ */
+async function handleGetRoomRanking(queryParams, env) {
+    const matchId = queryParams.get('matchId');
+    const roomId = queryParams.get('roomId');
+
+    if (!matchId) return jsonResponse({ success: false, error: 'matchId required' }, 400);
+    if (!roomId) return jsonResponse({ success: false, error: 'roomId required — Rankings are only inside Private Rooms.' }, 400);
+
+    try {
+        // POLICY ENFORCEMENT: Verify this is a Private Room
+        const room = await env.DB.prepare(
+            "SELECT id, room_type, is_private FROM rooms WHERE id = ?"
+        ).bind(roomId).first();
+
+        if (!room) {
+            return jsonResponse({ success: false, error: 'ROOM_NOT_FOUND', message: 'Room not found.' }, 404);
+        }
+
+        const isPrivate = (room.is_private === 1 || room.room_type === 'private');
+
+        if (!isPrivate) {
+            // BLOCKED: Global/public rooms cannot access rankings
+            return jsonResponse({
+                success: false,
+                error: 'RANKING_RESTRICTED',
+                message: 'Rankings are not available for Global Rooms. Rankings are only for Private Rooms and are for informational/discussion purposes only. No rewards are associated.'
+            }, 403);
+        }
+
+        // Delegate to existing leaderboard logic
+        const leaderboardResponse = await handleGetRoomLeaderboard(queryParams, env);
+        const leaderboardData = await leaderboardResponse.json();
+
+        // Attach the mandatory informational disclaimer
+        return jsonResponse({
+            ...leaderboardData,
+            disclaimer: '⚠️ Rankings are for informational/discussion purposes only. No rewards are associated.',
+            roomId: roomId
+        });
+
+    } catch (e) {
+        console.error('handleGetRoomRanking Error:', e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+// --- ROOM CRUD HANDLERS (D1-backed) ---
+
+async function handleCreateRoom(request, env) {
+    if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
+    try {
+        const body = await request.json();
+        const { matchId, creatorId, roomName, roomType, inviteCode, maxMembers } = body;
+
+        if (!matchId || !creatorId || !roomName) {
+            return jsonResponse({ success: false, error: 'matchId, creatorId, and roomName are required' }, 400);
+        }
+
+        const isPrivate = (roomType === 'private') ? 1 : 0;
+        const finalInviteCode = inviteCode || Math.random().toString(36).substring(2, 8).toUpperCase();
+        const roomId = `room_${Date.now()}_${creatorId}`;
+
+        await env.DB.prepare(`
+            INSERT INTO rooms (id, match_id, creator_id, room_name, room_type, is_private, invite_code, max_members, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+            roomId,
+            matchId.toString(),
+            creatorId,
+            roomName,
+            roomType || 'private',
+            isPrivate,
+            finalInviteCode,
+            maxMembers || 10,
+            Date.now()
+        ).run();
+
+        // Auto-join creator
+        await env.DB.prepare(`
+            INSERT OR IGNORE INTO room_members (room_id, user_id, joined_at) VALUES (?, ?, ?)
+        `).bind(roomId, creatorId, Date.now()).run();
+
+        console.log(`✅ Room Created: ${roomId} (${roomType}) for Match ${matchId}`);
+        return jsonResponse({ success: true, roomId, inviteCode: finalInviteCode, message: 'Room created successfully' });
+
+    } catch (e) {
+        console.error('handleCreateRoom Error:', e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+async function handleGetRooms(matchId, env) {
+    try {
+        const { results } = await env.DB.prepare(`
+            SELECT r.*, (SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) as member_count
+            FROM rooms r WHERE r.match_id = ? AND r.is_private = 0
+            ORDER BY r.created_at DESC LIMIT 50
+        `).bind(matchId.toString()).all();
+
+        return jsonResponse({ success: true, rooms: results || [] });
+    } catch (e) {
+        console.error('handleGetRooms Error:', e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+async function handleJoinRoom(request, env) {
+    if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
+    try {
+        const body = await request.json();
+        const { roomId, userId, inviteCode } = body;
+
+        if (!roomId || !userId) return jsonResponse({ success: false, error: 'roomId and userId are required' }, 400);
+
+        const room = await env.DB.prepare("SELECT * FROM rooms WHERE id = ?").bind(roomId).first();
+        if (!room) return jsonResponse({ success: false, error: 'ROOM_NOT_FOUND' }, 404);
+
+        // Validate invite code for private rooms
+        if (room.is_private === 1 && room.invite_code && room.invite_code !== inviteCode) {
+            return jsonResponse({ success: false, error: 'INVALID_INVITE_CODE' }, 403);
+        }
+
+        // Check member limit
+        const memberCount = await env.DB.prepare("SELECT COUNT(*) as c FROM room_members WHERE room_id = ?").bind(roomId).first();
+        if (memberCount && memberCount.c >= (room.max_members || 10)) {
+            return jsonResponse({ success: false, error: 'ROOM_FULL' }, 400);
+        }
+
+        await env.DB.prepare(`
+            INSERT OR IGNORE INTO room_members (room_id, user_id, joined_at) VALUES (?, ?, ?)
+        `).bind(roomId, userId, Date.now()).run();
+
+        return jsonResponse({ success: true, message: 'Joined room successfully', roomId });
+
+    } catch (e) {
+        console.error('handleJoinRoom Error:', e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+async function handleGetRoomById(roomId, env) {
+    try {
+        if (!roomId) return jsonResponse({ success: false, error: 'roomId required' }, 400);
+
+        const room = await env.DB.prepare(`
+            SELECT r.*, (SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) as member_count
+            FROM rooms r WHERE r.id = ?
+        `).bind(roomId).first();
+
+        if (!room) return jsonResponse({ success: false, error: 'ROOM_NOT_FOUND' }, 404);
+
+        return jsonResponse({ success: true, room });
+    } catch (e) {
+        console.error('handleGetRoomById Error:', e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+async function handleGetUserRooms(userId, env) {
+    try {
+        if (!userId) return jsonResponse({ success: false, error: 'userId required' }, 400);
+
+        const { results } = await env.DB.prepare(`
+            SELECT r.*, rm.joined_at as member_since,
+                   (SELECT COUNT(*) FROM room_members rm2 WHERE rm2.room_id = r.id) as member_count
+            FROM rooms r
+            JOIN room_members rm ON r.id = rm.room_id
+            WHERE rm.user_id = ?
+            ORDER BY rm.joined_at DESC
+        `).bind(userId).all();
+
+        return jsonResponse({ success: true, rooms: results || [] });
+    } catch (e) {
+        console.error('handleGetUserRooms Error:', e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+// NOTE: handleGetRanking stub intentionally removed.
+// The /api/ranking route is blocked directly at the router level (HTTP 403 RANKING_RESTRICTED).
+// No function definition needed — see lines 251 and 359.
+
+
+/**
+ * Fetch stats metrics for a match (for Internal/Admin use)
+ */
+async function handleGetStatsMetrics(matchId, env) {
+    if (!matchId) return jsonResponse({ success: false, error: 'match_id required' }, 400);
+    try {
+        const { results } = await env.DB.prepare(
+            'SELECT * FROM stats_metrics WHERE match_id = ?'
+        ).bind(matchId).all();
+        return jsonResponse({ success: true, metrics: results });
+    } catch (e) {
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+/**
+ * Alias for handleGetTransactions
+ */
+async function handleGetTransactionHistory(userId, env) {
+    return handleGetTransactions(userId, env);
 }

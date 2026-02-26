@@ -14,7 +14,7 @@ import 'package:axevora11/features/admin/presentation/admin_players_screen.dart'
 import 'package:axevora11/features/admin/presentation/admin_manage_squad_screen.dart'; // Added
 import 'package:axevora11/features/admin/presentation/admin_voucher_screen.dart'; // Added
 import 'package:axevora11/features/admin/presentation/admin_payout_leaderboard_screen.dart'; // Added
-import 'package:axevora11/features/legal/presentation/contact_us_screen.dart';
+import 'package:axevora11/features/legal/presentation/legal_pages.dart';
 import 'package:axevora11/features/legal/presentation/faq_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/presentation/match_import_screen.dart';
@@ -179,15 +179,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/refund-policy',
-        builder: (context, state) => const RefundPolicyScreen(),
+        builder: (context, state) => const TermsConditionsScreen(),
       ),
       GoRoute(
         path: '/fair-play-points',
-        builder: (context, state) => const FairPlayScreen(),
+        builder: (context, state) => const CommunityGuidelinesScreen(),
       ),
       GoRoute(
         path: '/responsible-play',
-        builder: (context, state) => const ResponsiblePlayScreen(),
+        builder: (context, state) => const CommunityGuidelinesScreen(),
       ),
       GoRoute(
         path: '/faq',
