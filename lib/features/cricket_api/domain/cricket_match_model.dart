@@ -105,7 +105,9 @@ class CricketMatchModel {
       seriesId: _getInt(map, ['seriesId', 'series_id']) ?? 0,
       team1Id: _getInt(map, ['team1Id', 'team_a_id', 'team_1_id']) ?? 0,
       team2Id: _getInt(map, ['team2Id', 'team_b_id', 'team_2_id']) ?? 0,
-      score: map['score'] as Map<String, dynamic>?,
+      score: map['score'] is Map<String, dynamic> 
+          ? map['score'] as Map<String, dynamic> 
+          : (map['score'] != null ? {'displayScore': map['score'].toString()} : null),
       isArchived: map['isArchived'] as bool? ?? false,
     );
   }

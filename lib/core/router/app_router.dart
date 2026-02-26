@@ -241,15 +241,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/match/:matchId',
         builder: (context, state) {
           final matchId = state.pathParameters['matchId']!;
-          
           CricketMatchModel? match;
           final extra = state.extra;
           if (extra is CricketMatchModel) {
             match = extra;
-          } else if (extra is Map<String, dynamic>) {
-            match = CricketMatchModel.fromMap(extra);
+          } else if (extra is Map) {
+            match = CricketMatchModel.fromMap(Map<String, dynamic>.from(extra));
           }
-          
           return MatchDetailScreen(matchId: matchId, match: match);
         },
       ),
@@ -259,8 +257,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final matchId = state.pathParameters['matchId']!;
           final extra = state.extra;
           Map<String, dynamic>? matchData;
-          if (extra is Map<String, dynamic>) {
-            matchData = extra;
+          if (extra is Map) {
+            matchData = Map<String, dynamic>.from(extra);
           } else if (extra is CricketMatchModel) {
             matchData = extra.toJson();
           }
@@ -273,11 +271,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final matchId = state.pathParameters['matchId']!;
           final extra = state.extra;
           Map<String, dynamic>? extras;
-          if (extra is Map<String, dynamic>) {
-            extras = extra;
+          if (extra is Map) {
+            extras = Map<String, dynamic>.from(extra);
           }
           final matchData = extras?['matchData'] as Map<String, dynamic>?;
-          final isHost = extras?['isHost'] as bool? ?? false;
+          final isHost = extras?['isHost'] is bool ? extras!['isHost'] as bool : false;
           return PrivateRoomScreen(
             matchId: matchId,
             matchData: matchData,
@@ -289,25 +287,31 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/contest/:contestId',
         builder: (context, state) {
           final contestId = state.pathParameters['contestId']!;
-          final extras = state.extra as Map<String, dynamic>?; // Nullable Map
+          final extra = state.extra;
+          Map<String, dynamic>? extras;
+          if (extra is Map) {
+            extras = Map<String, dynamic>.from(extra);
+          }
 
-          // Safely parse CricketCricketContestModel
+          // Safely parse CricketContestModel
           CricketContestModel? contest;
           if (extras != null && extras['contest'] != null) {
-             if (extras['contest'] is CricketContestModel) {
-                contest = extras['contest'] as CricketContestModel;
-             } else if (extras['contest'] is Map<String, dynamic>) {
-                contest = CricketContestModel.fromJson(extras['contest'] as Map<String, dynamic>);
-             }
+              final contestData = extras['contest'];
+              if (contestData is CricketContestModel) {
+                contest = contestData;
+              } else if (contestData is Map) {
+                contest = CricketContestModel.fromJson(Map<String, dynamic>.from(contestData));
+              }
           }
 
           // Safely parse CricketMatchModel
           CricketMatchModel? match;
           if (extras != null && extras['match'] != null) {
-              if (extras['match'] is CricketMatchModel) {
-                 match = extras['match'] as CricketMatchModel;
-              } else if (extras['match'] is Map<String, dynamic>) {
-                 match = CricketMatchModel.fromMap(extras['match'] as Map<String, dynamic>);
+              final matchData = extras['match'];
+              if (matchData is CricketMatchModel) {
+                 match = matchData;
+              } else if (matchData is Map) {
+                 match = CricketMatchModel.fromMap(Map<String, dynamic>.from(matchData));
               }
           }
           
@@ -320,9 +324,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/match/:matchId/create-team',
         builder: (context, state) {
-          // Check if extra is Model or Map
           final extra = state.extra;
-          CricketMatchModel match;
+          CricketMatchModel? match;
           List<PlayerModel>? initialPlayers;
           String? existingTeamId;
           String? existingTeamName;
@@ -330,13 +333,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           if (extra is CricketMatchModel) {
              match = extra;
           } else if (extra is Map) {
-             debugPrint("Router Debug: Extra is Map. Keys: ${extra.keys}");
-             match = extra['match'] as CricketMatchModel;
+             final matchData = extra['match'];
+             if (matchData is CricketMatchModel) {
+               match = matchData;
+             } else if (matchData is Map) {
+               match = CricketMatchModel.fromMap(Map<String, dynamic>.from(matchData));
+             }
              initialPlayers = extra['initialPlayers'] as List<PlayerModel>?;
-             existingTeamId = extra['existingTeamId'] as String?;
-             existingTeamName = extra['existingTeamName'] as String?;
-             debugPrint("Router Debug: existingTeamId extracted: $existingTeamId");
-          } else {
+             existingTeamId = extra['existingTeamId']?.toString();
+             existingTeamName = extra['existingTeamName']?.toString();
+          }
+
+          if (match == null) {
              throw Exception("Match object required for TeamBuilder");
           }
 
@@ -359,9 +367,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 team2Name: extras['team2Name'] as String,
                 isEditMode: extras['isEditMode'] as bool? ?? false,
                 matchId: state.pathParameters['matchId'],
-                match: extras['match'] as CricketMatchModel?,
-                existingTeamId: extras['existingTeamId'] as String?,
-                existingTeamName: extras['existingTeamName'] as String?,
+                match: (extras['match'] is CricketMatchModel) 
+                    ? extras['match'] as CricketMatchModel 
+                    : (extras['match'] is Map ? CricketMatchModel.fromMap(Map<String, dynamic>.from(extras['match'] as Map)) : null),
+                existingTeamId: extras['existingTeamId']?.toString(),
+                existingTeamName: extras['existingTeamName']?.toString(),
               );
             },
           ),
@@ -392,8 +402,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final extra = state.extra;
           if (extra is CricketMatchModel) {
             match = extra;
-          } else if (extra is Map<String, dynamic>) {
-            match = CricketMatchModel.fromMap(extra);
+          } else if (extra is Map) {
+            match = CricketMatchModel.fromMap(Map<String, dynamic>.from(extra));
           }
           return CreatePrivateContestScreen(match: match ?? CricketMatchModel.fromMap({'id': int.tryParse(matchId) ?? 0}));
         },
@@ -406,8 +416,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final extra = state.extra;
           if (extra is CricketMatchModel) {
             match = extra;
-          } else if (extra is Map<String, dynamic>) {
-            match = CricketMatchModel.fromMap(extra);
+          } else if (extra is Map) {
+            match = CricketMatchModel.fromMap(Map<String, dynamic>.from(extra));
           }
           return RoomSelectionScreen(match: match ?? CricketMatchModel.fromMap({'id': int.tryParse(matchId) ?? 0}));
         },
@@ -462,7 +472,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/admin/matches/:matchId/contests',
             builder: (context, state) {
                final matchId = state.pathParameters['matchId']!;
-               final match = state.extra as CricketMatchModel?;
+               final extra = state.extra;
+               CricketMatchModel? match;
+               if (extra is CricketMatchModel) {
+                 match = extra;
+               } else if (extra is Map) {
+                 match = CricketMatchModel.fromMap(Map<String, dynamic>.from(extra));
+               }
                return AdminMatchContestsScreen(matchId: matchId, match: match);
             },
           ),
@@ -483,18 +499,33 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/admin/matches/:matchId/players',
             builder: (context, state) {
                final matchId = state.pathParameters['matchId']!;
-               final match = state.extra as CricketMatchModel?;
+               final extra = state.extra;
+               CricketMatchModel? match;
+               if (extra is CricketMatchModel) {
+                 match = extra;
+               } else if (extra is Map) {
+                 match = CricketMatchModel.fromMap(Map<String, dynamic>.from(extra));
+               }
                // We try to use the ID from path if match object is null (deep link case handling placeholder)
-               return AdminPlayersScreen(match: match ?? CricketMatchModel.empty()); 
-               // Note: If match is null, this uses ID 0, which won't load players. 
-               // Ideally AdminPlayersScreen should accept matchId or we fetch match here.
+               return AdminPlayersScreen(match: match ?? CricketMatchModel.fromMap({'id': int.tryParse(matchId) ?? 0})); 
             },
           ),
           GoRoute(
             path: '/admin/matches/:matchId/manage-squad',
             builder: (context, state) {
                final matchId = state.pathParameters['matchId']!;
-               final match = state.extra as CricketMatchModel;
+               final extra = state.extra;
+               CricketMatchModel? match;
+               if (extra is CricketMatchModel) {
+                 match = extra;
+               } else if (extra is Map) {
+                 match = CricketMatchModel.fromMap(Map<String, dynamic>.from(extra));
+               }
+
+               if (match == null) {
+                  return const Center(child: Text("Error: No Match Selected."));
+               }
+
                return AdminManageSquadScreen(
                  matchId: matchId, 
                  team1ShortName: match.team1ShortName, 
