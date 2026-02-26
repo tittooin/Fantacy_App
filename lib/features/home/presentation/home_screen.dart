@@ -71,7 +71,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 32),
 
                   // 4. Today's Live Events (Categories)
-                  _buildSectionHeader("Today's Live Events", onSeeAll: () {}),
+                  _buildSectionHeader(
+                    "Today's Live Events", 
+                    onSeeAll: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Full Match Schedule and Live Calendar access is coming soon!"), behavior: SnackBarBehavior.floating)
+                      );
+                    },
+                  ),
                   _buildEventsList(allMatches),
 
                   const SizedBox(height: 32),
@@ -164,7 +171,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark),
-              onPressed: () {},
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Stay tuned! 🔔 Personalized alerts and real-time updates are coming soon in the next major release."),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppColors.skyBlue,
+                  )
+                );
+              },
             ),
             Positioned(
               right: 8,
@@ -179,11 +194,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         Padding(
           padding: const EdgeInsets.only(right: 16, left: 8),
-          child: CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.glassWhite,
-            backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-            child: photoUrl == null ? const Icon(Icons.person, size: 20, color: AppColors.textLight) : null,
+          child: GestureDetector(
+            onTap: () {
+              final uid = ref.read(authUserIdProvider);
+              if (uid != null) context.push('/profile/$uid');
+            },
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.glassWhite,
+              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+              child: photoUrl == null ? const Icon(Icons.person, size: 20, color: AppColors.textLight) : null,
+            ),
           ),
         ),
       ],
@@ -506,9 +527,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildFeaturedMatchCard(Map<String, dynamic> match) {
-    final teamA = match['team1ShortName'] ?? 'IND';
-    final teamB = match['team2ShortName'] ?? 'PAK';
-    final score = match['score'] ?? '178/6 (18.2)';
+    final teamA = match['team1ShortName'] ?? 'TBA';
+    final teamB = match['team2ShortName'] ?? 'TBA';
+    final score = match['score'] ?? '';
+    final flagA = match['teamAImg'] ?? '';
+    final flagB = match['teamBImg'] ?? '';
     final isLive = match['status'] == 'Live' || match['status'] == 'In Progress';
 
     return Container(
@@ -567,16 +590,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildFeaturedTeam(teamA, "https://flagsapi.com/IN/flat/64.png"),
+                        _buildFeaturedTeam(teamA, flagA),
                         Text("vs", style: GoogleFonts.oswald(color: Colors.white54, fontSize: 24, fontWeight: FontWeight.bold)),
-                        _buildFeaturedTeam(teamB, "https://flagsapi.com/PK/flat/64.png"),
+                        _buildFeaturedTeam(teamB, flagB),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      score,
-                      style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
+                    if (score.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        score,
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ],
                 ),
                 SizedBox(
@@ -616,12 +641,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildFeaturedTeam(String name, String flagUrl) {
     return Column(
       children: [
-        CachedNetworkImage(
-          imageUrl: flagUrl,
-          width: 48,
-          height: 32,
-          placeholder: (context, url) => const SizedBox(width: 48, height: 32),
-        ),
+        if (flagUrl.isNotEmpty)
+          CachedNetworkImage(
+            imageUrl: flagUrl,
+            width: 48,
+            height: 32,
+            placeholder: (context, url) => const SizedBox(width: 48, height: 32),
+            errorWidget: (context, url, error) => const Icon(Icons.sports_cricket_rounded, color: Colors.white, size: 24),
+          )
+        else
+          const Icon(Icons.sports_cricket_rounded, color: Colors.white, size: 24),
         const SizedBox(height: 4),
         Text(name, style: GoogleFonts.oswald(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
       ],
@@ -707,7 +736,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final team2 = match['team2ShortName'] ?? match['teamB'] ?? 'TBA';
           final status = match['status'] ?? 'Upcoming';
           final isLive = status == 'Live' || status == 'In Progress';
-          final series = match['seriesName'] ?? match['series_name'] ?? 'Cricket';
+          final series = match['seriesName'] ?? 'Cricket';
+          final flagA = match['teamAImg'] ?? '';
+          final flagB = match['teamBImg'] ?? '';
 
           return GestureDetector(
             onTap: () {
@@ -733,13 +764,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ? AppColors.accentRed.withOpacity(0.08)
                           : AppColors.glassWhite,
                       child: Center(
-                        child: Icon(
-                          Icons.sports_cricket_rounded,
-                          size: 40,
-                          color: isLive
-                              ? AppColors.accentRed.withOpacity(0.6)
-                              : AppColors.skyBlue.withOpacity(0.5),
-                        ),
+                        child: flagA.isNotEmpty && flagB.isNotEmpty
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CachedNetworkImage(
+                                    imageUrl: flagA,
+                                    width: 40,
+                                    height: 25,
+                                    errorWidget: (context, url, _) => const Icon(Icons.sports_cricket_rounded, color: AppColors.skyBlue, size: 30),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text("vs", style: GoogleFonts.oswald(fontSize: 12, color: AppColors.textLight)),
+                                  const SizedBox(width: 8),
+                                  CachedNetworkImage(
+                                    imageUrl: flagB,
+                                    width: 40,
+                                    height: 25,
+                                    errorWidget: (context, url, _) => const Icon(Icons.sports_cricket_rounded, color: AppColors.skyBlue, size: 30),
+                                  ),
+                                ],
+                              )
+                            : Icon(
+                                Icons.sports_cricket_rounded,
+                                size: 40,
+                                color: isLive ? AppColors.accentRed.withOpacity(0.6) : AppColors.skyBlue.withOpacity(0.5),
+                              ),
                       ),
                     ),
                   ),
@@ -809,9 +859,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Active Social Lounges', onSeeAll: () => context.go('/my-matches')),
+        _buildSectionHeader(
+          "Active Social Lounges",
+          onSeeAll: () {
+            // Already in shell, /my-matches is the list view
+            context.go('/my-matches');
+          },
+        ),
         StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('user_rooms')

@@ -26,8 +26,21 @@ class UserMainLayout extends ConsumerWidget {
         context.go('/my-matches');
         break;
       case 2:
-        // Point to a default live room or global chat
-        context.go('/home'); // Or a specific global route
+        final allMatches = ref.read(matchListProvider).value ?? [];
+        Map<String, dynamic>? liveMatch;
+        try {
+          liveMatch = allMatches.firstWhere(
+            (m) => m['status'] == 'Live' || m['status'] == 'In Progress',
+          );
+        } catch (_) {
+          liveMatch = allMatches.isNotEmpty ? allMatches.first : null;
+        }
+
+        if (liveMatch != null && liveMatch['id'] != null) {
+          context.push('/room/${liveMatch['id']}', extra: liveMatch);
+        } else {
+          context.go('/home');
+        }
         break;
       case 3:
         final uid = ref.read(authUserIdProvider);

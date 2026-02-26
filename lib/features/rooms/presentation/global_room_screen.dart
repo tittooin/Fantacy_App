@@ -11,6 +11,8 @@ import 'package:axevora11/features/rooms/presentation/widgets/scorecard_widget.d
 import 'package:axevora11/features/rooms/presentation/widgets/commentary_widget.dart';
 import 'package:axevora11/features/cricket_api/data/providers/scorecard_provider.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:flutter/foundation.dart' as foundation;
 
 class GlobalRoomScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -32,6 +34,7 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
   final FocusNode _inputFocusNode = FocusNode();
   bool _isRecording = false;
   bool _isVoiceChatEnabled = false;
+  bool _showEmojiPicker = false;
 
   String get _chatPath => 'global_rooms/${widget.matchId}/messages';
 
@@ -102,16 +105,42 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
     final userAsync = ref.watch(userEntityProvider);
     final isLoggedIn = userAsync.value != null;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          _buildEventSummaryCard(),
-          Expanded(child: _buildChatFeed()),
-          _buildPrivacyDisclaimer(),
-          _buildMessageInputBar(isLoggedIn: isLoggedIn),
-        ],
+    return PopScope(
+      onPopInvoked: (_) => setState(() => _showEmojiPicker = false),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: _buildAppBar(),
+        body: Column(
+          children: [
+            _buildEventSummaryCard(),
+            Expanded(child: _buildChatFeed()),
+            _buildPrivacyDisclaimer(),
+            _buildMessageInputBar(isLoggedIn: isLoggedIn),
+            if (_showEmojiPicker)
+              SizedBox(
+                height: 250,
+                child: EmojiPicker(
+                  onEmojiSelected: (category, emoji) {
+                    _textController.text = _textController.text + emoji.emoji;
+                  },
+                  config: Config(
+                    height: 256,
+                    checkPlatformCompatibility: true,
+                    emojiViewConfig: EmojiViewConfig(
+                      backgroundColor: Colors.white,
+                      columns: 7,
+                      emojiSizeMax: 32 * (foundation.defaultTargetPlatform == TargetPlatform.iOS ? 1.30 : 1.0),
+                    ),
+                    categoryViewConfig: const CategoryViewConfig(
+                      backgroundColor: Colors.white,
+                      indicatorColor: AppColors.skyBlue,
+                      iconColorSelected: AppColors.skyBlue,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -121,6 +150,10 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
     return AppBar(
       elevation: 0,
       backgroundColor: Colors.white,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textDark, size: 20),
+        onPressed: () => context.pop(),
+      ),
       title: Column(
         children: [
           Row(
@@ -144,18 +177,31 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
       centerTitle: true,
       actions: [
         IconButton(
+          icon: const Icon(Icons.home_rounded, color: AppColors.skyBlue),
+          onPressed: () => context.go('/home'),
+        ),
+        IconButton(
           icon: const Icon(Icons.share_rounded, color: AppColors.skyBlue),
           onPressed: () => ShareUtils.shareMatchRoom(context: context, matchId: widget.matchId, matchTitle: widget.matchData?['title'] ?? 'Live Match'),
         ),
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: CircleAvatar(
-            radius: 14,
-            backgroundColor: AppColors.glassWhite,
-            backgroundImage: (user?.photoUrl != null && user!.photoUrl!.isNotEmpty) ? NetworkImage(user.photoUrl!) : null,
-            child: (user?.photoUrl == null || user!.photoUrl!.isEmpty) ? const Icon(Icons.person, size: 16, color: AppColors.skyBlue) : null,
+        if (user != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: () => context.push('/profile/${user.uid}'),
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: AppColors.glassWhite,
+                backgroundImage: (user.photoUrl != null && user.photoUrl!.isNotEmpty) ? NetworkImage(user.photoUrl!) : null,
+                child: (user.photoUrl == null || user.photoUrl!.isEmpty) ? const Icon(Icons.person, size: 16, color: AppColors.skyBlue) : null,
+              ),
+            ),
+          )
+        else
+          IconButton(
+            icon: const Icon(Icons.login_rounded, color: AppColors.skyBlue),
+            onPressed: () => context.push('/login'),
           ),
-        ),
       ],
     );
   }
@@ -431,7 +477,17 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
           Row(
             children: [
               if (isLoggedIn)
-                IconButton(icon: const Icon(Icons.emoji_emotions_outlined, color: AppColors.skyBlue), onPressed: () {}),
+                IconButton(
+                  icon: Icon(_showEmojiPicker ? Icons.keyboard_rounded : Icons.emoji_emotions_outlined, color: AppColors.skyBlue),
+                  onPressed: () {
+                    setState(() => _showEmojiPicker = !_showEmojiPicker);
+                    if (_showEmojiPicker) {
+                      FocusScope.of(context).unfocus();
+                    } else {
+                      _inputFocusNode.requestFocus();
+                    }
+                  },
+                ),
               Expanded(
                 child: isLoggedIn
                     ? Container(
@@ -482,7 +538,21 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
               if (isLoggedIn) ...[
                 GestureDetector(
                   onLongPressStart: (_) => setState(() => _isRecording = true),
-                  onLongPressEnd: (_) => setState(() => _isRecording = false),
+                  onLongPressEnd: (_) async {
+                    setState(() => _isRecording = false);
+                    final user = ref.read(userEntityProvider).value;
+                    if (user != null) {
+                      // Send Mock Voice Note for interaction feedback
+                      await FirebaseFirestore.instance.collection(_chatPath).add({
+                        'uid': user.uid,
+                        'senderName': user.displayName ?? 'Member',
+                        'photoUrl': user.photoUrl ?? '',
+                        'message': 'Voice Note (Live)',
+                        'timestamp': FieldValue.serverTimestamp(),
+                        'isVoice': true,
+                      });
+                    }
+                  },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.all(12),
