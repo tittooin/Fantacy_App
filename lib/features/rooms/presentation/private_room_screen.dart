@@ -20,12 +20,14 @@ class PrivateRoomScreen extends ConsumerStatefulWidget {
   final String matchId;
   final Map<String, dynamic>? matchData;
   final bool isHost;
+  final int entryFee;
 
   const PrivateRoomScreen({
     super.key,
     required this.matchId,
     this.matchData,
     this.isHost = false,
+    this.entryFee = 0,
   });
 
   @override
@@ -338,27 +340,48 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
     final score = widget.matchData?['score'] as String? ?? '';
     return Container(
       margin: const EdgeInsets.all(16),
-      height: 110,
+      height: 120, // Increased slightly
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(colors: [Color(0xFF0EB0E2), Color(0xFF0887AC)], begin: Alignment.topLeft, end: Alignment.bottomRight),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(color: AppColors.accentRed, borderRadius: BorderRadius.circular(20)),
-            child: Text('● LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 8),
-          Text(title, style: GoogleFonts.oswald(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-          if (score.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(score, style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          children: [
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: AppColors.accentRed, borderRadius: BorderRadius.circular(20)),
+                child: Text('● LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+              _buildStatItem("ENTRY", "${widget.entryFee} AXE", Icons.monetization_on_rounded),
+            ]),
+            const SizedBox(height: 8),
+            Text(title, style: GoogleFonts.oswald(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+            if (score.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(score, style: GoogleFonts.inter(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+            ],
           ],
-        ]),
+        ),
       ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.amber, size: 14),
+            const SizedBox(width: 4),
+            Text(value, style: GoogleFonts.oswald(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        Text(label, style: GoogleFonts.inter(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 

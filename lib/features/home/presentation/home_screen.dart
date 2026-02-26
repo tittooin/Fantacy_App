@@ -70,9 +70,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   const SizedBox(height: 32),
 
-                  // 4. Today's Live Events (Categories)
+                  // 4. Upcoming Matches Section
                   _buildSectionHeader(
-                    "Today's Live Events", 
+                    "Upcoming Matches", 
                     onSeeAll: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("Full Match Schedule and Live Calendar access is coming soon!"), behavior: SnackBarBehavior.floating)
@@ -718,19 +718,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildEventsList(List<Map<String, dynamic>> allMatches) {
-    // Use real matches, cap at 6. Fallback to 1 placeholder if empty.
-    final displayMatches = allMatches.isNotEmpty
-        ? allMatches.take(6).toList()
-        : [];
+    // Filter to prioritize Live and Upcoming, exclude Completed
+    final displayMatches = allMatches.where((m) {
+      final status = (m['status'] ?? '').toString().toLowerCase();
+      // Keep only matches that are NOT completed
+      return status != 'completed' && status != 'finished';
+    }).toList();
+
+    // Sort: Live first, then by start time
+    displayMatches.sort((a, b) {
+      final aStatus = (a['status'] ?? '').toString().toLowerCase();
+      final bStatus = (b['status'] ?? '').toString().toLowerCase();
+      final aIsLive = aStatus == 'live' || aStatus == 'in progress';
+      final bIsLive = bStatus == 'live' || bStatus == 'in progress';
+      
+      if (aIsLive && !bIsLive) return -1;
+      if (!aIsLive && bIsLive) return 1;
+      
+      final aStart = int.tryParse(a['startDate']?.toString() ?? '0') ?? 0;
+      final bStart = int.tryParse(b['startDate']?.toString() ?? '0') ?? 0;
+      return aStart.compareTo(bStart);
+    });
+
+    final finalMatches = displayMatches.take(10).toList();
 
     return SizedBox(
       height: 180,
       child: ListView.builder(
         padding: const EdgeInsets.only(left: 20),
         scrollDirection: Axis.horizontal,
-        itemCount: displayMatches.length,
+        itemCount: finalMatches.length,
         itemBuilder: (context, index) {
-          final match = displayMatches[index];
+          final match = finalMatches[index];
           final matchId = match['id']?.toString() ?? 'demo_$index';
           final team1 = match['team1ShortName'] ?? match['teamA'] ?? 'TBA';
           final team2 = match['team2ShortName'] ?? match['teamB'] ?? 'TBA';

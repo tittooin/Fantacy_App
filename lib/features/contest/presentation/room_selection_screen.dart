@@ -55,10 +55,7 @@ class RoomSelectionScreen extends ConsumerWidget {
               color: AppColors.skyBlue,
               icon: Icons.lock_person_rounded,
               onTap: () {
-                context.push('/private-room/${match.id}', extra: {
-                  'matchData': match.toJson(),
-                  'isHost': true,
-                });
+                _showEntryFeeDialog(context);
               },
             ),
             
@@ -172,6 +169,52 @@ class RoomSelectionScreen extends ConsumerWidget {
             Icon(Icons.chevron_right_rounded, color: AppColors.textLight.withOpacity(0.5)),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showEntryFeeDialog(BuildContext context) {
+    final controller = TextEditingController(text: "10");
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text("Set Entry Fee", style: GoogleFonts.oswald(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Enter Axe Coins required to join this lounge:", style: GoogleFonts.inter(fontSize: 14)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.monetization_on, color: Colors.amber),
+                hintText: "e.g. 50",
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text("Min: 0 (Free), Max: 500", style: GoogleFonts.inter(fontSize: 12, color: AppColors.textLight)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text("Cancel", style: GoogleFonts.inter())),
+          ElevatedButton(
+            onPressed: () {
+              final fee = int.tryParse(controller.text) ?? 10;
+              Navigator.pop(ctx);
+              context.push('/private-room/${match.id}', extra: {
+                'matchData': match.toJson(),
+                'isHost': true,
+                'entryFee': fee,
+              });
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.skyBlue, foregroundColor: Colors.white),
+            child: Text("Start Lounge", style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

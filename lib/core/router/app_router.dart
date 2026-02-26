@@ -277,10 +277,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           }
           final matchData = extras?['matchData'] as Map<String, dynamic>?;
           final isHost = extras?['isHost'] is bool ? extras!['isHost'] as bool : false;
+          final entryFee = extras?['entryFee'] is int ? extras!['entryFee'] as int : 0;
           return PrivateRoomScreen(
             matchId: matchId,
             matchData: matchData,
             isHost: isHost,
+            entryFee: entryFee,
           );
         },
       ),
