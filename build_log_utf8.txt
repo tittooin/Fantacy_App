@@ -1,0 +1,51 @@
+Running Gradle task 'assembleRelease'...                        
+flutter : 
+lib/features/home/presentation/user_main_layout.dart:29:37: 
+Error: The getter 'matchListProvider' isn't defined for the type 
+'UserMainLayout'.
+At line:1 char:1
++ flutter build apk --release > build_log.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (lib/features/ho...se 
+   rMainLayout'.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ - 'UserMainLayout' is from 'package:axevora11/features/home/prese
+ntation/user_main_layout.dart' 
+('lib/features/home/presentation/user_main_layout.dart').
+Try correcting the name to the name of an existing getter, or 
+defining a getter or field named 'matchListProvider'.
+        final allMatches = ref.read(matchListProvider).value ?? 
+[];
+                                    ^^^^^^^^^^^^^^^^^
+lib/features/rooms/presentation/global_room_screen.dart:126:33: 
+Error: 'Config' is imported from both 
+'package:emoji_picker_flutter/src/config.dart' and 
+'package:google_fonts/src/google_fonts_all_parts.dart'.
+                  config: const Config(
+                                ^^^^^^
+lib/features/rooms/presentation/private_room_screen.dart:192:35: 
+Error: 'Config' is imported from both 
+'package:emoji_picker_flutter/src/config.dart' and 
+'package:google_fonts/src/google_fonts_all_parts.dart'.
+                    config: const Config(
+                                  ^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildRelease'.
+> Process 'command 'C:\Users\tittoo\flutter\bin\flutter.bat'' 
+finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 24s
+Running Gradle task 'assembleRelease'...                           24.4s
+Gradle task assembleRelease failed with exit code 1
