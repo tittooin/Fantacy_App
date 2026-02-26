@@ -27,7 +27,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: _buildAppBar(userAsync.value?.photoUrl),
-      drawer: const Drawer(), // Placeholder for hamburger menu
+      drawer: _buildDrawer(context, userAsync.value),
       body: matchesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text("Error: $err")),
@@ -174,6 +174,285 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// ── HAMBURGER DRAWER ──────────────────────────────────────────────────────
+  Widget _buildDrawer(BuildContext context, dynamic user) {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: SafeArea(
+        child: Column(
+          children: [
+            // ─── Profile Header ──────────────────────────────────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0EB0E2), Color(0xFF0887AC)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundImage: (user?.photoUrl != null)
+                        ? NetworkImage(user!.photoUrl!)
+                        : null,
+                    child: (user?.photoUrl == null)
+                        ? const Icon(Icons.person, color: Colors.white, size: 28)
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    user?.name ?? 'Social Member',
+                    style: GoogleFonts.oswald(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    user?.email ?? '',
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+
+                    // ─── Browse Categories ──────────────────────────────────
+                    _drawerSectionHeader("Browse Categories"),
+                    _drawerItem(
+                      icon: Icons.sports_cricket_rounded,
+                      label: "Cricket",
+                      badge: "LIVE",
+                      badgeColor: AppColors.accentRed,
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/home');
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.sports_soccer_rounded,
+                      label: "Football",
+                      badge: "Soon",
+                      badgeColor: Colors.grey,
+                      onTap: () => Navigator.pop(context),
+                    ),
+                    _drawerItem(
+                      icon: Icons.sports_basketball_rounded,
+                      label: "Basketball",
+                      badge: "Soon",
+                      badgeColor: Colors.grey,
+                      onTap: () => Navigator.pop(context),
+                    ),
+                    _drawerItem(
+                      icon: Icons.videogame_asset_rounded,
+                      label: "Gaming",
+                      badge: "Soon",
+                      badgeColor: Colors.grey,
+                      onTap: () => Navigator.pop(context),
+                    ),
+                    _drawerItem(
+                      icon: Icons.music_note_rounded,
+                      label: "Music & Events",
+                      badge: "Soon",
+                      badgeColor: Colors.grey,
+                      onTap: () => Navigator.pop(context),
+                    ),
+
+                    const Divider(height: 24, indent: 20, endIndent: 20),
+
+                    // ─── My Social Activity ────────────────────────────────
+                    _drawerSectionHeader("My Rooms"),
+                    _drawerItem(
+                      icon: Icons.forum_rounded,
+                      label: "My Joined Lounges",
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/my-matches');
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.public_rounded,
+                      label: "Global Discussion",
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+
+                    const Divider(height: 24, indent: 20, endIndent: 20),
+
+                    // ─── Account & Profile ─────────────────────────────────
+                    _drawerSectionHeader("Account"),
+                    _drawerItem(
+                      icon: Icons.person_outline_rounded,
+                      label: "My Profile",
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (user?.uid != null) {
+                          context.push('/profile/${user!.uid}');
+                        }
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.download_rounded,
+                      label: "Download Android APK",
+                      onTap: () {
+                        Navigator.pop(context);
+                        // APK download link
+                      },
+                    ),
+
+                    const Divider(height: 24, indent: 20, endIndent: 20),
+
+                    // ─── Legal & Info ──────────────────────────────────────
+                    _drawerSectionHeader("Legal & Info"),
+                    _drawerItem(
+                      icon: Icons.shield_outlined,
+                      label: "Privacy Policy",
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/privacy-policy');
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.description_outlined,
+                      label: "Terms & Conditions",
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/terms-and-conditions');
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.groups_outlined,
+                      label: "Community Guidelines",
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/social-safety');
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.help_outline_rounded,
+                      label: "FAQ",
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/faq');
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.mail_outline_rounded,
+                      label: "Contact Us",
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/contact');
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+
+            // ─── Footer disclaimer ────────────────────────────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: AppColors.lightBlueBackground,
+                border: Border(top: BorderSide(color: AppColors.skyBlue.withOpacity(0.15))),
+              ),
+              child: Text(
+                "Social interaction only.\nNo betting or cash rewards.",
+                style: GoogleFonts.inter(
+                  color: AppColors.textLight,
+                  fontSize: 11,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: Text(
+        title.toUpperCase(),
+        style: GoogleFonts.inter(
+          color: AppColors.textLight,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerItem({
+    required IconData icon,
+    required String label,
+    String? badge,
+    Color? badgeColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.skyBlue, size: 22),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: AppColors.textDark,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (badge != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (badgeColor ?? AppColors.skyBlue).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  badge,
+                  style: GoogleFonts.inter(
+                    color: badgeColor ?? AppColors.skyBlue,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

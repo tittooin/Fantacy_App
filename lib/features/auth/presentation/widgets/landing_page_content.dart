@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 
 class LandingPageContent extends StatelessWidget {
   const LandingPageContent({super.key});
@@ -9,33 +11,26 @@ class LandingPageContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.offWhite,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppColors.offWhite,
-            AppColors.lightBlueBackground,
-          ],
+          colors: [AppColors.offWhite, AppColors.lightBlueBackground],
         ),
       ),
       child: Stack(
         children: [
-          // Subtle Modern Background Pattern
           Positioned.fill(
             child: Opacity(
               opacity: 0.05,
-              child: CustomPaint(
-                painter: _SocialPatternPainter(),
-              ),
+              child: CustomPaint(painter: _SocialPatternPainter()),
             ),
           ),
-          Padding(
+          SingleChildScrollView(
             padding: const EdgeInsets.all(48),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Headline
                 Text(
                   "WATCH.\nTALK.\nCONNECT.",
                   style: GoogleFonts.oswald(
@@ -57,7 +52,7 @@ class LandingPageContent extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 48),
-                
+
                 // Feature Cards Grid
                 Wrap(
                   spacing: 24,
@@ -69,9 +64,125 @@ class LandingPageContent extends StatelessWidget {
                     _buildFeatureCard(Icons.bolt_outlined, "Real-Time\nEvent Updates"),
                   ],
                 ),
-                
-                const Spacer(),
-                
+
+                const SizedBox(height: 40),
+
+                // ── APK DOWNLOAD SECTION ──
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 32),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header row
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.skyBlue.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.android_rounded, color: AppColors.skyBlue, size: 28),
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Available on Android",
+                                style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                              ),
+                              Text(
+                                "Download the App",
+                                style: GoogleFonts.oswald(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        "Get the full social experience — join live rooms, chat in real-time, and connect with fans.",
+                        style: GoogleFonts.inter(color: Colors.white60, fontSize: 14, height: 1.5),
+                      ),
+                      const SizedBox(height: 24),
+                      // Download button + version
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              launchUrl(
+                                Uri.parse("https://axevoralabs.com/downloads/axevoralabs.apk"),
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                            icon: const Icon(Icons.download_rounded, size: 20),
+                            label: Text(
+                              "Download APK",
+                              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.skyBlue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withOpacity(0.15)),
+                            ),
+                            child: Text(
+                              "v1.0 • Free",
+                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Privacy links as chips
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildLinkChip(context, "Privacy Policy", "/privacy-policy"),
+                          _buildLinkChip(context, "Terms & Conditions", "/terms-and-conditions"),
+                          _buildLinkChip(context, "Community Guidelines", "/social-safety"),
+                          _buildLinkChip(context, "Contact Us", "/contact"),
+                          _buildLinkChip(context, "FAQ", "/faq"),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
                 // Mission Statement
                 Container(
                   padding: const EdgeInsets.all(24),
@@ -96,10 +207,31 @@ class LandingPageContent extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                const SizedBox(height: 24),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLinkChip(BuildContext context, String label, String route) {
+    return InkWell(
+      onTap: () => context.push(route),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withOpacity(0.12)),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
+        ),
       ),
     );
   }
@@ -132,7 +264,7 @@ class LandingPageContent extends StatelessWidget {
               fontSize: 16,
               height: 1.2,
             ),
-          )
+          ),
         ],
       ),
     );
