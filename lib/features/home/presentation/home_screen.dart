@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
@@ -210,7 +211,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    user?.name ?? 'Social Member',
+                    user?.displayName ?? 'Social Member',
                     style: GoogleFonts.oswald(
                       color: Colors.white,
                       fontSize: 18,
@@ -311,9 +312,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     _drawerItem(
                       icon: Icons.public_rounded,
-                      label: "Global Discussion",
+                      label: "Global Discussion (Cricket)",
                       onTap: () {
                         Navigator.pop(context);
+                        // Navigate to global room of first live match
+                        final matches = ref.read(matchListProvider).value;
+                        final liveMatch = matches?.firstWhere(
+                          (m) => m['status'] == 'Live' || m['status'] == 'In Progress',
+                          orElse: () => matches?.isNotEmpty == true ? matches!.first : {},
+                        );
+                        if (liveMatch != null && liveMatch['id'] != null) {
+                          context.push('/room/${liveMatch['id']}', extra: liveMatch);
+                        }
                       },
                     ),
 
@@ -336,7 +346,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       label: "Download Android APK",
                       onTap: () {
                         Navigator.pop(context);
-                        // APK download link
+                        launchUrl(
+                          Uri.parse("https://axevoralabs.com/downloads/axevoralabs.apk"),
+                          mode: LaunchMode.externalApplication,
+                        );
                       },
                     ),
 
@@ -660,24 +673,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildEventsList(List<Map<String, dynamic>> matches) {
+  Widget _buildEventsList(List<Map<String, dynamic>> allMatches) {
+    // Use real matches, cap at 6. Fallback to 1 placeholder if empty.
+    final displayMatches = allMatches.isNotEmpty
+        ? allMatches.take(6).toList()
+        : [<String, dynamic>{'id': 'demo_1', 'team1ShortName': 'IND', 'team2ShortName': 'PAK', 'status': 'Live', 'seriesName': 'Cricket'}];
+
     return SizedBox(
       height: 180,
       child: ListView.builder(
         padding: const EdgeInsets.only(left: 20),
         scrollDirection: Axis.horizontal,
-        itemCount: 4, // 4 Example categories
+        itemCount: displayMatches.length,
         itemBuilder: (context, index) {
-          final categories = ["Cricket", "Football", "Gaming", "Music"];
-          final titles = ["IND vs PAK", "MUN vs CHE", "BGMI Finals", "Live Concert"];
-          final icons = [Icons.sports_cricket, Icons.sports_soccer, Icons.videogame_asset, Icons.music_note];
-          final status = [ "• LIVE", "UPCOMING", "UPCOMING", "COMING SOON"];
-          final statusColor = [AppColors.accentRed, AppColors.skyBlue, AppColors.skyBlue, AppColors.textLight];
+          final match = displayMatches[index];
+          final matchId = match['id']?.toString() ?? 'demo_$index';
+          final team1 = match['team1ShortName'] ?? match['teamA'] ?? 'TBA';
+          final team2 = match['team2ShortName'] ?? match['teamB'] ?? 'TBA';
+          final status = match['status'] ?? 'Upcoming';
+          final isLive = status == 'Live' || status == 'In Progress';
+          final series = match['seriesName'] ?? match['series_name'] ?? 'Cricket';
 
           return GestureDetector(
             onTap: () {
-              // Using a placeholder ID since these are mock categories for now
-              context.push('/match/match_${index + 1}/create-room');
+              context.push('/match/$matchId/create-room', extra: match);
             },
             child: Container(
               width: 160,
@@ -695,8 +714,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Container(
                       height: 80,
                       width: double.infinity,
-                      color: AppColors.glassWhite,
-                      child: Icon(icons[index], size: 40, color: AppColors.skyBlue.withOpacity(0.5)),
+                      color: isLive
+                          ? AppColors.accentRed.withOpacity(0.08)
+                          : AppColors.glassWhite,
+                      child: Center(
+                        child: Icon(
+                          Icons.sports_cricket_rounded,
+                          size: 40,
+                          color: isLive
+                              ? AppColors.accentRed.withOpacity(0.6)
+                              : AppColors.skyBlue.withOpacity(0.5),
+                        ),
+                      ),
                     ),
                   ),
                   Padding(
@@ -704,14 +733,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildBadge(status[index], statusColor[index]),
+                        _buildBadge(
+                          isLive ? '• LIVE' : status.toUpperCase(),
+                          isLive ? AppColors.accentRed : AppColors.skyBlue,
+                        ),
                         const SizedBox(height: 8),
                         Text(
-                          categories[index],
+                          series,
                           style: GoogleFonts.inter(fontSize: 10, color: AppColors.textLight, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          titles[index],
+                          '$team1 vs $team2',
                           style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark, fontWeight: FontWeight.w800),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
