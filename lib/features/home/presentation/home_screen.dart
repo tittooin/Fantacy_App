@@ -250,10 +250,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: Colors.white.withOpacity(0.2),
-                    backgroundImage: (user?.photoUrl != null)
-                        ? NetworkImage(user!.photoUrl!)
+                    backgroundImage: (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
+                        ? NetworkImage(user.photoUrl!)
                         : null,
-                    child: (user?.photoUrl == null)
+                    child: (user?.photoUrl == null || user!.photoUrl!.isEmpty)
                         ? const Icon(Icons.person, color: Colors.white, size: 28)
                         : null,
                   ),
@@ -388,7 +388,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onTap: () {
                         Navigator.pop(context);
                         if (user?.uid != null) {
-                          context.push('/profile/${user!.uid}');
+                          context.push('/profile/${user.uid}');
                         }
                       },
                     ),

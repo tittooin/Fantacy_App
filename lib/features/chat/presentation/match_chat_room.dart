@@ -25,7 +25,7 @@ class _MatchChatRoomState extends ConsumerState<MatchChatRoom> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
-    super.initState();
+    super.dispose();
   }
 
   void _sendMessage() {
@@ -158,7 +158,7 @@ class _MatchChatRoomState extends ConsumerState<MatchChatRoom> {
                   ? CachedNetworkImageProvider(message.senderPhoto) 
                   : null,
               child: message.senderPhoto.isEmpty 
-                  ? Text(message.senderName[0], style: const TextStyle(fontSize: 12)) 
+                  ? Text(message.senderName.isNotEmpty ? message.senderName[0].toUpperCase() : '?', style: const TextStyle(fontSize: 12)) 
                   : null,
             ),
           const SizedBox(width: 8),
@@ -219,7 +219,7 @@ class _MatchChatRoomState extends ConsumerState<MatchChatRoom> {
                   ? CachedNetworkImageProvider(message.senderPhoto) 
                   : null,
               child: message.senderPhoto.isEmpty 
-                  ? Text(message.senderName[0], style: const TextStyle(fontSize: 12)) 
+                  ? Text(message.senderName.isNotEmpty ? message.senderName[0].toUpperCase() : '?', style: const TextStyle(fontSize: 12)) 
                   : null,
             ),
         ],
