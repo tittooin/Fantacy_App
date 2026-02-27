@@ -21,7 +21,7 @@ class ScorecardWidget extends StatelessWidget {
         children: [
           _buildMatchSummary(summary, status),
           const SizedBox(height: 20),
-          if (innings.isNotEmpty) ...innings.map((inning) => _buildInningSection(inning)).toList(),
+          if (innings.isNotEmpty) ...innings.where((inning) => inning != null).map((inning) => _buildInningSection(inning)).toList(),
           if (innings.isEmpty)
             Center(
               child: Padding(

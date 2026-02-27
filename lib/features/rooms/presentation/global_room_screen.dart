@@ -387,7 +387,7 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
               radius: 16,
               backgroundColor: AppColors.glassWhite,
               backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-              child: photoUrl.isEmpty ? Text(senderName[0].toUpperCase()) : null,
+              child: photoUrl.isEmpty ? Text(senderName.isNotEmpty ? senderName[0].toUpperCase() : '?') : null,
             ),
           if (!isMe) const SizedBox(width: 8),
           Flexible(

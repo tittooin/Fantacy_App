@@ -139,14 +139,26 @@ function isInternationalTeamName(teamName) {
 function shouldServeCuratedMatch(matchRow) {
     if (!matchRow || typeof matchRow !== 'object') return false;
 
+    // RULE: If it's a priority series or major league, always show.
     const seriesName = matchRow.series_name || matchRow.seriesName || matchRow.title || '';
     if (isPrioritySeries(seriesName) || isMajorLeagueSeries(seriesName)) {
         return true;
     }
 
+    // RULE: If international teams, always show.
     const teamA = matchRow.team_a || matchRow.teamA || '';
     const teamB = matchRow.team_b || matchRow.teamB || '';
-    return isInternationalTeamName(teamA) && isInternationalTeamName(teamB);
+    if (isInternationalTeamName(teamA) && isInternationalTeamName(teamB)) {
+        return true;
+    }
+
+    // RELAXED RULE: If we have real team names (not dummy/TBA), show it for now
+    // to satisfy user request for "Real Data" visibility.
+    if (teamA && teamB && teamA !== 'TBA' && teamB !== 'TBA' && teamA !== 'T1' && teamB !== 'T2') {
+        return true;
+    }
+
+    return false;
 }
 
 function isTeamRuleRegressionSafe({ validatedPids, contestInsertPids, rosterMap, teamACount, teamBCount }) {

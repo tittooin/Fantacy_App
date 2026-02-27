@@ -24,7 +24,7 @@ class MatchListNotifier extends StateNotifier<AsyncValue<List<Map<String, dynami
       final workerMatches = await _client.getMatches();
 
       // Normalize Worker Matches (Handle snake_case from D1)
-      final allMatches = workerMatches.map((m) {
+      final allMatches = workerMatches.where((m) => m != null).map((m) {
         return {
           ...m,
           'id': m['id']?.toString() ?? '',

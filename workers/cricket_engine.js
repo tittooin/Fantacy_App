@@ -104,10 +104,11 @@ export async function seedUpcomingMatches(env) {
     `).bind(nowMs, windowEndMs).first();
 
     const upcomingCount = Number(countRow?.upcoming_count || 0);
-    if (upcomingCount >= 5) {
+    if (upcomingCount >= 15) {
         console.log(`[UPCOMING_SEED_SKIP] ${upcomingCount} matches already available in next 48h.`);
         return;
     }
+
 
     const lastEmptyCheckedAt = await readSysConfigTimestamp(env, UPCOMING_EMPTY_CHECK_KEY);
     if (lastEmptyCheckedAt > 0 && (nowMs - lastEmptyCheckedAt) < UPCOMING_EMPTY_CHECK_COOLDOWN_MS) {
@@ -157,27 +158,27 @@ export async function seedUpcomingMatches(env) {
 
         if (!existing) {
             await env.DB.prepare(`
-                INSERT INTO matches (
-                    id,
-                    series_id,
-                    series_name,
-                    title,
-                    short_title,
-                    status,
-                    start_time,
-                    team_a,
-                    team_b,
-                    team_a_img,
-                    team_b_img,
-                    team_a_id,
-                    team_b_id,
-                    last_updated,
-                    last_score,
-                    last_wickets,
-                    last_over,
-                    last_innings
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).bind(
+                INSERT INTO matches(
+            id,
+            series_id,
+            series_name,
+            title,
+            short_title,
+            status,
+            start_time,
+            team_a,
+            team_b,
+            team_a_img,
+            team_b_img,
+            team_a_id,
+            team_b_id,
+            last_updated,
+            last_score,
+            last_wickets,
+            last_over,
+            last_innings
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
                 matchId,
                 match.seriesId || '0',
                 match.seriesName || '',
@@ -213,9 +214,9 @@ export async function seedUpcomingMatches(env) {
         await env.DB.prepare(`
             UPDATE matches
             SET start_time = ?, last_updated = ?
-            WHERE id = ?
+        WHERE id = ?
             AND status = 'Upcoming'
-        `).bind(startTime, startTime, matchId).run();
+                `).bind(startTime, startTime, matchId).run();
         updated += 1;
     }
 
@@ -234,7 +235,7 @@ export async function seedUpcomingMatches(env) {
         stableUntil: upcomingStableUntil
     }));
 
-    console.log(`[UPCOMING_SEED_DONE] inserted=${inserted}, updated=${updated}, scanned=${incomingMatches.length}`);
+    console.log(`[UPCOMING_SEED_DONE] inserted = ${inserted}, updated = ${updated}, scanned = ${incomingMatches.length}`);
 }
 
 export async function warmupMissingUpcomingSquads(env) {
@@ -254,7 +255,7 @@ export async function warmupMissingUpcomingSquads(env) {
         AND sc.key IS NULL
         ORDER BY CAST(m.start_time AS INTEGER) ASC
         LIMIT 2
-    `).bind(nowMs).all();
+        `).bind(nowMs).all();
 
     const matches = eligibleRows.results || [];
     if (matches.length === 0) {
@@ -272,7 +273,7 @@ export async function warmupMissingUpcomingSquads(env) {
         const matchId = String(row?.id || '').trim();
         if (!matchId) continue;
 
-        const markerKey = `squad_warmup_done:${matchId}`;
+        const markerKey = `squad_warmup_done: ${matchId}`;
         const claimAt = Date.now();
 
         const claim = await env.DB.prepare(
@@ -323,7 +324,7 @@ export async function warmupMissingUpcomingSquads(env) {
         ).run();
     }
 
-    console.log(`[SQUAD_WARMUP_DONE] attempted=${attempted}, success=${success}, failed=${failed}, scanned=${matches.length}`);
+    console.log(`[SQUAD_WARMUP_DONE] attempted = ${attempted}, success = ${success}, failed = ${failed}, scanned = ${matches.length}`);
 }
 
 
@@ -354,7 +355,7 @@ async function verifySchema(env) {
             console.log(`[SCHEMA_OK] leaderboards.total_points column exist karta hai.`);
         } catch (e) {
             // Non-critical: sirf log karo, crash nahi karna
-            console.log(`[SCHEMA_SKIP] leaderboards check fail (non-critical): ${e.message}`);
+            console.log(`[SCHEMA_SKIP] leaderboards check fail(non - critical): ${e.message}`);
         }
 
         console.log("[SCHEMA_OK] Schema verify complete.");
@@ -404,7 +405,7 @@ async function syncMatchToD1(match, env) {
     if (failTime) {
         const elapsed = Date.now() - failTime;
         if (elapsed < 30 * 60 * 1000) { // 30 minute block
-            console.log(`[DB_WRITE_FAIL_GUARD ${match.id}] DB write fail ke baad 30 min block chal raha hai (${Math.floor(elapsed / 60000)}m elapsed). Skip.`);
+            console.log(`[DB_WRITE_FAIL_GUARD ${match.id}]DB write fail ke baad 30 min block chal raha hai(${Math.floor(elapsed / 60000)}m elapsed).Skip.`);
             return;
         } else {
             DB_WRITE_FAIL_BLOCK.delete(match.id); // Block expire, reset karo
@@ -422,23 +423,26 @@ async function syncMatchToD1(match, env) {
             await env.DB.prepare(`
                 UPDATE matches SET 
                 title = ?,
-                short_title = ?,
-                series_id = ?,
-                series_name = ?,
-                start_time = ?,
-                status = ?,
-                team_a_img = ?,
-                team_b_img = ?,
-                team_a_id = ?,
-                team_b_id = ?,
-                last_updated = ?,
-                last_score = ?,
-                last_wickets = ?,
-                last_over = ?,
-                last_innings = ?
-                WHERE id = ?
-            `).bind(
+        short_title = ?,
+        series_id = ?,
+        series_name = ?,
+        start_time = ?,
+        status = ?,
+        team_a = ?,
+        team_b = ?,
+        team_a_img = ?,
+        team_b_img = ?,
+        team_a_id = ?,
+        team_b_id = ?,
+        last_updated = ?,
+        last_score = ?,
+        last_wickets = ?,
+        last_over = ?,
+        last_innings = ?
+            WHERE id = ?
+                `).bind(
                 match.title, match.shortTitle, match.seriesId, match.seriesName || '', match.startTime, match.status,
+                match.teamA, match.teamB,
                 match.teamAImg, match.teamBImg, match.team1Id, match.team2Id, now,
                 match.lastScore || null, match.lastWickets || 0, match.lastOver || null, match.lastInnings || 1,
                 match.id
@@ -446,8 +450,8 @@ async function syncMatchToD1(match, env) {
 
         } else {
             await env.DB.prepare(`
-            INSERT INTO matches (id, series_id, series_name, title, short_title, status, start_time, team_a, team_b, team_a_img, team_b_img, team_a_id, team_b_id, last_updated, last_score, last_wickets, last_over, last_innings)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO matches(id, series_id, series_name, title, short_title, status, start_time, team_a, team_b, team_a_img, team_b_img, team_a_id, team_b_id, last_updated, last_score, last_wickets, last_over, last_innings)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
                 match.id, match.seriesId, match.seriesName || '', match.title, match.shortTitle, match.status, match.startTime,
                 match.teamA, match.teamB, match.teamAImg, match.teamBImg, match.team1Id, match.team2Id, now,
@@ -455,7 +459,7 @@ async function syncMatchToD1(match, env) {
             ).run();
             // Trigger Squad Fetch for New Match
             if (match.status === 'Upcoming' || match.status === 'Live') {
-                const squadCheck = await env.DB.prepare(`SELECT match_id FROM match_squads WHERE match_id = ?`).bind(match.id).first();
+                const squadCheck = await env.DB.prepare(`SELECT match_id FROM match_squads WHERE match_id = ? `).bind(match.id).first();
                 if (!squadCheck) {
                     console.log(`🆕 Naya match mila: ${match.id}, squad check queue mein...`);
                     const { syncMatchSquad } = await import('./squad_engine.js');
@@ -471,7 +475,7 @@ async function syncMatchToD1(match, env) {
     } catch (e) {
         // DB write fail guard activate karo
         DB_WRITE_FAIL_BLOCK.set(match.id, Date.now());
-        console.error(`[DB_WRITE_FAIL_GUARD ${match.id}] DB write fail hua. 30 min ke liye polling block. Error: ${e.message}`);
+        console.error(`[DB_WRITE_FAIL_GUARD ${match.id}]DB write fail hua. 30 min ke liye polling block.Error: ${e.message}`);
     }
 }
 
@@ -532,7 +536,7 @@ function buildUpcomingSnapshotHash(matches) {
         .map((m) => {
             const matchId = String(m?.id ?? '').trim();
             const startTime = normalizeSnapshotInt(m?.startTime ?? m?.start_time);
-            return `${matchId}|${startTime}`;
+            return `${matchId} | ${startTime}`;
         })
         .filter(Boolean)
         .sort();
@@ -545,7 +549,7 @@ function buildLiveSnapshotHash(matches) {
             const matchId = String(m?.id ?? '').trim();
             const status = String(m?.status ?? '').trim();
             const lastUpdated = normalizeSnapshotInt(m?.lastUpdated ?? m?.last_updated);
-            return `${matchId}|${status}|${lastUpdated}`;
+            return `${matchId} | ${status} | ${lastUpdated}`;
         })
         .filter(Boolean)
         .sort();
@@ -633,14 +637,14 @@ async function restoreTerminalStatusesFromNonTerminalApi(env, liveApiMatches, no
         await env.DB.prepare(`
             UPDATE matches
             SET status = ?, last_updated = ?
-            WHERE id = ?
-            AND status IN ('Completed', 'Finished', 'Abandoned')
+        WHERE id = ?
+            AND status IN('Completed', 'Finished', 'Abandoned')
         `).bind(restoredStatus, nowMs, matchId).run();
     }
 }
 
 function buildPredictiveCheckedKey(matchId) {
-    return `predictive_checked:${String(matchId)}`;
+    return `predictive_checked: ${String(matchId)}`;
 }
 
 function normalizeSnapshotValue(value) {
@@ -676,7 +680,7 @@ function isPredictiveStateUnchanged(dbMatch, apiMatch) {
 }
 
 function buildStaleLiveKey(matchId) {
-    return `stale_live:${String(matchId)}`;
+    return `stale_live: ${String(matchId)}`;
 }
 
 async function readStaleLiveTracker(env, key) {
@@ -714,7 +718,7 @@ async function selfHealStaleUpcomingMatches(env, nowMs) {
         AND CAST(start_time AS INTEGER) > 0
         AND CAST(start_time AS INTEGER) < ?
         AND CAST(start_time AS INTEGER) >= ?
-    `).bind(nowMs, nowMs, nowMs - SIX_HOURS).run();
+        `).bind(nowMs, nowMs, nowMs - SIX_HOURS).run();
 
     // Very old upcoming matches are considered completed for UI self-heal.
     await env.DB.prepare(`
@@ -724,7 +728,7 @@ async function selfHealStaleUpcomingMatches(env, nowMs) {
         AND start_time IS NOT NULL
         AND CAST(start_time AS INTEGER) > 0
         AND CAST(start_time AS INTEGER) < ?
-    `).bind(nowMs, nowMs - SIX_HOURS).run();
+        `).bind(nowMs, nowMs - SIX_HOURS).run();
 }
 
 async function reconcileStaleLiveMatches(env, liveApiMatches, nowMs) {
@@ -734,8 +738,8 @@ async function reconcileStaleLiveMatches(env, liveApiMatches, nowMs) {
     const dbLive = await env.DB.prepare(`
         SELECT id, status, start_time, last_updated
         FROM matches
-        WHERE status IN ('Live', 'In Progress', 'Innings Break')
-    `).all();
+        WHERE status IN('Live', 'In Progress', 'Innings Break')
+        `).all();
 
     const dbLiveMatches = dbLive.results || [];
     if (dbLiveMatches.length === 0) return;
@@ -748,7 +752,7 @@ async function reconcileStaleLiveMatches(env, liveApiMatches, nowMs) {
         const stateClass = await readMatchStateClass(env, matchId);
 
         if (stateClass === 'NON_TERMINAL') {
-            console.log(`[RECONCILE_BLOCKED_NON_TERMINAL] matchId=${matchId}`);
+            console.log(`[RECONCILE_BLOCKED_NON_TERMINAL] matchId = ${matchId}`);
             await clearStaleLiveTracker(env, trackerKey);
             continue;
         }
@@ -766,8 +770,8 @@ async function reconcileStaleLiveMatches(env, liveApiMatches, nowMs) {
         await env.DB.prepare(`
             UPDATE matches
             SET status = ?, last_updated = ?
-            WHERE id = ?
-            AND status IN ('Live', 'In Progress', 'Innings Break')
+        WHERE id = ?
+            AND status IN('Live', 'In Progress', 'Innings Break')
         `).bind(terminalStatus, nowMs, match.id).run();
 
         await clearStaleLiveTracker(env, trackerKey);

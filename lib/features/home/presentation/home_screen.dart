@@ -20,6 +20,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedRoomTypeIndex = 0; // 0 for Global, 1 for Private
+  int _selectedMatchTab = 0; // 0 for Live, 1 for Upcoming
 
   @override
   Widget build(BuildContext context) {
@@ -70,15 +71,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   const SizedBox(height: 32),
 
-                  // 4. Upcoming Matches Section
-                  _buildSectionHeader(
-                    "Upcoming Matches", 
-                    onSeeAll: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Full Match Schedule and Live Calendar access is coming soon!"), behavior: SnackBarBehavior.floating)
-                      );
-                    },
+                  // 4. Match Tabs (Live | Upcoming)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        _buildMatchTabItem("LIVE / IN-PROGRESS", 0),
+                        const SizedBox(width: 16),
+                        _buildMatchTabItem("UPCOMING", 1),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Schedule access is coming soon!"), behavior: SnackBarBehavior.floating)
+                            );
+                          },
+                          child: Text("See All", style: GoogleFonts.inter(color: AppColors.skyBlue, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
                   ),
+
+                  const SizedBox(height: 16),
+
                   _buildEventsList(allMatches),
 
                   const SizedBox(height: 32),
@@ -717,30 +732,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _buildMatchTabItem(String label, int index) {
+    final isSelected = _selectedMatchTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedMatchTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.skyBlue.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? AppColors.skyBlue : Colors.transparent),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.oswald(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+            color: isSelected ? AppColors.skyBlue : AppColors.textLight,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEventsList(List<Map<String, dynamic>> allMatches) {
-    // Filter to prioritize Live and Upcoming, exclude Completed
+    // Filter based on selected tab
     final displayMatches = allMatches.where((m) {
       final status = (m['status'] ?? '').toString().toLowerCase();
-      // Keep only matches that are NOT completed
-      return status != 'completed' && status != 'finished';
+      final isLive = status == 'live' || status == 'in progress';
+      
+      if (_selectedMatchTab == 0) {
+        return isLive;
+      } else {
+        return status == 'upcoming' || (!isLive && status != 'completed' && status != 'finished');
+      }
     }).toList();
 
-    // Sort: Live first, then by start time
+    // Sort: Soonest first
     displayMatches.sort((a, b) {
-      final aStatus = (a['status'] ?? '').toString().toLowerCase();
-      final bStatus = (b['status'] ?? '').toString().toLowerCase();
-      final aIsLive = aStatus == 'live' || aStatus == 'in progress';
-      final bIsLive = bStatus == 'live' || bStatus == 'in progress';
-      
-      if (aIsLive && !bIsLive) return -1;
-      if (!aIsLive && bIsLive) return 1;
-      
       final aStart = int.tryParse(a['startDate']?.toString() ?? '0') ?? 0;
       final bStart = int.tryParse(b['startDate']?.toString() ?? '0') ?? 0;
       return aStart.compareTo(bStart);
     });
 
-    final finalMatches = displayMatches.take(10).toList();
+    final finalMatches = displayMatches.take(15).toList();
+
+    if (finalMatches.isEmpty) {
+      return Container(
+        height: 180,
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: AppColors.offWhite,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.sports_cricket_outlined, size: 40, color: AppColors.textLight.withOpacity(0.3)),
+              const SizedBox(height: 12),
+              Text(
+                _selectedMatchTab == 0 ? "No matches live currently" : "No upcoming matches found",
+                style: GoogleFonts.inter(color: AppColors.textLight),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return SizedBox(
       height: 180,
@@ -750,12 +810,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         itemCount: finalMatches.length,
         itemBuilder: (context, index) {
           final match = finalMatches[index];
-          final matchId = match['id']?.toString() ?? 'demo_$index';
-          final team1 = match['team1ShortName'] ?? match['teamA'] ?? 'TBA';
-          final team2 = match['team2ShortName'] ?? match['teamB'] ?? 'TBA';
-          final status = match['status'] ?? 'Upcoming';
-          final isLive = status == 'Live' || status == 'In Progress';
-          final series = match['seriesName'] ?? 'Cricket';
+          final matchId = match['id']?.toString() ?? 'match_$index';
+          
+          // Use normalized team names from match_provider (team1ShortName, team2ShortName)
+          final team1 = (match['team1ShortName'] ?? match['teamA'] ?? 'TBA').toString();
+          final team2 = (match['team2ShortName'] ?? match['teamB'] ?? 'TBA').toString();
+          
+          final status = (match['status'] ?? 'Upcoming').toString();
+          final isLive = status.toLowerCase() == 'live' || status.toLowerCase() == 'in progress';
+          final series = (match['seriesName'] ?? 'Cricket Series').toString();
           final flagA = match['teamAImg'] ?? '';
           final flagB = match['teamBImg'] ?? '';
 
@@ -764,12 +827,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               context.push('/match/$matchId/create-room', extra: match);
             },
             child: Container(
-              width: 160,
+              width: 170, // Increased width slightly
               margin: const EdgeInsets.only(right: 16),
               decoration: BoxDecoration(
                 color: AppColors.offWhite,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.glassWhite),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -779,9 +849,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Container(
                       height: 80,
                       width: double.infinity,
-                      color: isLive
-                          ? AppColors.accentRed.withOpacity(0.08)
-                          : AppColors.glassWhite,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isLive 
+                            ? [AppColors.accentRed.withOpacity(0.1), AppColors.accentRed.withOpacity(0.02)]
+                            : [AppColors.skyBlue.withOpacity(0.05), AppColors.skyBlue.withOpacity(0.01)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
                       child: Center(
                         child: flagA.isNotEmpty && flagB.isNotEmpty
                             ? Row(
@@ -789,17 +865,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 children: [
                                   CachedNetworkImage(
                                     imageUrl: flagA,
-                                    width: 40,
-                                    height: 25,
+                                    width: 44,
+                                    height: 28,
                                     errorWidget: (context, url, _) => const Icon(Icons.sports_cricket_rounded, color: AppColors.skyBlue, size: 30),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text("vs", style: GoogleFonts.oswald(fontSize: 12, color: AppColors.textLight)),
+                                  Text("vs", style: GoogleFonts.oswald(fontSize: 12, color: AppColors.textLight, fontWeight: FontWeight.bold)),
                                   const SizedBox(width: 8),
                                   CachedNetworkImage(
                                     imageUrl: flagB,
-                                    width: 40,
-                                    height: 25,
+                                    width: 44,
+                                    height: 28,
                                     errorWidget: (context, url, _) => const Icon(Icons.sports_cricket_rounded, color: AppColors.skyBlue, size: 30),
                                   ),
                                 ],
@@ -817,20 +893,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildBadge(
-                          isLive ? '• LIVE' : status.toUpperCase(),
-                          isLive ? AppColors.accentRed : AppColors.skyBlue,
+                        Row(
+                          children: [
+                            _buildBadge(
+                              isLive ? '• LIVE' : 'UPCOMING',
+                              isLive ? AppColors.accentRed : AppColors.skyBlue,
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          series,
-                          style: GoogleFonts.inter(fontSize: 10, color: AppColors.textLight, fontWeight: FontWeight.bold),
+                          "$team1 vs $team2",
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textDark,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          '$team1 vs $team2',
-                          style: GoogleFonts.inter(fontSize: 14, color: AppColors.textDark, fontWeight: FontWeight.w800),
+                          series,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: AppColors.textLight,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -845,6 +933,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+
 
   Widget _buildPrivateRoomsSection() {
     final user = ref.read(userEntityProvider).value;

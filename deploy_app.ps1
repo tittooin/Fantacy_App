@@ -20,7 +20,7 @@ if ($LASTEXITCODE -eq 0) {
 
     # 1. Build Web
     Write-Host "Building Flutter Web App..." -ForegroundColor Yellow
-    // Use canvaskit for better performance or html for smaller size? Defaulting to auto/canvaskit
+    # Use canvaskit for better performance or html for smaller size? Defaulting to auto/canvaskit
     flutter build web --release 
 
     if ($LASTEXITCODE -eq 0) {
