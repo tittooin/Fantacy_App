@@ -26,7 +26,7 @@ class _RoomCreatorScreenState extends ConsumerState<RoomCreatorScreen> {
   final _benefitsController = TextEditingController();
   final _commissionController = TextEditingController(text: '20'); // %
 
-  String _category = 'Mega Contest';
+  String _category = 'Social Hub';
   bool _isAutoCalculating = true;
   bool _imageLoading = false;
   
@@ -384,7 +384,7 @@ class _RoomCreatorScreenState extends ConsumerState<RoomCreatorScreen> {
                 style: const TextStyle(color: Colors.black),
                 dropdownColor: Colors.white,
                 decoration: _buildInputDecoration('Room Category'),
-                items: ['Mega Contest', 'Head 2 Head', 'Winner Takes All', 'Practice']
+                items: ['Social Hub', 'Head 2 Head', 'Winner Takes All', 'Practice']
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
                 onChanged: (v) => setState(() => _category = v!),
@@ -398,7 +398,7 @@ class _RoomCreatorScreenState extends ConsumerState<RoomCreatorScreen> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _buildPresetChip("Mega Hub", 49, 1000, "Mega Hub", true, false),
+                    _buildPresetChip("Social Hub", 49, 1000, "Social Hub", true, false),
                     const SizedBox(width: 8),
                     _buildPresetChip("Head 2 Head", 575, 2, "Head 2 Head", true, false),
                     const SizedBox(width: 8),

@@ -228,7 +228,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 children: [
                   _buildFilterChip("All", _selectedFilter == "All"),
                   const SizedBox(width: 8),
-                  _buildFilterChip("Mega", _selectedFilter == "Mega"),
+                  _buildFilterChip("Social Hub", _selectedFilter == "Social Hub"),
                   const SizedBox(width: 8),
                   _buildFilterChip("Hot", _selectedFilter == "Hot"),
                   const SizedBox(width: 8),
@@ -255,7 +255,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 if (_selectedFilter != "All") {
                     contests = contests.where((c) {
                         // Loose matching for broader categories
-                        if (_selectedFilter == "Mega") return c.category.contains("Mega");
+                        if (_selectedFilter == "Social Hub") return c.category.contains("Social");
                         if (_selectedFilter == "Hot") return c.category.contains("Hot") || c.totalParticipants > 100;
                         if (_selectedFilter == "Head 2 Head") return c.category.contains("Head") || c.totalParticipants == 2;
                         return c.category == _selectedFilter;

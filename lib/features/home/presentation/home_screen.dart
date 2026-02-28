@@ -45,29 +45,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Featured Live Match Card
-                  if (featuredMatch != null)
-                    _buildFeaturedMatchCard(featuredMatch),
 
-                  const SizedBox(height: 24),
-
-                  // 2. Section Title: Live Matches
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      "Live Matches",
-                      style: GoogleFonts.inter(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textDark,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 3. Room Type Buttons
-                  _buildRoomTypeToggle(),
 
                   const SizedBox(height: 32),
 
@@ -541,177 +519,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildFeaturedMatchCard(Map<String, dynamic> match) {
-    final teamA = match['team1ShortName'] ?? 'TBA';
-    final teamB = match['team2ShortName'] ?? 'TBA';
-    final score = match['score'] ?? '';
-    final flagA = match['teamAImg'] ?? '';
-    final flagB = match['teamBImg'] ?? '';
-    final isLive = match['status'] == 'Live' || match['status'] == 'In Progress';
 
-    return Container(
-      margin: const EdgeInsets.all(20),
-      height: 200,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        image: const DecorationImage(
-          image: CachedNetworkImageProvider("https://img.freepik.com/free-vector/empty-cricket-stadium-background_1284-48419.jpg"),
-          fit: BoxFit.cover,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.skyBlue.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          )
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Glass Overlay
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.1),
-                  Colors.black.withOpacity(0.7),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    if (isLive)
-                      _buildBadge("• LIVE", AppColors.accentRed)
-                    else
-                      _buildBadge("UPCOMING", AppColors.skyBlue),
-                    Text(
-                      "Real-time Lounge",
-                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-                Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildFeaturedTeam(teamA, flagA),
-                        Text("vs", style: GoogleFonts.oswald(color: Colors.white54, fontSize: 24, fontWeight: FontWeight.bold)),
-                        _buildFeaturedTeam(teamB, flagB),
-                      ],
-                    ),
-                    if (score.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        score,
-                        style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ],
-                ),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      context.push('/match/${match['id']}/create-room', extra: match);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentRed,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text("Participate in Hubs", style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
 
-  Widget _buildBadge(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
-      child: Text(
-        text,
-        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
 
-  Widget _buildFeaturedTeam(String name, String flagUrl) {
-    return Column(
-      children: [
-        if (flagUrl.isNotEmpty)
-          CachedNetworkImage(
-            imageUrl: flagUrl,
-            width: 48,
-            height: 32,
-            placeholder: (context, url) => const SizedBox(width: 48, height: 32),
-            errorWidget: (context, url, error) => const Icon(Icons.sports_cricket_rounded, color: Colors.white, size: 24),
-          )
-        else
-          const Icon(Icons.sports_cricket_rounded, color: Colors.white, size: 24),
-        const SizedBox(height: 4),
-        Text(name, style: GoogleFonts.oswald(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildRoomTypeToggle() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          _buildToggleItem(0, "Global Room", null),
-          const SizedBox(width: 12),
-          _buildToggleItem(1, "Private Rooms", Icons.lock_outline_rounded),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleItem(int index, String label, IconData? icon) {
-    final isSelected = _selectedRoomTypeIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedRoomTypeIndex = index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.skyBlue : AppColors.glassWhite,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Row(
-          children: [
-            if (icon != null) ...[Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.textLight), const SizedBox(width: 6)],
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : AppColors.textLight,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildSectionHeader(String title, {required VoidCallback onSeeAll}) {
     return Padding(
@@ -859,32 +669,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       child: Center(
-                        child: flagA.isNotEmpty && flagB.isNotEmpty
-                            ? Row(
+                        child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  CachedNetworkImage(
-                                    imageUrl: flagA,
-                                    width: 44,
-                                    height: 28,
-                                    errorWidget: (context, url, _) => const Icon(Icons.sports_cricket_rounded, color: AppColors.skyBlue, size: 30),
-                                  ),
+                                  Text(team1, style: GoogleFonts.oswald(fontSize: 18, color: AppColors.textDark, fontWeight: FontWeight.bold)),
                                   const SizedBox(width: 8),
                                   Text("vs", style: GoogleFonts.oswald(fontSize: 12, color: AppColors.textLight, fontWeight: FontWeight.bold)),
                                   const SizedBox(width: 8),
-                                  CachedNetworkImage(
-                                    imageUrl: flagB,
-                                    width: 44,
-                                    height: 28,
-                                    errorWidget: (context, url, _) => const Icon(Icons.sports_cricket_rounded, color: AppColors.skyBlue, size: 30),
-                                  ),
+                                  Text(team2, style: GoogleFonts.oswald(fontSize: 18, color: AppColors.textDark, fontWeight: FontWeight.bold)),
                                 ],
-                              )
-                            : Icon(
-                                Icons.sports_cricket_rounded,
-                                size: 40,
-                                color: isLive ? AppColors.accentRed.withOpacity(0.6) : AppColors.skyBlue.withOpacity(0.5),
-                              ),
+                        ),
                       ),
                     ),
                   ),

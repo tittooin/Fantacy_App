@@ -108,7 +108,7 @@ class _ContestCardState extends State<ContestCard> {
                       const SizedBox(width: 4),
                       const Text("Multiple Winners", style: TextStyle(fontSize: 11, color: Colors.grey)),
                       const Spacer(),
-                      if (widget.contest.category.toLowerCase().contains('mega')) 
+                      if (widget.contest.category.toLowerCase().contains('social')) 
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
