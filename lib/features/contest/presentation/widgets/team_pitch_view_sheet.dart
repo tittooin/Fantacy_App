@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/team/domain/team_entity.dart';
 import 'package:axevora11/features/team/presentation/providers/team_provider.dart';
-import 'package:axevora11/features/cricket_api/data/providers/fantasy_points_provider.dart';
+import 'package:axevora11/features/cricket_api/data/providers/interaction_stats_provider.dart';
 
 class TeamPitchViewSheet extends ConsumerWidget {
   final String teamId;
@@ -32,12 +32,12 @@ class TeamPitchViewSheet extends ConsumerWidget {
         players: [],
         captainId: '',
         viceCaptainId: '',
-        totalPoints: totalPoints,
+        totalStats: totalPoints,
       ),
     );
 
     // Fetch player points
-    final pointsAsync = ref.watch(fantasyPointsProvider(matchId));
+    final pointsAsync = ref.watch(interactionStatsProvider(matchId));
 
     return DraggableScrollableSheet(
       initialChildSize: 0.85,

@@ -86,7 +86,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             left: 0,
             right: 0,
             child: Text(
-              "India’s Skill-Based Fantasy Cricket Platform",
+              "AXEVORALABS — A Social Interaction Platform",
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: AppColors.textLight,

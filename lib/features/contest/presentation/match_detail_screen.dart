@@ -7,7 +7,7 @@ import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/data/providers/match_provider.dart'; // Added
 import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
-import 'package:axevora11/core/api/fantasy_api_client.dart';
+import 'package:axevora11/core/api/axevora_api_client.dart';
 import 'package:axevora11/features/team/domain/team_entity.dart';
 import 'package:axevora11/features/team/presentation/providers/team_provider.dart';
 import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
@@ -124,7 +124,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                        color: Colors.black26,
                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
                        child: const Text(
-                         "⚠ Only players in the Playing XI earn fantasy points.",
+                         "⚠ Only players in the Playing XI earn interaction stats.\nTeam rankings are shown for informational/discussion purposes only.",
                          style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
                          textAlign: TextAlign.center,
                        ),
@@ -138,8 +138,8 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                       labelPadding: const EdgeInsets.symmetric(horizontal: 16),
                       tabs: [
                         const Tab(text: "Match Room"),
-                        const Tab(text: "Contests"),
-                        Tab(text: "My Contests (${myContests.length})"),
+                        const Tab(text: "Interaction Hubs"),
+                        Tab(text: "My Participation (${myContests.length})"),
                         Tab(text: "My Teams (${myTeams.length})"),
                         const Tab(text: "Scorecard"),
                       ],
@@ -151,8 +151,8 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
             body: TabBarView(
               children: [
                 MatchChatRoom(matchId: widget.matchId),
-                _buildContestsTab(),
-                _buildMyContestsTab(),
+                _buildRoomsTab(),
+                _buildMyRoomsTab(),
                 _buildMyTeamsTab(myTeams),
                 ScorecardTab(matchId: widget.matchId),
               ],
@@ -182,16 +182,16 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     );
   }
 
-  Future<List<CricketContestModel>> _fetchContests() async {
+  Future<List<CricketRoomModel>> _fetchContests() async {
     try {
       // Convert String matchId to int for Firestore query
       final int matchIdInt = int.parse(widget.matchId);
       debugPrint("🔍 Fetching contests for matchId: $matchIdInt (converted from String '${widget.matchId}')");
       
-      final contestsData = await ref.read(fantasyApiClientProvider).getContests(widget.matchId);
+      final contestsData = await ref.read(axevoraApiClientProvider).getInteractionHubs(widget.matchId);
       
       final contestsList = contestsData
-          .map((json) => CricketContestModel.fromJson(json))
+          .map((json) => CricketRoomModel.fromJson(json))
           .toList();
       
       debugPrint("Found ${contestsList.length} contests from D1");
@@ -207,7 +207,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
 
   // ... (existing code)
 
-  Widget _buildContestsTab() {
+  Widget _buildRoomsTab() {
     final showScore = _effectiveMatch?.status == 'Live' || _effectiveMatch?.status == 'Completed';
     
     return RefreshIndicator(
@@ -243,7 +243,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           ),
           const Divider(height: 1),
           Expanded(
-            child: FutureBuilder<List<CricketContestModel>>(
+            child: FutureBuilder<List<CricketRoomModel>>(
               future: _fetchContests(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
@@ -256,8 +256,8 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                     contests = contests.where((c) {
                         // Loose matching for broader categories
                         if (_selectedFilter == "Mega") return c.category.contains("Mega");
-                        if (_selectedFilter == "Hot") return c.category.contains("Hot") || c.totalSpots > 100;
-                        if (_selectedFilter == "Head 2 Head") return c.category.contains("Head") || c.totalSpots == 2;
+                        if (_selectedFilter == "Hot") return c.category.contains("Hot") || c.totalParticipants > 100;
+                        if (_selectedFilter == "Head 2 Head") return c.category.contains("Head") || c.totalParticipants == 2;
                         return c.category == _selectedFilter;
                     }).toList();
                 }
@@ -269,7 +269,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                       children: [
                         const Icon(Icons.filter_list_off, size: 64, color: Colors.grey),
                         const SizedBox(height: 16),
-                        Text("No $_selectedFilter Contests Found", style: const TextStyle(color: Colors.grey)),
+                        Text("No $_selectedFilter Rooms Found", style: const TextStyle(color: Colors.grey)),
                       ],
                     ),
                   );
@@ -305,7 +305,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     );
   }
 
-  Widget _buildMyContestsTab() {
+  Widget _buildMyRoomsTab() {
     final allJoined = ref.watch(userContestProvider);
     final myContests = allJoined.where((c) => c.matchId == widget.matchId).toList();
 
@@ -316,14 +316,14 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           children: [
             const Icon(Icons.history, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
-            const Text("You haven't joined any contests yet.", style: TextStyle(color: Colors.grey)),
+            const Text("You haven't joined any rooms yet.", style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
                 // Switch to Contests tab (Index 0)
                 DefaultTabController.of(context).animateTo(0);
               },
-              child: const Text("Join a Contest"),
+              child: const Text("Unlock Participation"),
             )
           ],
         ),
@@ -343,7 +343,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                children: [
                  Icon(Icons.info_outline, size: 20, color: Colors.blue),
                  SizedBox(width: 8),
-                 Expanded(child: Text("Scores & Ranks update at the end of each over. Only Playing XI earns points.", style: TextStyle(color: Colors.blue, fontSize: 12))),
+                 Expanded(child: Text("Scores & Comparison update at the end of each over. Only Playing XI earns interaction stats.", style: TextStyle(color: Colors.blue, fontSize: 12))),
                ],
              ),
            );
@@ -354,7 +354,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           child: InkWell(
             onTap: () {
-               // Navigation provided by context.push needs a CricketContestModel
+               // Navigation provided by context.push needs a CricketRoomModel
                context.push('/contest/${contest.contestId}', extra: {
                  'contestId': contest.contestId, 
                  'matchId': contest.matchId,
@@ -371,7 +371,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(contest.contestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A237E))),
-                          Text("Entry: ${contest.entryFee.toStringAsFixed(0)} Credits", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                          Text("Access: ${contest.entryFee.toStringAsFixed(0)} Axe", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                         ],
                       ),
                       const Divider(),

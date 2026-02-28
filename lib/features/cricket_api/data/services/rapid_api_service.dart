@@ -155,12 +155,12 @@ class RapidApiService {
   }
 
   /// Endpoint 13: Fetch Contests for Match (D1)
-  Future<List<CricketContestModel>> fetchContestsForMatch(String matchId) async {
+  Future<List<CricketRoomModel>> fetchContestsForMatch(String matchId) async {
     try {
-      final response = await _dio.get('$_workerUrl/api/contests?matchId=$matchId');
+      final response = await _dio.get('$_workerUrl/api/rooms?matchId=$matchId');
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List<dynamic> list = response.data['contests'] ?? [];
-        return list.map((c) => CricketContestModel.fromJson(c)).toList();
+        return list.map((c) => CricketRoomModel.fromJson(c)).toList();
       }
     } catch (e) {
       debugPrint("❌ Fetch Contests Error: $e");
@@ -182,11 +182,11 @@ class RapidApiService {
   }
 
   /// Endpoint 15: Fetch Contest by ID (D1)
-  Future<CricketContestModel?> fetchContestById(String contestId) async {
+  Future<CricketRoomModel?> fetchContestById(String contestId) async {
     try {
       final response = await _dio.get('$_workerUrl/api/contest/$contestId');
       if (response.statusCode == 200 && response.data['success'] == true) {
-        return CricketContestModel.fromJson(response.data['contest']);
+        return CricketRoomModel.fromJson(response.data['contest']);
       }
     } catch (e) {
       debugPrint("❌ Fetch Contest By ID Error: $e");

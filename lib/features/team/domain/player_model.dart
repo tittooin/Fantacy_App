@@ -33,8 +33,8 @@ abstract class PlayerModel with _$PlayerModel {
     required PlayerRole role, // Enum for strict filtering
     required double credits, // e.g., 9.0
     required String imageUrl, // URL or asset path
-    @Default(0.0) double points, // Last match points or average
-    @Default(0.0) double fantasyRating, // NEW: Selection Helper (0-100)
+    @Default(0.0) double points, // Informational Stats (Runs, Wickets, etc.)
+    @JsonKey(name: 'fantasyRating') @Default(0.0) double fantasyRating, // Selection Helper (0-100)
     @Default(false) bool isPlaying, // For lineup announcement
     String? teamId, // Added for robust team matching
     @JsonKey(includeFromJson: false, includeToJson: false)

@@ -1,16 +1,16 @@
 
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/api/fantasy_api_client.dart';
+import '../../../../core/api/axevora_api_client.dart';
 
 // Family provider to fetch scorecard for specific matchID
 final scorecardProvider = StateNotifierProvider.family<ScorecardNotifier, AsyncValue<Map<String, dynamic>?>, String>((ref, matchId) {
-  final client = ref.watch(fantasyApiClientProvider);
+  final client = ref.watch(axevoraApiClientProvider);
   return ScorecardNotifier(client, matchId);
 });
 
 class ScorecardNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
-  final FantasyApiClient _client;
+  final AxevoraApiClient _client;
   final String _matchId;
   Timer? _timer;
 

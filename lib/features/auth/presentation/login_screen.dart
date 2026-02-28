@@ -131,7 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
           // 2. MAIN HEADLINE (CENTER)
           Text(
-            "Watch. Talk. Connect.",
+            "Engage. Discuss. Interact.",
             textAlign: TextAlign.center,
             style: GoogleFonts.oswald(
               color: AppColors.textDark,
@@ -141,7 +141,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            "Join live interaction rooms around events,\ndiscuss moments in real-time with friends.",
+            "Join live discussion rooms around events,\nexplore shared interactions in real-time.",
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: AppColors.textLight,
@@ -207,10 +207,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             runSpacing: 12,
             alignment: WrapAlignment.center,
             children: [
-              _buildFeatureItem(Icons.forum_rounded, "Live Group\nDiscussions"),
-              _buildFeatureItem(Icons.lock_person_rounded, "Private Rooms\nfor Friends"),
-              _buildFeatureItem(Icons.public_rounded, "Global & Invite-\nOnly Rooms"),
-              _buildFeatureItem(Icons.bolt_rounded, "Real-Time\nEvent Updates"),
+              _buildFeatureItem(Icons.forum_rounded, "Live Discussions\n& Stats"),
+              _buildFeatureItem(Icons.lock_person_rounded, "Private Rooms\n& Interactions"),
+              _buildFeatureItem(Icons.compare_arrows_rounded, "Informational\nTeam Comparisons"),
+              _buildFeatureItem(Icons.money_off_rounded, "Non-monetary\nInteractions Only"),
             ],
           ),
 
@@ -240,7 +240,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
           // 6. DISCLAIMER
           Text(
-            "This platform is designed for social interaction and discussions only. No betting, gambling, or cash-based rewards are supported.",
+            "AxevoraLabs is a social interaction platform. Rankings and stats are for informational purposes only. The platform does not offer monetary benefits.",
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: AppColors.textLight,

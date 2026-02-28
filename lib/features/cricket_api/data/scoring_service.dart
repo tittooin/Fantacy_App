@@ -38,10 +38,10 @@ class ScoringService {
              final batsData = inning['batTeamDetails']['batsmenData'] as Map<String, dynamic>;
              batsData.forEach((key, value) {
                 final playerId = value['batId']?.toString() ?? key; 
-                final points = _calculateBattingPoints(value);
+                final stats = _calculateBattingStats(value);
                 
                 playerStats[playerId] = {
-                  'points': points,
+                  'points': stats,
                   'runs': value['runs'] ?? 0,
                   'fours': value['fours'] ?? 0,
                   'sixes': value['sixes'] ?? 0,
@@ -55,10 +55,10 @@ class ScoringService {
              final bowlsData = inning['bowlTeamDetails']['bowlersData'] as Map<String, dynamic>;
              bowlsData.forEach((key, value) {
                 final playerId = value['bowlId']?.toString() ?? key;
-                final points = _calculateBowlingPoints(value);
+                final stats = _calculateBowlingStats(value);
                 
                 final existing = playerStats[playerId] ?? {'points': 0.0};
-                existing['points'] = (existing['points'] as double) + points;
+                existing['points'] = (existing['points'] as double) + stats;
                 existing['wickets'] = value['wickets'] ?? 0;
                 playerStats[playerId] = existing;
              });
@@ -79,13 +79,13 @@ class ScoringService {
   }
 
   // [Helper Calculations - Delegated to PointsEngine]
-  double _calculateBattingPoints(Map<String, dynamic> data) {
+  double _calculateBattingStats(Map<String, dynamic> data) {
     final runs = (data['runs'] as num?)?.toInt() ?? 0;
     final fours = (data['fours'] as num?)?.toInt() ?? 0;
     final sixes = (data['sixes'] as num?)?.toInt() ?? 0;
     final isOut = data['isOut'] == true;
     
-    return PointsEngine.calculateBattingPoints(
+    return PointsEngine.calculateBattingStats(
       runs: runs,
       fours: fours,
       sixes: sixes,
@@ -93,11 +93,11 @@ class ScoringService {
     );
   }
 
-  double _calculateBowlingPoints(Map<String, dynamic> data) {
+  double _calculateBowlingStats(Map<String, dynamic> data) {
     final wickets = (data['wickets'] as num?)?.toInt() ?? 0;
     final maidens = (data['maidens'] as num?)?.toInt() ?? 0;
 
-    return PointsEngine.calculateBowlingPoints(
+    return PointsEngine.calculateBowlingStats(
       wickets: wickets,
       maidens: maidens,
     );

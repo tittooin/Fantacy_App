@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class WalletRepository {
+class AccessRepository {
   final Dio _dio = Dio();
 
   // Worker URL
@@ -14,11 +14,11 @@ class WalletRepository {
     try {
       final response = await _dio.get('$_workerUrl/api/wallet/balance', queryParameters: {'userId': userId});
       if (response.statusCode == 200 && response.data['success'] == true) {
-        return response.data['balance'] ?? {'deposit': 0, 'winnings': 0, 'total': 0};
+        return response.data['balance'] ?? {'deposit': 0, 'winnings': 0, 'total': 0}; // API keys kept for compatibility
       }
       return {'deposit': 0, 'winnings': 0, 'total': 0};
     } catch (e) {
-      debugPrint("WalletRepository: Get Balance Failed: $e");
+      debugPrint("AccessRepository: Get Credits Failed: $e");
       return {'deposit': 0, 'winnings': 0, 'total': 0};
     }
   }
@@ -49,7 +49,7 @@ class WalletRepository {
          return {"success": false, "error": "Server Error: ${response.statusCode}"};
       }
     } catch (e) {
-      debugPrint("WalletRepository: Create Order Failed: $e");
+      debugPrint("AccessRepository: Create Order Failed: $e");
       return {"success": false, "error": e.toString()};
     }
   }
@@ -69,8 +69,8 @@ class WalletRepository {
     }
   }
 
-  /// Create Withdrawal Request (D1 via Worker)
-  Future<bool> requestWithdrawal({
+  /// Create Benefit Redemption Request (D1 via Worker)
+  Future<bool> requestBenefitClaim({
     required String userId,
     required double amount,
     required String method,
@@ -88,7 +88,7 @@ class WalletRepository {
       );
       return response.statusCode == 200 && response.data['success'] == true;
     } catch (e) {
-      debugPrint("WalletRepository: Withdrawal Error: $e");
+      debugPrint("WalletRepository: Redemption Error: $e");
       return false;
     }
   }
@@ -96,7 +96,7 @@ class WalletRepository {
   // --- ADMIN WALLET FUNCTIONS (D1 via Worker) ---
 
   /// Get List of Pending Payouts
-  Future<List<Map<String, dynamic>>> getPendingWithdrawals() async {
+  Future<List<Map<String, dynamic>>> getPendingClaims() async {
     try {
       final response = await _dio.get('$_workerUrl/api/admin/withdrawals');
       if (response.statusCode == 200 && response.data['success'] == true) {
@@ -104,13 +104,13 @@ class WalletRepository {
       }
       return [];
     } catch (e) {
-      debugPrint("WalletRepository: Get Pending Withdrawals Failed: $e");
+      debugPrint("AccessRepository: Get Pending Claims Failed: $e");
       return [];
     }
   }
 
   /// Approve/Mark as Paid
-  Future<bool> approveWithdrawal(String requestId, String userId, String note) async {
+  Future<bool> approveClaim(String requestId, String userId, String note) async {
     try {
       final response = await _dio.post(
         '$_workerUrl/api/admin/payout/status',
@@ -122,13 +122,13 @@ class WalletRepository {
       );
       return response.statusCode == 200 && response.data['success'] == true;
     } catch (e) {
-      debugPrint("WalletRepository: Approve Payout Failed: $e");
+      debugPrint("AccessRepository: Approve Payout Failed: $e");
       return false;
     }
   }
 
   /// Reject and Refund
-  Future<bool> rejectWithdrawal(String requestId, String userId, double amount, String reason) async {
+  Future<bool> rejectClaim(String requestId, String userId, double amount, String reason) async {
     try {
       final response = await _dio.post(
         '$_workerUrl/api/admin/payout/status',
@@ -140,12 +140,12 @@ class WalletRepository {
       );
       return response.statusCode == 200 && response.data['success'] == true;
     } catch (e) {
-      debugPrint("WalletRepository: Reject Payout Failed: $e");
+      debugPrint("AccessRepository: Reject Payout Failed: $e");
       return false;
     }
   }
 
-  /// Issue Manual Reward (Wins)
+  /// Issue Manual Interaction Access (Credits)
   Future<bool> issueRewardCredit(String userId, double amount, String note) async {
     try {
       final response = await _dio.post(
@@ -158,7 +158,7 @@ class WalletRepository {
       );
       return response.statusCode == 200 && response.data['success'] == true;
     } catch (e) {
-      debugPrint("WalletRepository: Issue Reward Failed: $e");
+      debugPrint("AccessRepository: Issue Credits Failed: $e");
       return false;
     }
   }
@@ -197,4 +197,4 @@ class WalletRepository {
   }
 }
 
-final walletRepositoryProvider = Provider((ref) => WalletRepository());
+final accessRepositoryProvider = Provider((ref) => AccessRepository());

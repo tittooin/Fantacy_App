@@ -201,7 +201,7 @@ class ManualScoringService {
     bool isOut = existing['isOut'] == true || player.isOut;
 
     // Recalculate Points for Batting
-    double points = PointsEngine.calculateBattingPoints(
+    double points = PointsEngine.calculateBattingStats(
       runs: newRuns,
       fours: newFours,
       sixes: newSixes,
@@ -256,7 +256,7 @@ class ManualScoringService {
     int newWickets = (existing['wickets'] ?? 0) + bowler.wickets;
     int newMaidens = (existing['maidens'] ?? 0) + bowler.maidens;
     
-    double bowlingPts = PointsEngine.calculateBowlingPoints(
+    double bowlingPts = PointsEngine.calculateBowlingStats(
       wickets: newWickets,
       maidens: newMaidens,
     );
@@ -286,7 +286,7 @@ class ManualScoringService {
     int stumpings = (existing['stumpings'] ?? 0) + (event.type == 'Stumping' ? 1 : 0);
     int runouts = (existing['runouts'] ?? 0) + (event.type == 'Runout' ? 1 : 0);
     
-    double fieldingPts = PointsEngine.calculateFieldingPoints(
+    double fieldingPts = PointsEngine.calculateFieldingStats(
         catches: catches, stumpings: stumpings, runouts: runouts
     );
     

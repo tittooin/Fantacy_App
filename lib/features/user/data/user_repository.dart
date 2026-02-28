@@ -2,7 +2,7 @@ import 'package:axevora11/features/user/domain/user_entity.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:axevora11/core/api/fantasy_api_client.dart';
+import 'package:axevora11/core/api/axevora_api_client.dart';
 
 abstract class UserRepository {
   Future<void> createUserOrUpdate(User user);
@@ -44,7 +44,7 @@ class FirestoreUserRepository implements UserRepository {
     
     // Sync user to D1 (Auto-create if not exists)
     try {
-      final apiClient = FantasyApiClient();
+      final apiClient = AxevoraApiClient();
       await apiClient.syncUser(
         user.uid,
         user.email ?? '',

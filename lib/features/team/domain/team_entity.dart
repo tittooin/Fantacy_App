@@ -7,7 +7,7 @@ class TeamEntity {
   final List<PlayerModel> players;
   final String captainId;
   final String viceCaptainId;
-  final double totalPoints;
+  final double totalStats;
   final String teamName;
   final bool isPersisted;
 
@@ -18,7 +18,7 @@ class TeamEntity {
     required this.players,
     required this.captainId,
     required this.viceCaptainId,
-    required this.totalPoints,
+    required this.totalStats,
     required this.teamName,
     this.isPersisted = false,
   });
@@ -31,7 +31,7 @@ class TeamEntity {
       'players': players.map((p) => p.toJson()).toList(),
       'captainId': captainId,
       'viceCaptainId': viceCaptainId,
-      'totalPoints': totalPoints,
+      'totalPoints': totalStats,
       'teamName': teamName,
     };
   }
@@ -43,7 +43,7 @@ class TeamEntity {
     List<PlayerModel>? players,
     String? captainId,
     String? viceCaptainId,
-    double? totalPoints,
+    double? totalStats,
     String? teamName,
     bool? isPersisted,
   }) {
@@ -54,7 +54,7 @@ class TeamEntity {
       players: players ?? this.players,
       captainId: captainId ?? this.captainId,
       viceCaptainId: viceCaptainId ?? this.viceCaptainId,
-      totalPoints: totalPoints ?? this.totalPoints,
+      totalStats: totalStats ?? this.totalStats,
       teamName: teamName ?? this.teamName,
       isPersisted: isPersisted ?? this.isPersisted,
     );
@@ -68,7 +68,7 @@ class TeamEntity {
       players: List<PlayerModel>.from(map['players']?.map((x) => PlayerModel.fromJson(x)) ?? []),
       captainId: map['captainId'] ?? '',
       viceCaptainId: map['viceCaptainId'] ?? '',
-      totalPoints: (map['totalPoints'] ?? 0.0).toDouble(),
+      totalStats: (map['totalPoints'] ?? 0.0).toDouble(),
       teamName: map['teamName'] ?? '',
       isPersisted: true,
     );

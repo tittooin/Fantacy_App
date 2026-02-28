@@ -18,19 +18,18 @@ export async function handleVoucherRequest(request, env) {
     if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
 
     try {
-        const body = await request.json();
-        const { userId, brand, credits } = body;
+        const { userId, brand, amount } = body;
 
-        if (!userId || !brand || !credits) return jsonResponse({ error: 'Missing fields' }, 400);
+        if (!userId || !brand || !amount) return jsonResponse({ error: 'Missing fields' }, 400);
 
-        // 1. Check Balance in D1 (winning_credits only)
-        // We assume user exists in D1. If not, they have 0 balance.
+        // 1. Check Credits in D1 (winning_credits only)
+        // We assume user exists in D1. If not, they have 0 credits.
         const user = await env.DB.prepare("SELECT winning_credits FROM users WHERE id = ?").bind(userId).first();
 
-        const currentWinnings = user ? (user.winning_credits || 0) : 0;
+        const currentBenefits = user ? (user.winning_credits || 0) : 0;
 
-        if (currentWinnings < credits) {
-            return jsonResponse({ error: 'Insufficient Winning Credits' }, 402);
+        if (currentBenefits < amount) { // Changed 'credits' to 'amount'
+            return jsonResponse({ error: 'Insufficient Benefits for this claim' }, 402); // Changed error message
         }
 
         // 2. Atomic Batch: Deduction, Request Insert, Transaction Insert

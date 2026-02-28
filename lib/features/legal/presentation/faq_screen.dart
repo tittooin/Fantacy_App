@@ -11,23 +11,23 @@ class FAQScreen extends StatelessWidget {
       children: [
         LegalSection(
           title: "1. Is Axevora11 Legal? / क्या Axevora11 कानूनी है?",
-          content: "Yes, Axevora11 is a 100% Skill-Based platform. Fantasy sports are protected under Article 19(1)(g) of the Constitution of India. Success depends on your knowledge, not luck.\n\nहाँ, Axevora11 100% कौशल-आधारित प्लेटफ़ॉर्म है। भारत के संविधान के अनुच्छेद 19(1)(g) के तहत फैंटेसी स्पोर्ट्स सुरक्षित है। यहाँ सफलता आपकी जानकारी और कौशल पर निर्भर करती है, किस्मत पर नहीं।",
+          content: "AxevoraLabs is a Social Interaction platform. Our Category features are protected under relevant laws as Skill-Based interactions. Success depends on your knowledge and discussion metrics.\n\nAxevoraLabs एक सोशल इंटरैक्शन प्लेटफ़ॉर्म है। हमारे फीचर्स कानूनों के तहत कौशल-आधारित (Skill-Based) इंटरैक्शन के रूप में सुरक्षित हैं। यहाँ सफलता आपकी जानकारी और चर्चा के मापदंडों पर निर्भर करती है।",
         ),
         LegalSection(
           title: "2. Is this Gambling? / क्या यह जुआ है?",
-          content: "No. Axevora11 prohibits gambling or betting. You create a team based on real-life player performance. You analyze stats and pitch conditions to win, which makes it a Game of Skill.\n\nनहीं। Axevora11 जुआ या सट्टेबाजी को सख्ती से प्रतिबंधित करता है। आप वास्तविक खिलाड़ियों के प्रदर्शन के आधार पर टीम बनाते हैं। जीतने के लिए आप आंकड़ों और पिच की स्थिति का विश्लेषण करते हैं, जो इसे 'कौशल का खेल' बनाता है।",
+          content: "No. AxevoraLabs prohibits gambling or betting. You create teams based on real-life player performance for discussion purposes. You analyze stats and conditions to engage, which makes it a Game of Skill.\n\nनहीं। AxevoraLabs जुआ या सट्टेबाजी को सख्ती से प्रतिबंधित करता है। आप चर्चा के लिए वास्तविक खिलाड़ियों के प्रदर्शन के आधार पर टीम बनाते हैं। जुड़ने के लिए आप आंकड़ों और स्थिति का विश्लेषण करते हैं, जो इसे 'कौशल का खेल' बनाता है।",
         ),
         LegalSection(
           title: "3. How does Scoring Work? / पॉइंट सिस्टम कैसे काम करता है?",
-          content: "Points are awarded for runs, wickets, catches, etc. Check the 'Fair Play' page for the detailed table. Scores are updated shortly after the real match event.\n\nरन, विकेट, कैच आदि के लिए अंक दिए जाते हैं। विस्तृत तालिका के लिए 'Fair Play' (निष्पक्ष खेल) पेज देखें। वास्तविक मैच घटना के कुछ ही समय बाद स्कोर अपडेट किए जाते हैं।",
+          content: "Informational Stats are awarded for runs, wickets, catches, etc. Check the 'Fair Play' page for the detailed table. Stats are updated shortly after the real match event.\n\nरन, विकेट, कैच आदि के लिए अंक दिए जाते हैं। विस्तृत तालिका के लिए 'Fair Play' (निष्पक्ष खेल) पेज देखें। वास्तविक मैच घटना के कुछ ही समय बाद स्कोर अपडेट किए जाते हैं।",
         ),
         LegalSection(
           title: "4. Withdrawal Rules / निकासी नियम",
-          content: "You can withdraw your 'Winnings' balance only. KYC (PAN & Bank) verification is mandatory. 'Deposit' and 'Bonus' cash cannot be withdrawn directly.\n\nआप केवल अपनी 'Winnings' (जीत की राशि) निकाल सकते हैं। KYC (पैन और बैंक) सत्यापन अनिवार्य है। 'Deposit' और 'Bonus' कैश को सीधे नहीं निकाला जा सकता।",
+          content: "Coupons and Vouchers are managed by individual hosts. The platform serves only as a facilitator for social rewards. Check the 'Social Fair Play' page for guidelines.\n\nकूपन और वाउचर व्यक्तिगत होस्ट द्वारा प्रबंधित किए जाते हैं। प्लेटफ़ॉर्म केवल सामाजिक पुरस्कारों के लिए एक सुविधा के रूप में कार्य करता है। दिशानिर्देशों के लिए 'सोशल फेयर प्ले' पेज देखें।",
         ),
         LegalSection(
           title: "5. Why is my state restricted? / मेरा राज्य प्रतिबंधित क्यों है?",
-          content: "State laws in Assam, Odisha, Telangana, Nagaland, Sikkim, and Andhra Pradesh do not permit paid fantasy sports. We respect Indian laws and restrict paid contests in these regions.\n\nअसम, ओडिशा, तेलंगाना, नागालैंड, सिक्किम और आंध्र प्रदेश के राज्य कानून भुगतान वाले फैंटेसी स्पोर्ट्स की अनुमति नहीं देते हैं। हम भारतीय कानूनों का सम्मान करते हैं और इन क्षेत्रों में पेड कॉन्टेस्ट को प्रतिबंधित करते हैं।",
+          content: "Interaction Hubs allow users to engage in deep discussions. Some rooms may have specific entry criteria as set by the host. We respect all regional laws regarding social platforms.\n\nइंटरैक्शन हब उपयोगकर्ताओं को चर्चा करने की अनुमति देते हैं। होस्ट द्वारा निर्धारित कुछ कमरों में विशिष्ट प्रवेश मानदंड हो सकते हैं। हम सोशल प्लेटफॉर्म के संबंध में सभी क्षेत्रीय कानूनों का सम्मान करते हैं।",
         ),
         LegalSection(
           title: "6. Contact Support / सहायता संपर्क",

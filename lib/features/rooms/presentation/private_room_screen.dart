@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
 import 'package:axevora11/core/utils/share_utils.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
+import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/foundation.dart' as foundation;
 import 'dart:convert';
@@ -45,6 +46,7 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
   bool _isVoiceChatEnabled = false;
   bool _isMuted = true;
   bool _showEmojiPicker = false;
+  bool _isParticipant = false; // Membership Role
 
   String get _chatPath => 'private_rooms/${widget.matchId}/messages';
   String get _membersPath => 'private_rooms/${widget.matchId}/members';
@@ -54,6 +56,23 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() => setState(() {}));
+    _checkMembership();
+  }
+
+  Future<void> _checkMembership() async {
+     final user = ref.read(userEntityProvider).value;
+     if (user == null) return;
+
+     // Logic: Check if user has joined any contest for this match
+     // For robust implementation, we check the userContestProvider
+     final joinedContests = ref.read(userContestProvider);
+     final isJoined = joinedContests.any((uc) => uc.matchId == widget.matchId);
+     
+     if (mounted) {
+       setState(() {
+         _isParticipant = isJoined;
+       });
+     }
   }
 
   @override
@@ -116,6 +135,11 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
       title: Text(label, style: GoogleFonts.inter(color: color, fontWeight: FontWeight.w500)),
       onTap: onTap,
     );
+  }
+
+  void _handleUnlockInteraction() {
+     // Navigate to match details to unlock participation via hubs
+     context.push('/match/${widget.matchId}');
   }
 
   // ── SEND MESSAGE ──────────────────────────────────────────────────────────
@@ -355,9 +379,24 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
                 decoration: BoxDecoration(color: AppColors.accentRed, borderRadius: BorderRadius.circular(20)),
                 child: Text('● LIVE', style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
               ),
-              _buildStatItem("ENTRY", "${widget.entryFee} AXE", Icons.monetization_on_rounded),
+              _buildStatItem("ACCESS", "${widget.entryFee} AXE", Icons.monetization_on_rounded),
             ]),
             const SizedBox(height: 8),
+            if (!_isParticipant && widget.entryFee > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ElevatedButton(
+                  onPressed: () => _handleUnlockInteraction(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF0EB0E2),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    minimumSize: const Size(100, 30),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: Text("UNLOCK PARTICIPATION", style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+              ),
             Text(title, style: GoogleFonts.oswald(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
             if (score.isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -491,7 +530,7 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
 
   Widget _buildMembersSection() {
     return Consumer(builder: (context, ref, _) {
-      final leaderboardAsync = ref.watch(roomLeaderboardProvider(widget.matchId));
+      final leaderboardAsync = ref.watch(roomLeaderboardProvider({'matchId': widget.matchId}));
       return Column(
         children: [
           // Mandatory Disclaimer — always visible above rankings
@@ -620,7 +659,7 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
                             textInputAction: TextInputAction.send,
                             onSubmitted: (_) => _sendMessage(),
                             decoration: InputDecoration(
-                              hintText: 'Type a message...',
+                              hintText: _isParticipant ? 'Type a message...' : 'Unlock interaction to participate...',
                               hintStyle: GoogleFonts.inter(color: AppColors.textLight, fontSize: 14),
                               border: InputBorder.none,
                             ),
@@ -635,7 +674,7 @@ class _PrivateRoomScreenState extends ConsumerState<PrivateRoomScreen>
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(24)),
                           alignment: Alignment.centerLeft,
-                          child: Text('Login to join the conversation...', style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 14)),
+                          child: Text('Login to participate in the conversation...', style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 14)),
                         ),
                       ),
               ),

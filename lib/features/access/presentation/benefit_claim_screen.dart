@@ -14,9 +14,9 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
   final _amountController = TextEditingController();
   String _selectedBrand = 'Amazon';
   bool _isLoading = false;
+  double _claimableCredits = 0.0;
+  double _depositCredits = 0.0;
   List<Map<String, dynamic>> _history = [];
-  double _winningBalance = 0.0;
-  double _depositBalance = 0.0;
   
   // Worker URL (Ideally from a central config/constants file)
   final String _workerUrl = 'https://fantasy-cricket-api.moremagical4.workers.dev';
@@ -50,8 +50,8 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
         if (data['success'] == true && data['balance'] != null) {
             if (mounted) {
               setState(() {
-                  _winningBalance = (data['balance']['winnings'] ?? 0).toDouble();
-                  _depositBalance = (data['balance']['deposit'] ?? 0).toDouble();
+                  _claimableCredits = (data['balance']['winnings'] ?? 0).toDouble();
+                  _depositCredits = (data['balance']['deposit'] ?? 0).toDouble();
                   _isLoading = false;
               });
             }
@@ -86,11 +86,11 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
   Future<void> _submitRequest() async {
     final amount = double.tryParse(_amountController.text);
     if (amount == null || amount < 50) { // Min 50 limit
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum redeem amount is 50 Credits')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum claim amount is 50 Axe')));
       return;
     }
-    if (amount > _winningBalance) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient Winning Balance')));
+    if (amount > _claimableCredits) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient Credits')));
       return;
     }
 
@@ -112,7 +112,7 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
 
       final data = json.decode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request Submitted Successfull!')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Claim Request Submitted Successfully!')));
         _amountController.clear();
         _fetchBalance(); // Refresh Balance
         _fetchHistory(); // Refresh list
@@ -138,7 +138,7 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
       ),
       body: Column(
         children: [
-          // Balance Card
+          // Reward Summary Card
           Container(
             padding: const EdgeInsets.all(20),
             margin: const EdgeInsets.all(16),
@@ -153,20 +153,20 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
                 const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Redeemable Credits", style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    Text("Claimable Host Benefits", style: TextStyle(color: Colors.white70, fontSize: 14)),
                     SizedBox(height: 4),
-                    Text("Match Credits", style: TextStyle(color: Colors.white30, fontSize: 12)),
+                    Text("Host Shared Points", style: TextStyle(color: Colors.white30, fontSize: 12)),
                   ],
                 ),
                 Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                         Text(
-                          "${_winningBalance.toStringAsFixed(0)}", 
-                          style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)
-                        ),
-                        Text(
-                          "${_depositBalance.toStringAsFixed(0)}", 
+                          "${_claimableCredits.toStringAsFixed(0)}", 
+                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4), // Added a SizedBox for spacing
+                        _buildBalanceItem("Deposit Credits", 
+                          "${_depositCredits.toStringAsFixed(0)}", 
                           style: const TextStyle(color: Colors.white54, fontSize: 14)
                         ),
                     ]
@@ -186,7 +186,7 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Request New Voucher", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text("Claim New Voucher", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: _selectedBrand,
@@ -208,7 +208,7 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
                       keyboardType: TextInputType.number,
                       style: const TextStyle(color: Colors.black),
                       decoration: const InputDecoration(
-                        labelText: "Enter Credits (Min 50)", 
+                        labelText: "Enter Benefit amount (Min 50)", 
                         labelStyle: TextStyle(color: Colors.black54),
                         suffixText: "Credits",
                         suffixStyle: TextStyle(color: Colors.black54),
@@ -229,7 +229,7 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
                         onPressed: _isLoading ? null : _submitRequest,
                         child: _isLoading 
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
-                          : const Text("Redeem Now", style: TextStyle(fontSize: 16)),
+                          : const Text("Claim Now", style: TextStyle(fontSize: 16)),
                       ),
                     ),
                   ],
@@ -304,6 +304,16 @@ class _RedeemScreenState extends State<RedeemScreen> with SingleTickerProviderSt
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBalanceItem(String label, String value, {TextStyle? style}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(value, style: style ?? const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+      ],
     );
   }
 }

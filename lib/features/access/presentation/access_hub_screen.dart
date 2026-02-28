@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
-import 'package:axevora11/features/wallet/data/wallet_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
+import 'package:axevora11/features/access/data/access_repository.dart';
+import 'package:axevora11/features/access/presentation/providers/access_provider.dart';
 
-class WalletScreen extends ConsumerStatefulWidget {
-  const WalletScreen({super.key});
+class AccessHubScreen extends ConsumerStatefulWidget {
+  const AccessHubScreen({super.key});
 
   @override
-  ConsumerState<WalletScreen> createState() => _WalletScreenState();
+  ConsumerState<AccessHubScreen> createState() => _AccessHubScreenState();
 }
 
-class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBindingObserver {
+class _AccessHubScreenState extends ConsumerState<AccessHubScreen> with WidgetsBindingObserver {
   bool _isProcessing = false;
 
   @override
@@ -34,8 +34,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      print("DEBUG Wallet: App Resumed, Refreshing Balance...");
-      ref.read(walletBalanceProvider.notifier).refresh();
+      print("DEBUG Access: App Resumed, Refreshing Credits...");
+      ref.read(accessCreditsProvider.notifier).refresh();
     }
   }
 
@@ -53,7 +53,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
     if (userId == null) return;
 
     // CALL BACKEND WORKER
-    final result = await ref.read(walletRepositoryProvider).createDepositOrder(userId, amount);
+    final result = await ref.read(accessRepositoryProvider).createDepositOrder(userId, amount);
     
     if (result['success'] == true && result['paymentLink'] != null) {
         final url = result['paymentLink'];
@@ -61,7 +61,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
            await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
            if (mounted) {
              ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text("Payment Page Opened. Balance will update automatically."), backgroundColor: Colors.blue)
+               const SnackBar(content: Text("Payment Page Opened. Credits will update automatically."), backgroundColor: Colors.blue)
              );
            }
         } else {
@@ -77,18 +77,18 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(userEntityProvider);
-    final walletBalance = ref.watch(walletBalanceProvider);
+    final accessCredits = ref.watch(accessCreditsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("My Wallet"),
+        title: const Text("Access Hub"),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh), 
             onPressed: () {
-              ref.read(walletBalanceProvider.notifier).refresh();
+              ref.read(accessCreditsProvider.notifier).refresh();
             }
           )
         ],
@@ -108,15 +108,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
             final dynamicUser = user as dynamic;
             
             // Use Live D1 Balance from Provider
-            final double displayBalance = walletBalance; 
+            final double displayCredits = accessCredits; 
 
             return Stack(
               children: [
                 Column(
                   children: [
                     const SizedBox(height: kToolbarHeight + 20),
-                    // 1. Total Balance Card
-                    _buildTotalBalanceCard(context, displayBalance),
+                    _buildTotalCreditsCard(context, displayCredits),
 
                     const SizedBox(height: 16),
                     
@@ -188,7 +187,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
     );
   }
 
-  Widget _buildTotalBalanceCard(BuildContext context, double totalBalance) {
+  Widget _buildTotalCreditsCard(BuildContext context, double totalCredits) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(24),
@@ -200,11 +199,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
       ),
       child: Column(
         children: [
-          const Text("TOTAL CREDITS (Live)", style: TextStyle(color: Colors.white70, letterSpacing: 1.2, fontSize: 12)),
+          const Text("TOTAL ACCESS CREDITS", style: TextStyle(color: Colors.white70, letterSpacing: 1.2, fontSize: 12)),
           const SizedBox(height: 8),
-          Text("${totalBalance.toStringAsFixed(0)}", style: const TextStyle(color: Colors.amber, fontSize: 40, fontWeight: FontWeight.bold)),
+          Text("${totalCredits.toStringAsFixed(0)}", style: const TextStyle(color: Colors.amber, fontSize: 40, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Text("1 Rs = 1 Credit", style: TextStyle(color: Colors.white30, fontSize: 10)),
+          const Text("Single-use • Non-transferable", style: TextStyle(color: Colors.white30, fontSize: 10)),
         ],
       ),
     );
@@ -228,7 +227,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Buy Credits", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text("Get Access Credits", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
                 
                 // Amount Input
@@ -304,7 +303,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text("PAY & GET CREDITS")
+                    child: const Text("PROCEED TO GET ACCESS")
                   ),
                 )
               ],
@@ -318,7 +317,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
   // Optimized Transaction List (Future instead of Stream)
   Widget _buildLiveTransactionList(String userId) {
       return FutureBuilder<List<Map<String, dynamic>>>(
-          future: ref.read(walletRepositoryProvider).getTransactions(userId),
+          future: ref.read(accessRepositoryProvider).getTransactions(userId), // This can stay for now as long as UI is clean.
           builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -356,7 +355,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
                         final data = docs[index];
                         final type = data['type'] ?? 'unknown';
                         final amount = data['amount'] ?? 0;
-                        final isCredit = type == 'deposit' || type == 'winnings'; 
+                        final isCredit = type == 'deposit' || type == 'winnings' || type == 'benefit'; 
                         
                         return ListTile(
                           leading: CircleAvatar(

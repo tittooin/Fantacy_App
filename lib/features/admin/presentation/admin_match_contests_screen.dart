@@ -18,7 +18,7 @@ class AdminMatchContestsScreen extends ConsumerStatefulWidget {
 
 class _AdminMatchContestsScreenState extends ConsumerState<AdminMatchContestsScreen> {
   bool _isLoading = true;
-  List<CricketContestModel> _contests = [];
+  List<CricketRoomModel> _contests = [];
 
   @override
   void initState() {
@@ -89,8 +89,8 @@ class _AdminMatchContestsScreenState extends ConsumerState<AdminMatchContestsScr
                  return Card(
                    margin: const EdgeInsets.only(bottom: 12),
                    child: ListTile(
-                     title: Text("${contest.category} (₹${contest.entryFee})"),
-                     subtitle: Text("Spots: ${contest.filledSpots}/${contest.totalSpots} | Pool: ₹${contest.prizePool}"),
+                     title: Text("${contest.category} (₹${contest.accessUsage})"),
+                     subtitle: Text("Spots: ${contest.filledParticipants}/${contest.totalParticipants}"),
                      trailing: Row(
                        mainAxisSize: MainAxisSize.min,
                        children: [

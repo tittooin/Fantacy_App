@@ -1,4 +1,4 @@
-import 'package:axevora11/features/wallet/data/platform/payment_service.dart';
+import 'package:axevora11/features/access/data/platform/payment_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:axevora11/features/user/domain/user_entity.dart';
@@ -58,7 +58,7 @@ class PaymentRepository {
     }
     
     // SAFETY CHECK: Winning Balance
-    if (user.winningBalance < amount) {
+    if (user.rewardBalance < amount) {
       throw Exception("Insufficient Winning Balance.");
     }
 

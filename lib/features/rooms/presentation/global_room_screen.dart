@@ -166,7 +166,7 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
             children: [
               Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.accentRed, shape: BoxShape.circle)),
               const SizedBox(width: 4),
-              Text('GLOBAL ROOM • Live', style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 10, fontWeight: FontWeight.bold)),
+              Text('GLOBAL HUB • Live Stats', style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 10, fontWeight: FontWeight.bold)),
             ],
           ),
         ],
@@ -244,7 +244,7 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
                         children: [
                           Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.accentRed, shape: BoxShape.circle)),
                           const SizedBox(width: 4),
-                          Text('LIVE SCORECARD', style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 10, fontWeight: FontWeight.bold)),
+                          Text('INFORMATIONAL STATS', style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 10, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ],
@@ -443,7 +443,7 @@ class _GlobalRoomScreenState extends ConsumerState<GlobalRoomScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       color: AppColors.offWhite,
       child: Text(
-        'Voice interactions are live and not stored. Social discussion only.',
+        'Voice interactions are live and for social discussion only.',
         textAlign: TextAlign.center,
         style: GoogleFonts.inter(fontSize: 10, color: AppColors.textLight, fontWeight: FontWeight.bold),
       ),

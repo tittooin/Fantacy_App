@@ -7,7 +7,7 @@ class UserContestEntity {
   final String teamName;
   final double entryFee;
   final DateTime joinedAt;
-  final String contestName; // e.g. "Mega Contest"
+  final String contestName; // e.g. "Mega Room"
 
   const UserContestEntity({
     required this.id,
@@ -45,7 +45,7 @@ class UserContestEntity {
       teamName: (map['teamName'] ?? '').toString(),
       entryFee: (map['entryFee'] ?? 0.0).toDouble(),
       joinedAt: DateTime.fromMillisecondsSinceEpoch(map['joinedAt'] ?? 0),
-      contestName: (map['contestName'] ?? 'Contest').toString(),
+      contestName: (map['contestName'] ?? 'Room').toString(),
     );
   }
 }

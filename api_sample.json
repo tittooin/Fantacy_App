@@ -1,0 +1,35 @@
+[
+    {
+        "matchId": "12345",
+        "roomId": "social_room_01",
+        "roomName": "Weekend Social Clash",
+        "status": "In Progress",
+        "participants": 1250,
+        "interactiveStats": {
+            "engagementScore": 85.5,
+            "participationStatus": "Active"
+        },
+        "interactionUnlocked": true,
+        "hostBenefitsInfo": "Participants may be eligible for community-shared non-monetary benefits at the host's discretion.",
+        "disclaimer": "Non-monetary interaction only. Host provided benefits strictly subject to room rules."
+    },
+    {
+        "matchId": "67890",
+        "roomId": "social_room_02",
+        "roomName": "Elite Interaction Hub",
+        "status": "Upcoming",
+        "entryUsage": 50,
+        "canParticipate": true,
+        "hostBenefitsInfo": "This room offers digital badges and non-monetary community rewards provided by the host.",
+        "benefitStructure": [
+            {
+                "tier": "Expert",
+                "benefit": "Premium Badge + Interaction Coupon"
+            },
+            {
+                "tier": "Contributor",
+                "benefit": "Community Experience Points"
+            }
+        ]
+    }
+]

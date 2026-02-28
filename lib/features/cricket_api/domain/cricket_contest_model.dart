@@ -1,59 +1,61 @@
 
-class CricketContestModel {
+class CricketRoomModel {
   final String id;
   final String matchId;
-  final double entryFee;
-  final int totalSpots;
-  final int filledSpots;
-  final double prizePool;
+  final double accessUsage;
+  final int totalParticipants;
+  final int filledParticipants;
+  final String hostBenefitsInfo;
   final String category;
-  final bool isGuaranteed;
-  final bool isFlexible;
-  final List<dynamic> winningBreakdown;
+  final bool interactionUnlocked;
+  final bool canParticipate;
+  final List<dynamic> benefitTiers;
   final DateTime createdAt;
 
-  CricketContestModel({
+  CricketRoomModel({
     required this.id,
     required this.matchId,
-    required this.entryFee,
-    required this.totalSpots,
-    required this.filledSpots,
-    required this.prizePool,
+    required this.accessUsage,
+    required this.totalParticipants,
+    required this.filledParticipants,
+    required this.hostBenefitsInfo,
     required this.category,
-    this.isGuaranteed = false,
-    this.isFlexible = false,
-    this.winningBreakdown = const [],
+    this.interactionUnlocked = false,
+    this.canParticipate = false,
+    this.benefitTiers = const [],
     required this.createdAt,
   });
 
-  factory CricketContestModel.fromJson(Map<String, dynamic> json) {
-    return CricketContestModel(
+  factory CricketRoomModel.fromJson(Map<String, dynamic> json) {
+    return CricketRoomModel(
       id: json['id']?.toString() ?? '',
       matchId: (json['matchId'] ?? json['match_id'] ?? '').toString(),
-      entryFee: (json['entryFee'] ?? 0).toDouble(),
-      totalSpots: (json['totalSpots'] ?? 0),
-      filledSpots: (json['filledSpots'] ?? 0),
-      prizePool: (json['prizePool'] ?? 0).toDouble(),
+      accessUsage: (json['accessUsage'] ?? json['entryFee'] ?? 0).toDouble(),
+      totalParticipants: (json['totalParticipants'] ?? json['totalSpots'] ?? 0),
+      filledParticipants: (json['filledParticipants'] ?? json['filledSpots'] ?? 0),
+      hostBenefitsInfo: json['hostBenefitsInfo']?.toString() ?? "Participants may be eligible for community-shared non-monetary benefits at the host's discretion.",
       category: (json['category'] ?? '').toString(),
-      winningBreakdown: json['winningBreakdown'] as List<dynamic>? ?? [],
+      benefitTiers: json['benefitTiers'] as List<dynamic>? ?? [],
       createdAt: DateTime.now(),
+      interactionUnlocked: json['interactionUnlocked'] ?? false,
+      canParticipate: json['canParticipate'] ?? true,
     );
   }
 
-  factory CricketContestModel.fromFirestore(Map<String, dynamic> data, String id) {
-    return CricketContestModel.fromJson({...data, 'id': id});
+  factory CricketRoomModel.fromFirestore(Map<String, dynamic> data, String id) {
+    return CricketRoomModel.fromJson({...data, 'id': id});
   }
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'matchId': matchId,
-    'entryFee': entryFee,
-    'totalSpots': totalSpots,
-    'filledSpots': filledSpots,
-    'prizePool': prizePool,
+    'accessUsage': accessUsage,
+    'totalParticipants': totalParticipants,
+    'filledParticipants': filledParticipants,
+    'hostBenefitsInfo': hostBenefitsInfo,
     'category': category,
-    'isGuaranteed': isGuaranteed,
-    'isFlexible': isFlexible,
-    'winningBreakdown': winningBreakdown,
+    'interactionUnlocked': interactionUnlocked,
+    'canParticipate': canParticipate,
+    'benefitTiers': benefitTiers,
   };
 }

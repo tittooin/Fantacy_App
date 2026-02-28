@@ -33,7 +33,7 @@ class LeaderboardWidget extends StatelessWidget {
             children: [
               SizedBox(width: 40, child: Text('#', style: GoogleFonts.oswald(color: AppColors.textLight, fontSize: 12))),
               Expanded(child: Text('TEAM NAME', style: GoogleFonts.oswald(color: AppColors.textLight, fontSize: 12))),
-              Text('POINTS', style: GoogleFonts.oswald(color: AppColors.textLight, fontSize: 12)),
+              Text('INFORMATIONAL STATS', style: GoogleFonts.oswald(color: AppColors.textLight, fontSize: 12)),
             ],
           ),
         ),
@@ -87,7 +87,7 @@ class LeaderboardWidget extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Points are calculated based on your 11 selected players. Real-time updates every 60s.',
+                  'Stats are calculated based on your 11 selected players. Real-time updates every 60s.',
                   style: GoogleFonts.inter(fontSize: 10, color: AppColors.accentRed, fontWeight: FontWeight.bold),
                 ),
               ),

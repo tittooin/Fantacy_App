@@ -83,8 +83,8 @@ class _StateSelectionScreenState extends ConsumerState<StateSelectionScreen> {
                title: const Text("Location Restriction", style: TextStyle(color: Colors.red)),
                content: const Text(
                  "You have selected a restricted state (Assam, Odisha, Telangana, Nagaland, Sikkim, Andhra Pradesh).\n\n"
-                 "As per government laws, you cannot participate in 'Paid Contests' (Cash Games).\n\n"
-                 "You can still play 'Free Practice Contests'.",
+                 "As per government laws, you cannot participate in 'Standard Rooms' (Host Benefit Interaction).\n\n"
+                 "You can still play 'Free Discussion Rooms'.",
                ),
                actions: [
                  TextButton(

@@ -7,7 +7,7 @@ import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart
 class AdminPayoutLeaderboardScreen extends ConsumerStatefulWidget {
   final String contestId;
   final String matchId;
-  final CricketContestModel? contest;
+  final CricketRoomModel? contest;
 
   const AdminPayoutLeaderboardScreen({
     super.key, 

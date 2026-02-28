@@ -631,7 +631,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: Text("Join Social Hubs", style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                    child: Text("Participate in Hubs", style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -952,7 +952,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(children: [
                 const Icon(Icons.lock_outline_rounded, color: AppColors.skyBlue, size: 32),
                 const SizedBox(height: 8),
-                Text('Login to join and create private social lounges', textAlign: TextAlign.center, style: GoogleFonts.inter(color: AppColors.textDark)),
+                Text('Login to participate in private social lounges', textAlign: TextAlign.center, style: GoogleFonts.inter(color: AppColors.textDark)),
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: () => context.push('/login'),

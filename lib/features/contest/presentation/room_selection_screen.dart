@@ -184,7 +184,7 @@ class RoomSelectionScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Enter Axe Coins required to join this lounge:", style: GoogleFonts.inter(fontSize: 14)),
+            Text("Enter Axe required to participate in this lounge:", style: GoogleFonts.inter(fontSize: 14)),
             const SizedBox(height: 16),
             TextField(
               controller: controller,

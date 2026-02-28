@@ -1,14 +1,14 @@
 import 'dart:convert';
 
-import 'package:axevora11/core/api/fantasy_api_client.dart';
+import 'package:axevora11/core/api/axevora_api_client.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final d1PlayerServiceProvider =
-    Provider((ref) => D1PlayerService(ref.read(fantasyApiClientProvider)));
+    Provider((ref) => D1PlayerService(ref.read(axevoraApiClientProvider)));
 
 class D1PlayerService {
-  final FantasyApiClient _apiClient;
+  final AxevoraApiClient _apiClient;
 
   D1PlayerService(this._apiClient);
 

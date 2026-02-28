@@ -3,17 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart'; // contains CricketRoomModel
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/team/domain/team_entity.dart';
 import 'package:axevora11/features/team/presentation/providers/team_provider.dart';
 import 'package:axevora11/features/contest/domain/user_contest_entity.dart';
 import 'package:axevora11/features/contest/presentation/providers/user_contest_provider.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
-import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
+import 'package:axevora11/features/access/presentation/providers/access_provider.dart';
 
 class ContestCard extends StatefulWidget {
-  final CricketContestModel contest;
+  final CricketRoomModel contest;
   final CricketMatchModel? match; // Threading match
   final String matchId;
 
@@ -31,7 +31,7 @@ class _ContestCardState extends State<ContestCard> {
     return Consumer(
       builder: (context, ref, child) {
         // Calculate filled percentage
-        final double filledPercent = widget.contest.totalSpots > 0 ? (widget.contest.filledSpots / widget.contest.totalSpots) : 0;
+        final double filledPercent = widget.contest.totalParticipants > 0 ? (widget.contest.filledParticipants / widget.contest.totalParticipants) : 0;
         
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -61,8 +61,8 @@ class _ContestCardState extends State<ContestCard> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("Prize Pool", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                          Text("${widget.contest.prizePool.toStringAsFixed(0)} Coins", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const Text("Interaction Scope", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          Text("${widget.contest.benefitTiers.isNotEmpty ? 'Benefits Included' : 'Standard Room'}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         ],
                       ),
                       _isLoading 
@@ -81,7 +81,7 @@ class _ContestCardState extends State<ContestCard> {
                             child: Text(
                                (widget.match?.status == 'Live' || widget.match?.status == 'Completed') 
                                  ? "View" 
-                                 : "${widget.contest.entryFee.toStringAsFixed(0)} Credits"
+                                 : "${widget.contest.accessUsage.toStringAsFixed(0)} Credits"
                             ),
                           ),
                     ],
@@ -97,8 +97,8 @@ class _ContestCardState extends State<ContestCard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("${widget.contest.totalSpots - widget.contest.filledSpots} spots left", style: const TextStyle(fontSize: 11, color: Colors.orange)),
-                      Text("${widget.contest.totalSpots} spots", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      Text("${widget.contest.totalParticipants - widget.contest.filledParticipants} spots left", style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                      Text("${widget.contest.totalParticipants} spots", style: const TextStyle(fontSize: 11, color: Colors.grey)),
                     ],
                   ),
                   const Divider(height: 20),
@@ -108,7 +108,7 @@ class _ContestCardState extends State<ContestCard> {
                       const SizedBox(width: 4),
                       const Text("Multiple Winners", style: TextStyle(fontSize: 11, color: Colors.grey)),
                       const Spacer(),
-                      if (widget.contest.isGuaranteed) 
+                      if (widget.contest.category.toLowerCase().contains('mega')) 
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
@@ -133,10 +133,10 @@ class _ContestCardState extends State<ContestCard> {
   }
 
   void _handleContestJoin(BuildContext context, WidgetRef ref) {
-     final currentBalance = ref.read(walletBalanceProvider);
+     final userCredits = ref.watch(accessCreditsProvider);
 
-     if (currentBalance < widget.contest.entryFee) {
-       _showLowBalanceDialog(context, widget.contest.entryFee - currentBalance);
+     if (userCredits < widget.contest.accessUsage) {
+       _showLowBalanceDialog(context, widget.contest.accessUsage - userCredits);
        return;
      }
 
@@ -167,7 +167,7 @@ class _ContestCardState extends State<ContestCard> {
              Row(
                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                children: [
-                 const Text("Select Team to Join", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                 const Text("Confirm Participation", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                  TextButton.icon(
                    onPressed: () {
                      Navigator.pop(ctx);
@@ -229,7 +229,7 @@ class _ContestCardState extends State<ContestCard> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Low Balance"),
-        content: Text("You need ${deficit.toStringAsFixed(0)} Credits more to join this contest."), // Keep currency consistent
+        content: Text("You need ${deficit.toStringAsFixed(0)} Credits more to unlock this interaction."), // Keep currency consistent
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
@@ -245,21 +245,32 @@ class _ContestCardState extends State<ContestCard> {
     );
   }
 
-  void _confirmContestJoin(BuildContext context, TeamEntity team, WidgetRef ref, CricketContestModel contest, String matchIdArg) {
+  void _confirmContestJoin(BuildContext context, TeamEntity team, WidgetRef ref, CricketRoomModel contest, String matchIdArg) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Join Contest Confirmation"),
+        title: const Text("Unlock Participation Confirmation"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-             Text("Join '${contest.category}' with Team '${team.teamName}'?", style: const TextStyle(fontWeight: FontWeight.bold)),
-             const SizedBox(height: 8),
-             const Text("Entry Fee: Practice Contest", style: TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold)), // UI only
+             Text("Unlock Interaction for '${contest.category}'?", style: const TextStyle(fontWeight: FontWeight.bold)),
+             const SizedBox(height: 12),
+             Container(
+               padding: const EdgeInsets.all(12),
+               decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   _disclaimerRow("Platform charge is for interaction access only."),
+                   _disclaimerRow("Platform does not distribute rewards/payouts."),
+                   _disclaimerRow("Hosts independently provide vouchers/coupons."),
+                 ],
+               ),
+             ),
              const Divider(height: 24),
-             const Text("• Entry fee is non-refundable.", style: TextStyle(fontSize: 12, color: Colors.grey)),
-             const Text("• This is a skill-based contest.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+             const Text("• Access charge is non-refundable.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+             const Text("• This is a skill-based interaction.", style: TextStyle(fontSize: 12, color: Colors.grey)),
              const Text("• Platform decision is final.", style: TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
@@ -287,7 +298,7 @@ class _ContestCardState extends State<ContestCard> {
                   matchId: matchIdArg, 
                   teamId: team.id,
                   teamName: team.teamName,
-                  entryFee: contest.entryFee,
+                  entryFee: contest.accessUsage,
                   joinedAt: DateTime.now(),
                   contestName: contest.category, // Use category
                 );
@@ -296,20 +307,33 @@ class _ContestCardState extends State<ContestCard> {
                 
                 if (mounted) setState(() => _isLoading = false);
                 ScaffoldMessenger.of(context).showSnackBar(
-                   SnackBar(content: Text("Successfully Joined '${contest.category}'! 🎉"))
+                   SnackBar(content: Text("Unlocked Interaction for '${contest.category}'! 🎉"))
                 );
               } catch (e) {
                 if (mounted) setState(() => _isLoading = false);
                 debugPrint("Join Error: $e");
                 ScaffoldMessenger.of(context).showSnackBar(
-                   SnackBar(content: Text("Failed to join: $e"), backgroundColor: Colors.red)
+                   SnackBar(content: Text("Failed to participate: $e"), backgroundColor: Colors.red)
                 );
               }
             },
-            child: const Text("JOIN NOW")
+            child: const Text("UNLOCK PARTICIPATION")
           )
         ],
       )
+    );
+  }
+
+  Widget _disclaimerRow(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 10, color: Colors.amber),
+          const SizedBox(width: 4),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 9, color: Colors.black87))),
+        ],
+      ),
     );
   }
 }

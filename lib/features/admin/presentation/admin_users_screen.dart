@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:intl/intl.dart';
-import 'package:axevora11/features/wallet/data/wallet_repository.dart';
+import 'package:axevora11/features/access/data/access_repository.dart';
 
 class AdminUsersScreen extends ConsumerStatefulWidget {
   const AdminUsersScreen({super.key});
@@ -26,7 +26,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
   Future<void> _fetchUsers() async {
     setState(() => _isLoading = true);
     try {
-      final users = await ref.read(walletRepositoryProvider).getAllUsers();
+      final users = await ref.read(accessRepositoryProvider).getAllUsers();
 
       if (mounted) {
         setState(() {

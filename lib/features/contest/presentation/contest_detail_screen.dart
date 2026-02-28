@@ -15,7 +15,7 @@ import 'package:axevora11/features/user/presentation/providers/user_provider.dar
 import 'package:axevora11/features/user/domain/user_entity.dart'; // Added
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
-import 'package:axevora11/features/cricket_api/data/providers/fantasy_points_provider.dart';
+
 import 'package:axevora11/features/cricket_api/data/providers/scorecard_provider.dart';
 import 'package:axevora11/features/cricket_api/data/providers/leaderboard_provider.dart';
 import 'package:axevora11/features/contest/presentation/widgets/team_pitch_view_sheet.dart';
@@ -24,7 +24,7 @@ import 'package:axevora11/features/contest/presentation/widgets/team_pitch_view_
 
 class ContestDetailScreen extends ConsumerStatefulWidget {
   final String contestId;
-  final CricketContestModel? contest; // Made optional
+  final CricketRoomModel? contest; // Made optional
   final CricketMatchModel? match; 
   final String? matchId; // Added for fetching if match/contest is missing
 
@@ -41,7 +41,7 @@ class ContestDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
-  CricketContestModel? _contest;
+  CricketRoomModel? _contest;
   bool _isLoading = false;
   String? _error;
   late final String? _resolvedMatchId;
@@ -105,7 +105,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
           child: Scaffold(
             appBar: AppBar(
               backgroundColor: Colors.indigo,
-              title: const Text("Contest Details", style: TextStyle(fontSize: 16)),
+              title: const Text("Room Details", style: TextStyle(fontSize: 16)),
               actions: [
                 IconButton(
                   icon: const Icon(Icons.refresh, color: Colors.white),
@@ -118,7 +118,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white60,
                 tabs: [
-                  Tab(text: "Winnings"),
+                  Tab(text: "Benefits"),
                   Tab(text: "Leaderboard"),
                 ],
               ),
@@ -129,7 +129,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      _buildWinningsTab(contest),
+                      _buildBenefitsTab(contest),
                       _buildLeaderboardTab(contest),
                     ],
                   ),
@@ -161,7 +161,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  Widget _buildHeader(CricketContestModel contest) {
+  Widget _buildHeader(CricketRoomModel contest) {
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.white,
@@ -174,10 +174,10 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Prize Pool", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const Text("Interaction Benefits", style: TextStyle(color: Colors.grey, fontSize: 12)),
                   Row(
                     children: [
-                       Text("${contest.prizePool} Axe Coins", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                       Text(contest.category, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                        const SizedBox(width: 8),
                        if (widget.match?.status == 'Live')
                           Container(
@@ -193,19 +193,12 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                   ),
                 ],
               ),
-              if (contest.isGuaranteed)
-                 Chip(
-                   label: const Text("Guaranteed", style: TextStyle(fontSize: 10)),
-                   backgroundColor: Colors.blue.withOpacity(0.1),
-                   labelStyle: const TextStyle(color: Colors.blue), 
-                   padding: EdgeInsets.zero,
-                   visualDensity: VisualDensity.compact,
-                 )
+               if (false) const SizedBox.shrink()
             ],
           ),
           const SizedBox(height: 12),
           LinearProgressIndicator(
-            value: contest.totalSpots > 0 ? contest.filledSpots / contest.totalSpots : 0,
+            value: contest.totalParticipants > 0 ? contest.filledParticipants / contest.totalParticipants : 0,
             backgroundColor: Colors.grey.shade200,
             color: Colors.orange,
             minHeight: 6,
@@ -250,10 +243,10 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("${contest.totalSpots - contest.filledSpots} spots left", 
+              Text("${contest.totalParticipants - contest.filledParticipants} spots left", 
                 style: const TextStyle(color: Colors.orange, fontSize: 12)
               ),
-              Text("${contest.totalSpots} spots", 
+              Text("${contest.totalParticipants} spots", 
                 style: const TextStyle(color: Colors.grey, fontSize: 12)
               ),
             ],
@@ -263,7 +256,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  Widget _buildWinningsTab(CricketContestModel contest) {
+  Widget _buildBenefitsTab(CricketRoomModel contest) {
     return Consumer(
       builder: (context, ref, _) {
         final allJoined = ref.watch(userContestProvider);
@@ -280,7 +273,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                   children: [
                     Icon(Icons.stars, color: Colors.indigo, size: 20),
                     SizedBox(width: 8),
-                    Text("MY JOINED TEAMS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, letterSpacing: 1.1, fontSize: 13)),
+                    Text("MY INTERACTIONS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, letterSpacing: 1.1, fontSize: 13)),
                   ],
                 ),
               ),
@@ -331,12 +324,12 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                             ),
                           ),
                           title: Text(myTeam.teamName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                          subtitle: Text("Entry: ${myTeam.entryFee.toStringAsFixed(0)} Coins"),
+                          subtitle: Text("Access: ${myTeam.entryFee.toStringAsFixed(0)} Axe"),
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text("${points.toStringAsFixed(1)} pts", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 16)),
+                              Text("${points.toStringAsFixed(1)} stats", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 16)),
                               const Text("View Team", style: TextStyle(fontSize: 10, color: Colors.grey)),
                             ],
                           ),
@@ -349,25 +342,25 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
               const Divider(height: 32),
             ],
 
-            // 💰 PRIZE BREAKDOWN SECTION
+            // 💰 BENEFIT BREAKDOWN SECTION
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Row(
                 children: [
                   Icon(Icons.emoji_events_outlined, color: Colors.grey, size: 20),
                   SizedBox(width: 8),
-                  Text("WINNING BREAKDOWN", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1, fontSize: 13)),
+                  Text("INTERACTION BENEFITS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1, fontSize: 13)),
                 ],
               ),
             ),
             
-            if (contest.winningBreakdown.isEmpty)
+            if (contest.benefitTiers.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(32.0),
-                child: Center(child: Text("Prize breakdown will be updated soon.", style: TextStyle(color: Colors.grey))),
+                child: Center(child: Text("Benefit breakdown will be updated soon.", style: TextStyle(color: Colors.grey))),
               )
             else
-              ...contest.winningBreakdown.map((tier) {
+              ...contest.benefitTiers.map((tier) {
                 final start = tier['rankStart'];
                 final end = tier['rankEnd'];
                 final amount = tier['amount'];
@@ -395,7 +388,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
               padding: const EdgeInsets.all(24.0),
               child: Center(
                 child: Text(
-                  "Note: Winnings are distributed manually by Admin after match completion.\nRanks & points are updated every 5 mins from D1.",
+                  "Note: Interaction benefits are managed independently by the Room Host.\nRanks & stats are updated every 5 mins for informational purposes.",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 10, color: Colors.grey[400], height: 1.5),
                 ),
@@ -407,7 +400,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  Widget _buildWinningRow(int rank, double amount) {
+  Widget _buildBenefitRow(int rank, double amount) {
     return Container(
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Colors.black12)),
@@ -433,7 +426,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     }
   }
 
-  Widget _buildLeaderboardTab(CricketContestModel contest) {
+  Widget _buildLeaderboardTab(CricketRoomModel contest) {
     return Column(
       children: [
         Container(
@@ -441,7 +434,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
           color: Colors.amber.withOpacity(0.1),
           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
           child: const Text(
-            "Points & Ranks are updated every 5 minutes by the Server (Zero Firestore Reads).",
+            "Stats & Ranks are updated every 5 minutes and are for informational purposes only.",
             style: TextStyle(color: Colors.amber, fontSize: 10),
             textAlign: TextAlign.center,
           ),
@@ -502,7 +495,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                                  child: Text("$rank", style: TextStyle(color: isCurrentUser ? Colors.white : Colors.black)),
                                ),
                                title: Text(display, style: TextStyle(fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal)),
-                               subtitle: Text("${data['teamName'] ?? 'Team'} • ${points.toStringAsFixed(0)} pts"), // Format points
+                               subtitle: Text("${data['teamName'] ?? 'Team'} • ${points.toStringAsFixed(0)} stats"), // Format stats
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -528,7 +521,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  Widget _buildBottomBar(BuildContext context, CricketContestModel contest) {
+  Widget _buildBottomBar(BuildContext context, CricketRoomModel contest) {
     if (widget.match?.status == 'Live' || widget.match?.status == 'Completed') {
        return const SizedBox.shrink(); // Hide join option for live/completed matches
     }
@@ -550,7 +543,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: Text("Join for ${contest.entryFee.toStringAsFixed(0)} Axe Coins", 
+              child: Text("Unlock Participation for ${contest.accessUsage.toStringAsFixed(0)} Axe", 
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
               ),
             ),
@@ -560,12 +553,12 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     );
   }
 
-  void _handleJoin(BuildContext context, CricketContestModel contest) {
+  void _handleJoin(BuildContext context, CricketRoomModel contest) {
      final userAsync = ref.read(userEntityProvider);
-     final currentBalance = userAsync.value?.walletBalance ?? 0.0;
+     final currentBalance = userAsync.value?.accessCredits ?? 0.0;
      
-     if (currentBalance < contest.entryFee) {
-       _showLowBalanceDialog(context, contest.entryFee - currentBalance);
+     if (currentBalance < contest.accessUsage) {
+       _showLowBalanceDialog(context, contest.accessUsage - currentBalance);
        return;
      }
 
@@ -640,7 +633,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                            backgroundColor: isJoined ? Colors.grey : Colors.green,
                            foregroundColor: Colors.white,
                          ),
-                         child: Text(isJoined ? "Joined" : "Select"),
+                         child: Text(isJoined ? "Participating" : "Select"),
                        ),
                      );
                    },
@@ -657,7 +650,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Low Balance"),
-        content: Text("You need ${deficit.toStringAsFixed(0)} Axe Coins more to join this contest."), // Keep currency consistent
+        content: Text("You need ${deficit.toStringAsFixed(0)} Axe more to unlock this participation."), // Keep currency consistent
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
@@ -666,7 +659,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
               context.push('/wallet'); // Navigate to Add Cash
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-            child: const Text("ADD COINS"), // Consistent with Wallet
+            child: const Text("ADD AXE"), // Consistent with Wallet
           )
         ],
       )
@@ -697,7 +690,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     return false;
   }
 
-  void _confirmJoin(BuildContext context, TeamEntity team, CricketContestModel contest) {
+  void _confirmJoin(BuildContext context, TeamEntity team, CricketRoomModel contest) {
     final persistedTeamPreviewFuture = ref
         .read(teamProvider.notifier)
         .getTeamById(team.id, matchId: team.matchId);
@@ -705,13 +698,33 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Join Contest Confirmation"),
+        title: const Text("Unlock Participation Confirmation"),
         content: FutureBuilder<TeamEntity>(
           future: persistedTeamPreviewFuture,
           builder: (context, snapshot) {
             final previewTeam = snapshot.data ?? team;
-            return Text(
-              "Join '${contest.category}' with Team '${previewTeam.teamName}'?\nEntry: ${contest.entryFee} Axe Coins",
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Unlock Interaction for '${contest.category}' using Team '${previewTeam.teamName}'?",
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Column(
+                    children: [
+                      _disclaimerRow("Platform charge is for interaction access only."),
+                      _disclaimerRow("Platform does not distribute benefits/payouts."),
+                      _disclaimerRow("Hosts independently provide vouchers/coupons."),
+                    ],
+                  ),
+                ),
+                const Divider(height: 20),
+                Text("Access Usage: ${contest.accessUsage} Credits", style: const TextStyle(fontWeight: FontWeight.bold)),
+              ],
             );
           },
         ),
@@ -767,10 +780,12 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                   matchId: persistedTeam.matchId,
                   teamId: persistedTeam.id,
                   teamName: persistedTeam.teamName,
-                  entryFee: contest.entryFee,
+                  entryFee: contest.accessUsage,
                   joinedAt: DateTime.now(),
                   contestName: contest.category,
                 );
+                
+                debugPrint("[UNLOCK_ACTION] Unlocking participation for ${contest.category}");
 
                 await ref.read(userContestProvider.notifier).joinContest(
                   joinedContest,
@@ -793,7 +808,7 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                 );
               }
             },
-            child: const Text("JOIN NOW")
+            child: const Text("UNLOCK PARTICIPATION")
           )
         ],
       )
@@ -851,9 +866,9 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text("Contest Joined!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.indigo)),
+              const Text("Interaction Unlocked!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.indigo)),
               const SizedBox(height: 8),
-              Text("You successfully joined '$contestName'", textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
+              Text("You successfully unlocked participation for '$contestName'", textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -870,6 +885,18 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+  Widget _disclaimerRow(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 10, color: Colors.amber),
+          const SizedBox(width: 4),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 9, color: Colors.black87))),
+        ],
       ),
     );
   }

@@ -3,8 +3,13 @@
  * Responsibilities:
  * 1. Fetch from Cricbuzz Cricket API (RapidAPI)
  * 2. Parse Data (Cricbuzz Structure)
- * 3. Update Cloudflare D1 (Delta Updates Only)
+ * 3. Update Cloudflare D1 (Delta Updates Only) — Informational Stats Only
  * 4. STRICTLY NO FIRESTORE WRITES
+ *
+ * STRATEGIC GUARDRAIL:
+ * // cricket_engine.js - Social Interaction Rooms Processor (Non-monetary)
+ * No competitive wagering, gambling semantics, or platform-led payouts are permitted.
+ * Future categories must be reviewed for social interaction compliance before implementation.
  */
 
 import { isPrioritySeries } from './squad_engine.js'; // Shared Whitelist

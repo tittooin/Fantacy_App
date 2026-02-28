@@ -3,11 +3,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provider for the API Client
-final fantasyApiClientProvider = Provider<FantasyApiClient>((ref) {
-  return FantasyApiClient();
+final axevoraApiClientProvider = Provider<AxevoraApiClient>((ref) {
+  return AxevoraApiClient();
 });
 
-class FantasyApiClient {
+class AxevoraApiClient {
   late final Dio _dio;
   
   // Base URL for Cloudflare Worker
@@ -16,7 +16,7 @@ class FantasyApiClient {
   // Public Getter for Providers
   Dio get dio => _dio;
 
-  FantasyApiClient() {
+  AxevoraApiClient() {
     _dio = Dio(BaseOptions(
       baseUrl: _baseUrl,
       connectTimeout: const Duration(seconds: 10),
@@ -60,16 +60,16 @@ class FantasyApiClient {
     }
   }
 
-  /// 3. Fetch Fantasy Points
-  Future<List<Map<String, dynamic>>> getFantasyPoints(String matchId) async {
+  /// 3. Fetch Interaction Stats (Previously Fantasy Points)
+  Future<List<Map<String, dynamic>>> getInteractionStats(String matchId) async {
     try {
-      final response = await _dio.get('/fantasy-points', queryParameters: {'match_id': matchId});
+      final response = await _dio.get('/interaction-stats', queryParameters: {'match_id': matchId});
       if (response.statusCode == 200 && response.data['success'] == true) {
-        return List<Map<String, dynamic>>.from(response.data['points'] ?? []);
+        return List<Map<String, dynamic>>.from(response.data['stats'] ?? []);
       }
       return [];
     } catch (e) {
-      print('❌ Error fetching points for $matchId: $e');
+      print('❌ Error fetching stats for $matchId: $e');
       return [];
     }
   }
@@ -93,8 +93,8 @@ class FantasyApiClient {
     }
   }
 
-  /// 5. Fetch Contests for a Match (D1)
-  Future<List<Map<String, dynamic>>> getContests(String matchId) async {
+  /// 5. Fetch Interaction Hubs for a Match (D1, Previously Contests)
+  Future<List<Map<String, dynamic>>> getInteractionHubs(String matchId) async {
     try {
       final response = await _dio.get('/api/contests', queryParameters: {'matchId': matchId});
       if (response.statusCode == 200 && response.data['success'] == true) {
@@ -102,29 +102,29 @@ class FantasyApiClient {
       }
       return [];
     } catch (e) {
-      print('❌ Error fetching contests for $matchId: $e');
+      print('❌ Error fetching hubs for $matchId: $e');
       return [];
     }
   }
 
-  /// 6. Create Contest (Admin Only - D1)
-  Future<Map<String, dynamic>> createContest(Map<String, dynamic> contestData) async {
+  /// 6. Create Hub (Admin Only - D1, Previously Contest)
+  Future<Map<String, dynamic>> createInteractionHub(Map<String, dynamic> hubData) async {
     try {
-      final response = await _dio.post('/api/admin/contests/create', data: contestData);
+      final response = await _dio.post('/api/admin/contests/create', data: hubData);
       return response.data;
     } catch (e) {
-      print('❌ Error creating contest: $e');
+      print('❌ Error creating hub: $e');
       return {'success': false, 'error': e.toString()};
     }
   }
 
-  /// 7. Join Contest (D1)
-  Future<Map<String, dynamic>> joinContest(Map<String, dynamic> payload) async {
+  /// 7. Unlock Hub Access (D1, Previously Join Contest)
+  Future<Map<String, dynamic>> unlockHubAccess(Map<String, dynamic> payload) async {
     try {
       final response = await _dio.post('/api/join-contest', data: payload);
       return response.data;
     } catch (e) {
-      print('❌ Error joining contest: $e');
+      print('❌ Error unlocking access: $e');
       return {'success': false, 'error': e.toString()};
     }
   }
@@ -147,8 +147,8 @@ class FantasyApiClient {
     }
   }
   
-  /// 8. Fetch User Joined Contests (D1)
-  Future<List<Map<String, dynamic>>> getUserContests(String userId) async {
+  /// 8. Fetch User Joined Hubs (D1, Previously Contests)
+  Future<List<Map<String, dynamic>>> getUserHubs(String userId) async {
     try {
       final response = await _dio.get('/api/user/contests', queryParameters: {'userId': userId});
       if (response.statusCode == 200 && response.data['success'] == true) {
@@ -156,13 +156,13 @@ class FantasyApiClient {
       }
       return [];
     } catch (e) {
-      print('❌ Error fetching user contests for $userId: $e');
+      print('❌ Error fetching user hubs for $userId: $e');
       return [];
     }
   }
 
-  /// 9. Save/Create Team (D1)
-  Future<Map<String, dynamic>> saveTeam(Map<String, dynamic> payload) async {
+  /// 9. Save/Create Custom Team (D1, Previously Team)
+  Future<Map<String, dynamic>> saveCustomTeam(Map<String, dynamic> payload) async {
     try {
       final response = await _dio.post('/api/teams/save', data: payload);
       if (response.statusCode == 200) {
@@ -175,16 +175,19 @@ class FantasyApiClient {
     }
   }
 
-  /// 10. Fetch Room Leaderboard (D1)
-  Future<List<Map<String, dynamic>>> getRoomLeaderboard(String matchId) async {
+  /// 10. Fetch Room Comparison (D1, Previously Leaderboard)
+  Future<List<Map<String, dynamic>>> getRoomLeaderboard(String matchId, String? roomId) async {
     try {
-      final response = await _dio.get('/api/room/leaderboard', queryParameters: {'matchId': matchId});
+      final response = await _dio.get('/api/room/leaderboard', queryParameters: {
+        'matchId': matchId,
+        if (roomId != null) 'roomId': roomId,
+      });
       if (response.statusCode == 200 && response.data['success'] == true) {
         return List<Map<String, dynamic>>.from(response.data['leaderboard'] ?? []);
       }
       return [];
     } catch (e) {
-      print('❌ Error fetching room leaderboard: $e');
+      print('❌ Error fetching room comparison: $e');
       return [];
     }
   }

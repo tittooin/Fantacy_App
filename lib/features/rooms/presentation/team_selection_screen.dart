@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:axevora11/core/constants/app_colors.dart';
-import 'package:axevora11/core/api/fantasy_api_client.dart';
+import 'package:axevora11/core/api/axevora_api_client.dart';
+import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
 import 'package:go_router/go_router.dart';
 
@@ -27,7 +28,7 @@ class _TeamSelectionScreenState extends ConsumerState<TeamSelectionScreen> {
   }
 
   Future<void> _fetchSquad() async {
-    final client = ref.read(fantasyApiClientProvider);
+    final client = ref.read(axevoraApiClientProvider);
     final data = await client.getSquads(widget.matchId);
     if (data != null && data['squads'] != null) {
       final List players = [];
@@ -75,7 +76,7 @@ class _TeamSelectionScreenState extends ConsumerState<TeamSelectionScreen> {
 
     setState(() => _isLoading = true);
     final user = ref.read(userEntityProvider).value;
-    final client = ref.read(fantasyApiClientProvider);
+    final apiClient = ref.read(rapidApiServiceProvider);
 
     final payload = {
       'userId': user?.uid ?? 'guest',
@@ -90,7 +91,7 @@ class _TeamSelectionScreenState extends ConsumerState<TeamSelectionScreen> {
       'viceCaptainId': _selectedPlayers[1]['id'], // Default second for now
     };
 
-    final res = await client.saveTeam(payload);
+    final res = await apiClient.saveTeam(payload);
     setState(() => _isLoading = false);
 
     if (res['success'] == true) {

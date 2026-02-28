@@ -1,17 +1,17 @@
 
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/api/fantasy_api_client.dart';
+import '../../../../core/api/axevora_api_client.dart';
 import 'package:flutter/foundation.dart'; // For debugPrint
 
 /// Provider for the list of matches
 final matchListProvider = StateNotifierProvider<MatchListNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  final client = ref.watch(fantasyApiClientProvider);
+  final client = ref.watch(axevoraApiClientProvider);
   return MatchListNotifier(client);
 });
 
 class MatchListNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
-  final FantasyApiClient _client;
+  final AxevoraApiClient _client;
   Timer? _timer;
 
   MatchListNotifier(this._client) : super(const AsyncValue.loading()) {

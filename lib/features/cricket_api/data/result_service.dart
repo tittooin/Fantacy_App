@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
-import 'package:axevora11/features/wallet/data/wallet_repository.dart';
+import 'package:axevora11/features/access/data/access_repository.dart';
 import 'package:uuid/uuid.dart';
 
 final resultServiceProvider = Provider((ref) => ResultService(ref));
@@ -24,7 +24,7 @@ class ResultService {
 
     for (var doc in contestsSnapshot.docs) {
       final contestData = doc.data();
-      final contest = CricketContestModel.fromJson(contestData);
+      final contest = CricketRoomModel.fromJson(contestData);
       
       print("  Processing Contest: ${contest.category} (${contest.id})");
       await _calculateContestWinners(matchId, contest);
@@ -33,7 +33,7 @@ class ResultService {
     print("✅ Result Processing Complete for Match: $matchId");
   }
 
-  Future<void> _calculateContestWinners(String matchId, CricketContestModel contest) async {
+  Future<void> _calculateContestWinners(String matchId, CricketRoomModel contest) async {
     // 2. Fetch Leaderboard (Sorted by Points)
     final entriesSnapshot = await _firestore
         .collection('matches')
@@ -49,7 +49,7 @@ class ResultService {
 
     // 3. Get Prize Breakdown
     // Format: [{rankStart: 1, rankEnd: 1, amount: 1000}, {rankStart: 2, rankEnd: 5, amount: 500}]
-    final breakdown = contest.winningBreakdown;
+    final breakdown = contest.benefitTiers;
     if (breakdown.isEmpty) return;
 
     // 4. Assign Ranks and Distribute Winnings
@@ -105,12 +105,12 @@ class ResultService {
   }
 
   Future<void> _distributeWinnings(String userId, double amount, String matchId, String contestName) async {
-    final walletRepo = _ref.read(walletRepositoryProvider);
+    final accessRepo = _ref.read(accessRepositoryProvider);
     
     // Add to Winnings Balance
     // Note: Transaction Logic adds to total balance. Ideally we split Deposit/Winning.
     // For MVP, we add to generic balance.
-    await walletRepo.addFunds(userId, amount);
+    await accessRepo.addFunds(userId, amount);
     
     // Create Transaction Record
     // Note: walletRepo.addFunds typically creates a transaction if handled internally.

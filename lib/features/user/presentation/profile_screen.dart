@@ -203,20 +203,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
            const SizedBox(height: 16),
            if (_isMe) ...[
              ElevatedButton(onPressed: () => _showEditProfileDialog(user), child: const Text("Edit Profile")),
+             const SizedBox(height: 12),
+             _buildMenuItem(Icons.account_balance_wallet_rounded, "Access Hub", () => context.push('/wallet')),
              if (_isAdmin)
-               Padding(
-                 padding: const EdgeInsets.only(top: 12.0),
-                 child: ElevatedButton.icon(
-                   onPressed: () => context.push('/admin/dashboard'),
-                   icon: const Icon(Icons.admin_panel_settings, size: 18),
-                   label: const Text("ADMIN PANEL"),
-                   style: ElevatedButton.styleFrom(
-                     backgroundColor: Colors.redAccent,
-                     foregroundColor: Colors.white,
-                     shape: const StadiumBorder(),
-                   ),
-                 ),
-               ),
+               _buildMenuItem(Icons.admin_panel_settings, "Admin Dashboard", () => context.push('/admin')),
            ] else
              ElevatedButton(onPressed: _toggleFollow, child: Text(_isFollowing ? "Following" : "Follow")),
         ],
@@ -232,7 +222,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           _buildStatItem("Followers", user.followersCount.toString()),
           _buildStatItem("Following", user.followingCount.toString()),
-          _buildStatItem("Contests", user.contestsPlayed.toString()),
+          _buildStatItem("Rooms", user.contestsPlayed.toString()),
         ],
       ),
     );
@@ -244,6 +234,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
+    );
+  }
+
+  Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.indigo),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
     );
   }
 }

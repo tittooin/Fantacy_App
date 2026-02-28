@@ -19,8 +19,8 @@ mixin _$PlayerModel {
  PlayerRole get role;// Enum for strict filtering
  double get credits;// e.g., 9.0
  String get imageUrl;// URL or asset path
- double get points;// Last match points or average
- double get fantasyRating;// NEW: Selection Helper (0-100)
+ double get points;// Informational Stats (Runs, Wickets, etc.)
+@JsonKey(name: 'fantasyRating') double get fantasyRating;// Selection Helper (0-100)
  bool get isPlaying;// For lineup announcement
  String? get teamId;// Added for robust team matching
 @JsonKey(includeFromJson: false, includeToJson: false) String? get teamBucket;
@@ -56,7 +56,7 @@ abstract mixin class $PlayerModelCopyWith<$Res>  {
   factory $PlayerModelCopyWith(PlayerModel value, $Res Function(PlayerModel) _then) = _$PlayerModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String? teamShortName, PlayerRole role, double credits, String imageUrl, double points, double fantasyRating, bool isPlaying, String? teamId,@JsonKey(includeFromJson: false, includeToJson: false) String? teamBucket
+ String id, String name, String? teamShortName, PlayerRole role, double credits, String imageUrl, double points,@JsonKey(name: 'fantasyRating') double fantasyRating, bool isPlaying, String? teamId,@JsonKey(includeFromJson: false, includeToJson: false) String? teamBucket
 });
 
 
@@ -171,7 +171,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  PlayerRole role,  double credits,  String imageUrl,  double points,  double fantasyRating,  bool isPlaying,  String? teamId, @JsonKey(includeFromJson: false, includeToJson: false)  String? teamBucket)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  PlayerRole role,  double credits,  String imageUrl,  double points, @JsonKey(name: 'fantasyRating')  double fantasyRating,  bool isPlaying,  String? teamId, @JsonKey(includeFromJson: false, includeToJson: false)  String? teamBucket)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PlayerModel() when $default != null:
 return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.fantasyRating,_that.isPlaying,_that.teamId,_that.teamBucket);case _:
@@ -192,7 +192,7 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  PlayerRole role,  double credits,  String imageUrl,  double points,  double fantasyRating,  bool isPlaying,  String? teamId, @JsonKey(includeFromJson: false, includeToJson: false)  String? teamBucket)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? teamShortName,  PlayerRole role,  double credits,  String imageUrl,  double points, @JsonKey(name: 'fantasyRating')  double fantasyRating,  bool isPlaying,  String? teamId, @JsonKey(includeFromJson: false, includeToJson: false)  String? teamBucket)  $default,) {final _that = this;
 switch (_that) {
 case _PlayerModel():
 return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.fantasyRating,_that.isPlaying,_that.teamId,_that.teamBucket);case _:
@@ -212,7 +212,7 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? teamShortName,  PlayerRole role,  double credits,  String imageUrl,  double points,  double fantasyRating,  bool isPlaying,  String? teamId, @JsonKey(includeFromJson: false, includeToJson: false)  String? teamBucket)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? teamShortName,  PlayerRole role,  double credits,  String imageUrl,  double points, @JsonKey(name: 'fantasyRating')  double fantasyRating,  bool isPlaying,  String? teamId, @JsonKey(includeFromJson: false, includeToJson: false)  String? teamBucket)?  $default,) {final _that = this;
 switch (_that) {
 case _PlayerModel() when $default != null:
 return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits,_that.imageUrl,_that.points,_that.fantasyRating,_that.isPlaying,_that.teamId,_that.teamBucket);case _:
@@ -227,7 +227,7 @@ return $default(_that.id,_that.name,_that.teamShortName,_that.role,_that.credits
 @JsonSerializable()
 
 class _PlayerModel implements PlayerModel {
-  const _PlayerModel({required this.id, required this.name, this.teamShortName, required this.role, required this.credits, required this.imageUrl, this.points = 0.0, this.fantasyRating = 0.0, this.isPlaying = false, this.teamId, @JsonKey(includeFromJson: false, includeToJson: false) this.teamBucket});
+  const _PlayerModel({required this.id, required this.name, this.teamShortName, required this.role, required this.credits, required this.imageUrl, this.points = 0.0, @JsonKey(name: 'fantasyRating') this.fantasyRating = 0.0, this.isPlaying = false, this.teamId, @JsonKey(includeFromJson: false, includeToJson: false) this.teamBucket});
   factory _PlayerModel.fromJson(Map<String, dynamic> json) => _$PlayerModelFromJson(json);
 
 @override final  String id;
@@ -241,9 +241,9 @@ class _PlayerModel implements PlayerModel {
 @override final  String imageUrl;
 // URL or asset path
 @override@JsonKey() final  double points;
-// Last match points or average
-@override@JsonKey() final  double fantasyRating;
-// NEW: Selection Helper (0-100)
+// Informational Stats (Runs, Wickets, etc.)
+@override@JsonKey(name: 'fantasyRating') final  double fantasyRating;
+// Selection Helper (0-100)
 @override@JsonKey() final  bool isPlaying;
 // For lineup announcement
 @override final  String? teamId;
@@ -283,7 +283,7 @@ abstract mixin class _$PlayerModelCopyWith<$Res> implements $PlayerModelCopyWith
   factory _$PlayerModelCopyWith(_PlayerModel value, $Res Function(_PlayerModel) _then) = __$PlayerModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String? teamShortName, PlayerRole role, double credits, String imageUrl, double points, double fantasyRating, bool isPlaying, String? teamId,@JsonKey(includeFromJson: false, includeToJson: false) String? teamBucket
+ String id, String name, String? teamShortName, PlayerRole role, double credits, String imageUrl, double points,@JsonKey(name: 'fantasyRating') double fantasyRating, bool isPlaying, String? teamId,@JsonKey(includeFromJson: false, includeToJson: false) String? teamBucket
 });
 
 

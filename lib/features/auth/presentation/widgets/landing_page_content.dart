@@ -32,7 +32,7 @@ class LandingPageContent extends StatelessWidget {
               children: [
                 // Headline
                 Text(
-                  "WATCH.\nTALK.\nCONNECT.",
+                  "ENGAGE.\nDISCUSS.\nINTERACT.",
                   style: GoogleFonts.oswald(
                     color: AppColors.darkNavy,
                     fontWeight: FontWeight.w900,
@@ -43,7 +43,7 @@ class LandingPageContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  "Join live interaction rooms around events,\ndiscuss moments in real-time with friends.",
+                  "Join live discussion rooms around events,\nexplore shared interactions in real-time.",
                   style: GoogleFonts.inter(
                     color: AppColors.textDark.withOpacity(0.8),
                     fontSize: 20,
@@ -58,10 +58,10 @@ class LandingPageContent extends StatelessWidget {
                   spacing: 24,
                   runSpacing: 24,
                   children: [
-                    _buildFeatureCard(Icons.forum_outlined, "Live Group\nDiscussions"),
-                    _buildFeatureCard(Icons.lock_open_outlined, "Private Rooms\nfor Friends"),
-                    _buildFeatureCard(Icons.public_outlined, "Global & Invite-\nOnly Rooms"),
-                    _buildFeatureCard(Icons.bolt_outlined, "Real-Time\nEvent Updates"),
+                    _buildFeatureCard(Icons.forum_outlined, "Live Discussions\n& Stats"),
+                    _buildFeatureCard(Icons.lock_open_outlined, "Private Rooms\n& Interactions"),
+                    _buildFeatureCard(Icons.compare_arrows_outlined, "Informational\nTeam Comparisons"),
+                    _buildFeatureCard(Icons.money_off_rounded, "Non-monetary\nInteractions Only"),
                   ],
                 ),
 

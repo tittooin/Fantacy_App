@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_logs_screen.dart';
 import 'package:axevora11/features/admin/presentation/scoring_console_screen.dart';
-import 'package:axevora11/features/cricket_api/presentation/contest_creator_screen.dart';
+import 'package:axevora11/features/cricket_api/presentation/room_creator_screen.dart';
 import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:intl/intl.dart';

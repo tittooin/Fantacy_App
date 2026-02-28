@@ -1,10 +1,10 @@
 
 /**
- * Stats Metrics Engine
+ * Informational Stats Metrics Engine
  * Supports Multiple Formats: T20, ODI, TEST, T10
  */
 
-const POINTS_CONFIG = {
+const METRICS_CONFIG = {
     'T20': {
         run: 1,
         boundary: 1, // Four = 4 runs + 1 bonus = 5
@@ -57,98 +57,98 @@ const POINTS_CONFIG = {
 };
 
 export function calculateStatsMetrics(stats, format = 'T20') {
-    let points = 0;
+    let metricsPoints = 0;
     let breakdown = {};
 
     // 1. Select Config (Default to T20 if unknown)
-    const rules = POINTS_CONFIG[format] || POINTS_CONFIG['T20'];
+    const rules = METRICS_CONFIG[format] || METRICS_CONFIG['T20'];
 
     // --- BATTING ---
     if (stats.runs > 0) {
         const runPoints = stats.runs * rules.run;
-        points += runPoints;
+        metricsPoints += runPoints;
         breakdown.runs = runPoints;
     }
 
     if (stats.fours > 0) {
         const fourBonus = stats.fours * rules.boundary;
-        points += fourBonus;
+        metricsPoints += fourBonus;
         breakdown.fours = fourBonus;
     }
 
     if (stats.sixes > 0) {
         const sixBonus = stats.sixes * rules.six;
-        points += sixBonus;
+        metricsPoints += sixBonus;
         breakdown.sixes = sixBonus;
     }
 
     // Milestones
     if (stats.runs >= 100) {
-        points += rules.century;
+        metricsPoints += rules.century;
         breakdown.century = rules.century;
     } else if (stats.runs >= 50) {
-        points += rules.half_century;
+        metricsPoints += rules.half_century;
         breakdown.half_century = rules.half_century;
     }
 
     // Duck
     if (stats.isOut && stats.runs === 0 && (stats.role === 'Batsman' || stats.role === 'Allrounder')) {
-        points += rules.duck; // duck value is negative in config
+        metricsPoints += rules.duck; // duck value is negative in config
         breakdown.duck = rules.duck;
     }
 
     // --- BOWLING ---
     if (stats.wickets > 0) {
         const wicketPoints = stats.wickets * rules.wicket;
-        points += wicketPoints;
+        metricsPoints += wicketPoints;
         breakdown.wickets = wicketPoints;
     }
 
     if (stats.lbwOrBowled > 0) {
         const bonus = stats.lbwOrBowled * rules.lbw_bowled;
-        points += bonus;
+        metricsPoints += bonus;
         breakdown.lbw_bowled = bonus;
     }
 
     // 3/4/5 Wicket Haul (Highest Tier)
     if (stats.wickets >= 5) {
-        points += rules.five_wickets;
+        metricsPoints += rules.five_wickets;
         breakdown.five_wickets = rules.five_wickets;
     } else if (stats.wickets >= 4) {
-        points += rules.four_wickets;
+        metricsPoints += rules.four_wickets;
         breakdown.four_wickets = rules.four_wickets;
     } else if (stats.wickets >= 3) {
-        points += rules.three_wickets;
+        metricsPoints += rules.three_wickets;
         breakdown.three_wickets = rules.three_wickets;
     }
 
     if (stats.maidens > 0) {
         const maidenPoints = stats.maidens * rules.maiden;
-        points += maidenPoints;
+        metricsPoints += maidenPoints;
         breakdown.maidens = maidenPoints;
     }
 
     // --- FIELDING ---
     if (stats.catches > 0) {
         const catchPoints = stats.catches * rules.catch;
-        points += catchPoints;
+        metricsPoints += catchPoints;
         breakdown.catches = catchPoints;
     }
 
     if (stats.stumpings > 0) {
         const stumpingPoints = stats.stumpings * rules.stump;
-        points += stumpingPoints;
+        metricsPoints += stumpingPoints;
         breakdown.stumpings = stumpingPoints;
     }
 
     if (stats.runOuts > 0) {
         const runOutPoints = stats.runOuts * rules.runout;
-        points += runOutPoints;
+        metricsPoints += runOutPoints;
         breakdown.run_outs = runOutPoints;
     }
 
     return {
-        points: points,
+        stats: metricsPoints,
         breakdown: breakdown,
         format_used: format
     };
@@ -194,7 +194,7 @@ export async function syncMatchMetricsToD1(matchId, env) {
         console.log(`[API_LOCK_ACTIVE] Points sync skip: ${matchId}`);
         return 0;
     }
-    console.log("POINTS_ENGINE_OPT_V4"); // Version: Whitelist Patch
+    console.log("STATS_METRICS_V5"); // Version: Compliance Patch
 
     // 1. Fetch match details to validate Time Window
     const match = await env.DB.prepare("SELECT status, start_time, title FROM matches WHERE id = ?").bind(matchId).first();
@@ -232,7 +232,7 @@ export async function syncMatchMetricsToD1(matchId, env) {
         return 0;
     }
 
-    console.log(`📊 Syncing Points for Match ${matchId} (Status: ${match.status})...`);
+    console.log(`📊 Syncing Informational Stats for Match ${matchId} (Status: ${match.status})...`);
     const apiKey = env.RAPID_API_KEY;
     const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
 
@@ -278,13 +278,13 @@ export async function syncMatchMetricsToD1(matchId, env) {
                     ON CONFLICT(match_id, player_id) DO UPDATE SET
                         points = excluded.points,
                         breakdown = excluded.breakdown
-                `).bind(matchId, stats.playerId, fantasy.points, JSON.stringify(fantasy.breakdown))
+                `).bind(matchId, stats.playerId, fantasy.stats, JSON.stringify(fantasy.breakdown))
             );
         }
 
         if (queries.length > 0) {
             await env.DB.batch(queries);
-            console.log(`✅ Updated points for ${queries.length} players in D1.`);
+            console.log(`✅ Updated Informational Stats for ${queries.length} players in D1.`);
         }
 
         // --- NEW: Also Update Live Scorecard for UI (Fail-Safe) ---

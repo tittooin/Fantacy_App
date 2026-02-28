@@ -61,7 +61,7 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
       players: payloadPlayers,
       captainId: _captainId!,
       viceCaptainId: _viceCaptainId!,
-      totalPoints: 0,
+      totalStats: 0,
       teamName: teamName,
       isPersisted: false,
     );
@@ -103,7 +103,7 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("Choose Captain & VC", style: TextStyle(color: Colors.white, fontSize: 16)),
-            Text("C gets 2x points, VC gets 1.5x points", style: TextStyle(color: Colors.grey, fontSize: 12)),
+            Text("C gets 2x stats, VC gets 1.5x stats multiplier", style: TextStyle(color: Colors.grey, fontSize: 12)),
           ],
         ),
         backgroundColor: Colors.grey[900],
@@ -155,7 +155,7 @@ class _CaptainSelectionScreenState extends ConsumerState<CaptainSelectionScreen>
                           Text(player.role.displayStr, style: const TextStyle(color: Colors.white70, fontSize: 11)),
                         ],
                       ),
-                      Text("${player.points} pts", style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                      Text("${player.points} stats", style: const TextStyle(color: Colors.grey, fontSize: 11)),
                     ],
                   ),
                 ),

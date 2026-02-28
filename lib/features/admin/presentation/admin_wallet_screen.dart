@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:axevora11/features/wallet/data/wallet_repository.dart';
+import 'package:axevora11/features/access/data/access_repository.dart';
 
-class AdminWalletScreen extends ConsumerStatefulWidget {
-  const AdminWalletScreen({super.key});
+class AdminAccessScreen extends ConsumerStatefulWidget {
+  const AdminAccessScreen({super.key});
 
   @override
-  ConsumerState<AdminWalletScreen> createState() => _AdminWalletScreenState();
+  ConsumerState<AdminAccessScreen> createState() => _AdminAccessScreenState();
 }
 
-class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
+class _AdminAccessScreenState extends ConsumerState<AdminAccessScreen> {
   bool _isLoading = false;
   late Future<List<Map<String, dynamic>>> _payoutsFuture;
 
@@ -21,7 +21,7 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
 
   void _refreshPayouts() {
     setState(() {
-      _payoutsFuture = ref.read(walletRepositoryProvider).getPendingWithdrawals();
+      _payoutsFuture = ref.read(accessRepositoryProvider).getPendingClaims();
     });
   }
 
@@ -41,9 +41,9 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
                 const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                     Text("Payout Requests", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                     Text("Access Claims", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                      SizedBox(height: 4),
-                     Text("Manage withdrawals & rewards.", style: TextStyle(color: Colors.white54)),
+                     Text("Manage access claims & rewards.", style: TextStyle(color: Colors.white54)),
                   ],
                 ),
                 ElevatedButton.icon(
@@ -79,7 +79,7 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
                   if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
 
                   final docs = snapshot.data ?? [];
-                  if (docs.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("No Pending Payouts", style: TextStyle(color: Colors.white54))));
+                  if (docs.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("No Pending Claims", style: TextStyle(color: Colors.white54))));
 
                   return ListView.separated(
                     shrinkWrap: true,
@@ -178,7 +178,7 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
                            if(emailController.text.isEmpty) return;
                            setState(() => searching = true);
                            try {
-                             final user = await ref.read(walletRepositoryProvider).searchUserByEmail(emailController.text.trim());
+                             final user = await ref.read(accessRepositoryProvider).searchUserByEmail(emailController.text.trim());
                              if(user != null) {
                                foundUserId = user['id'];
                                foundUserName = user['name'] ?? "User";
@@ -240,7 +240,7 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
     if (amount <= 0) return;
     setState(() => _isLoading = true);
     try {
-      final success = await ref.read(walletRepositoryProvider).issueRewardCredit(userId, amount, note.isEmpty ? "Admin Reward" : note);
+      final success = await ref.read(accessRepositoryProvider).issueRewardCredit(userId, amount, note.isEmpty ? "Admin Reward" : note);
       
       if(mounted) {
         if (success) {
@@ -294,12 +294,12 @@ class _AdminWalletScreenState extends ConsumerState<AdminWalletScreen> {
   Future<void> _executeAction(String docId, String userId, bool approve, {String? note, double? refreshAmount}) async {
     setState(() => _isLoading = true);
     try {
-      final repo = ref.read(walletRepositoryProvider);
+      final repo = ref.read(accessRepositoryProvider);
       bool success;
       if (approve) {
-        success = await repo.approveWithdrawal(docId, userId, note ?? 'Approved');
+        success = await repo.approveClaim(docId, userId, note ?? 'Approved');
       } else {
-        success = await repo.rejectWithdrawal(docId, userId, refreshAmount ?? 0.0, note ?? 'Rejected');
+        success = await repo.rejectClaim(docId, userId, refreshAmount ?? 0.0, note ?? 'Rejected');
       }
       
       if(mounted) {

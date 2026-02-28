@@ -5,25 +5,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_contest_model.dart';
-import 'package:axevora11/core/api/fantasy_api_client.dart';
+import 'package:axevora11/core/api/axevora_api_client.dart';
 
 
-class ContestCreatorScreen extends ConsumerStatefulWidget {
+class RoomCreatorScreen extends ConsumerStatefulWidget {
   final CricketMatchModel match;
 
-  const ContestCreatorScreen({super.key, required this.match});
+  const RoomCreatorScreen({super.key, required this.match});
 
   @override
-  ConsumerState<ContestCreatorScreen> createState() => _ContestCreatorScreenState();
+  ConsumerState<RoomCreatorScreen> createState() => _RoomCreatorScreenState();
 }
 
-class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
+class _RoomCreatorScreenState extends ConsumerState<RoomCreatorScreen> {
   final _formKey = GlobalKey<FormState>();
   
   // Controllers
   final _entryFeeController = TextEditingController(text: '49');
   final _spotsController = TextEditingController(text: '100');
-  final _prizePoolController = TextEditingController();
+  final _benefitsController = TextEditingController();
   final _commissionController = TextEditingController(text: '20'); // %
 
   String _category = 'Mega Contest';
@@ -118,7 +118,6 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
   void dispose() {
     _entryFeeController.dispose();
     _spotsController.dispose();
-    _prizePoolController.dispose();
     _payoutTiers.clear();
     super.dispose();
   }
@@ -141,7 +140,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
               keyboardType: TextInputType.number,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
-                labelText: "Winning %",
+                labelText: "Benefit %",
                 labelStyle: TextStyle(color: Colors.white70),
                 suffixText: "%",
                 suffixStyle: TextStyle(color: Colors.white70),
@@ -261,7 +260,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
       setState(() {
         _totalCollection = collection;
         _projectedProfit = profit;
-        _prizePoolController.text = totalPayouts.toStringAsFixed(0);
+        _benefitsController.text = totalPayouts.toStringAsFixed(0);
         
         // Update Commission % for display (avoid looping if possible, or just ignore controller)
         if (collection > 0) {
@@ -280,7 +279,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
       setState(() {
         _totalCollection = collection;
         _projectedProfit = commissionAmount;
-        _prizePoolController.text = prizePool.toStringAsFixed(0);
+        _benefitsController.text = prizePool.toStringAsFixed(0);
       });
     }
   }
@@ -291,35 +290,33 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
     setState(() => _imageLoading = true);
 
     try {
-      final contestId = const Uuid().v4();
-      final contest = CricketContestModel(
-        id: contestId,
+      final roomId = const Uuid().v4();
+      final room = CricketRoomModel(
+        id: roomId,
         matchId: widget.match.id.toString(),
-        entryFee: double.parse(_entryFeeController.text),
-        totalSpots: int.parse(_spotsController.text),
-        filledSpots: 0,
-        prizePool: double.parse(_prizePoolController.text),
+        accessUsage: double.parse(_entryFeeController.text),
+        totalParticipants: int.parse(_spotsController.text),
+        filledParticipants: 0,
+        hostBenefitsInfo: _benefitsController.text.isNotEmpty ? _benefitsController.text : "Standard community interaction",
         category: _category,
-        isGuaranteed: _isGuaranteed,
-        isFlexible: _isFlexible,
-        winningBreakdown: _payoutTiers,
+        benefitTiers: _payoutTiers,
         createdAt: DateTime.now(),
       );
 
-      debugPrint("🎯 Creating contest (D1-Only): ID=$contestId, matchId=${widget.match.id}, category=$_category");
-      final contestData = contest.toJson();
+      debugPrint("🎯 Creating contest (D1-Only): ID=$roomId, matchId=${widget.match.id}, category=$_category");
+      final contestData = room.toJson();
       
       // Convert matchId to string for Worker API
       contestData['matchId'] = contestData['matchId'].toString();
       
       // Zero Firestore Writes: Using Worker API (D1)
-      final result = await ref.read(fantasyApiClientProvider).createContest(contestData);
+      final result = await ref.read(axevoraApiClientProvider).createInteractionHub(contestData);
 
       if (result['success'] == true) {
-        debugPrint("✅ Contest saved to D1 successfully!");
+        debugPrint("✅ Room saved to D1 successfully!");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Contest Created in D1! 🎉'), backgroundColor: Colors.green),
+            const SnackBar(content: Text('Room Created in D1! 🎉'), backgroundColor: Colors.green),
           );
           context.pop();
         }
@@ -340,7 +337,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Contest')),
+      appBar: AppBar(title: const Text('Create Interaction Hub')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -386,7 +383,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
                 value: _category,
                 style: const TextStyle(color: Colors.black),
                 dropdownColor: Colors.white,
-                decoration: _buildInputDecoration('Contest Category'),
+                decoration: _buildInputDecoration('Room Category'),
                 items: ['Mega Contest', 'Head 2 Head', 'Winner Takes All', 'Practice']
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
@@ -401,13 +398,13 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _buildPresetChip("Mega GL", 49, 1000, "Mega Contest", true, false),
+                    _buildPresetChip("Mega Hub", 49, 1000, "Mega Hub", true, false),
                     const SizedBox(width: 8),
                     _buildPresetChip("Head 2 Head", 575, 2, "Head 2 Head", true, false),
                     const SizedBox(width: 8),
                     _buildPresetChip("Winner Takes All", 100, 4, "Winner Takes All", true, false),
                     const SizedBox(width: 8),
-                    _buildPresetChip("Practice", 0, 100, "Practice", false, false),
+                    _buildPresetChip("Practice Hub", 0, 100, "Practice", false, false),
                   ],
                 ),
               ),
@@ -418,7 +415,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Payout Structure", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Text("Reward Structure", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   TextButton.icon(
                     onPressed: _addPayoutTier,
                     icon: const Icon(Icons.add),
@@ -491,12 +488,12 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
               if (_payoutTiers.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(8),
-                  color: _calculateTotalPayout() > double.parse(_prizePoolController.text) ? Colors.red.shade50 : Colors.green.shade50,
+                  color: _calculateTotalPayout() > double.parse(_benefitsController.text) ? Colors.red.shade50 : Colors.green.shade50,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text("Total Payout: ₹${_calculateTotalPayout().toStringAsFixed(0)}"),
-                      Text("Pool: ₹${_prizePoolController.text}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text("Benefits: ₹${_benefitsController.text}", style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -507,14 +504,14 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
               
               // Toggles
               SwitchListTile(
-                title: const Text("Guaranteed Contest"),
-                subtitle: const Text("Prize Pool remains same even if spots are not full"),
+                title: const Text("Guaranteed Room"),
+                subtitle: const Text("Reward value remains same even if spots are not full"),
                 value: _isGuaranteed,
                 onChanged: (val) => setState(() => _isGuaranteed = val),
               ),
               SwitchListTile(
-                title: const Text("Flexible Contest"),
-                subtitle: const Text("Prize Pool reduces if participation is low"),
+                title: const Text("Flexible Room"),
+                subtitle: const Text("Reward value reduces if participation is low"),
                 value: _isFlexible,
                 onChanged: (val) => setState(() => _isFlexible = val),
               ),
@@ -564,7 +561,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
                     const SizedBox(height: 8),
                     _buildSummaryRow("Platform Fee (-)", "₹${_projectedProfit.toStringAsFixed(2)}", isNegative: true),
                     const Divider(height: 16),
-                     _buildSummaryRow("Prize Pool (Available)", "₹${_prizePoolController.text}", isBold: true),
+                     _buildSummaryRow("Interaction Benefits (Available)", "₹${_benefitsController.text}", isBold: true),
                      const SizedBox(height: 8),
                      _buildSummaryRow("Total Payouts (-)", "₹${_calculateTotalPayout().toStringAsFixed(0)}", isNegative: true),
                      const Divider(height: 16),
@@ -573,7 +570,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
                       children: [
                         const Text("Undistributed (Profit)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green)),
                         Text(
-                          "₹${(double.parse(_prizePoolController.text.isEmpty ? "0" : _prizePoolController.text) - _calculateTotalPayout()).toStringAsFixed(0)}", 
+                          "₹${(double.parse(_benefitsController.text.isEmpty ? "0" : _benefitsController.text) - _calculateTotalPayout()).toStringAsFixed(0)}", 
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)
                         ),
                       ],
@@ -591,7 +588,7 @@ class _ContestCreatorScreenState extends ConsumerState<ContestCreatorScreen> {
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
                   child: _imageLoading 
                     ? const CircularProgressIndicator(color: Colors.white) 
-                    : const Text("CREATE CONTEST", style: TextStyle(fontWeight: FontWeight.bold)),
+                    : const Text("CREATE HUB", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],

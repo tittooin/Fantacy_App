@@ -5,7 +5,7 @@ import 'package:axevora11/features/auth/presentation/splash_screen.dart';
 import 'package:axevora11/features/location/data/location_service.dart';
 import 'package:axevora11/features/admin/presentation/admin_dashboard_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_scaffold.dart';
-import 'package:axevora11/features/cricket_api/presentation/contest_creator_screen.dart';
+import 'package:axevora11/features/cricket_api/presentation/room_creator_screen.dart';
 import 'package:axevora11/features/admin/presentation/match_control_screen.dart';
 import 'package:axevora11/features/admin/presentation/league_management_screen.dart'; // Added
 import 'package:axevora11/features/admin/presentation/admin_users_screen.dart';
@@ -39,8 +39,8 @@ import 'package:axevora11/features/team/presentation/team_builder_screen.dart';
 import 'package:axevora11/features/team/presentation/team_preview_screen.dart';
 import 'package:axevora11/features/team/presentation/captain_selection_screen.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
-import 'package:axevora11/features/wallet/presentation/wallet_screen.dart';
-import 'package:axevora11/features/wallet/presentation/redeem_screen.dart'; // Added
+import 'package:axevora11/features/access/presentation/access_hub_screen.dart';
+import 'package:axevora11/features/access/presentation/benefit_claim_screen.dart'; // Added
 import 'package:axevora11/features/user/presentation/profile_screen.dart';
 import 'package:axevora11/features/legal/presentation/legal_pages.dart';
 import 'package:axevora11/features/legal/presentation/social_safety_screen.dart';
@@ -154,8 +154,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
-        path: '/wallet', // Wallet acts as a modal/fullscreen usually
-        builder: (context, state) => const WalletScreen(),
+        path: '/wallet', // Path kept for deep-link compatibility, screen renamed
+      builder: (context, state) => const AccessHubScreen(),
       ),
       GoRoute(
         path: '/redeem',
@@ -304,14 +304,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             extras = Map<String, dynamic>.from(extra);
           }
 
-          // Safely parse CricketContestModel
-          CricketContestModel? contest;
+          // Safely parse CricketRoomModel
+          CricketRoomModel? contest;
           if (extras != null && extras['contest'] != null) {
               final contestData = extras['contest'];
-              if (contestData is CricketContestModel) {
+              if (contestData is CricketRoomModel) {
                 contest = contestData;
               } else if (contestData is Map) {
-                contest = CricketContestModel.fromJson(Map<String, dynamic>.from(contestData));
+                contest = CricketRoomModel.fromJson(Map<String, dynamic>.from(contestData));
               }
           }
 
@@ -463,7 +463,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/wallet',
-            builder: (context, state) => const AdminWalletScreen(),
+            builder: (context, state) => const AdminAccessScreen(),
           ),
           GoRoute(
             path: '/admin/kyc',
@@ -476,7 +476,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               if (match is! CricketMatchModel) {
                  return const Center(child: Text("Error: No Match Selected. Please go back and select a match."));
               }
-              return ContestCreatorScreen(match: match);
+              return RoomCreatorScreen(match: match);
             },
           ),
           GoRoute(
@@ -498,7 +498,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final matchId = state.pathParameters['matchId']!;
               final contestId = state.pathParameters['contestId']!;
-              final contest = state.extra as CricketContestModel?;
+              final contest = state.extra as CricketRoomModel?;
               return AdminPayoutLeaderboardScreen(
                 matchId: matchId,
                 contestId: contestId,

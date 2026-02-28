@@ -49,13 +49,12 @@ class _CreatePrivateContestScreenState extends ConsumerState<CreatePrivateContes
         'id': contestId,
         'category': 'Private',
         'subCategory': _nameController.text.isEmpty ? 'Private League' : _nameController.text,
-        'entryFee': int.parse(_entryFeeController.text),
-        'totalSpots': int.parse(_maxTeamsController.text),
-        'filledSpots': 0,
-        'totalPrize': _estimatedPrize,
-        'firstPrize': _estimatedPrize, // Winner Takes All (Simplified) or Custom
+        'accessUsage': int.parse(_entryFeeController.text),
+        'totalParticipants': int.parse(_maxTeamsController.text),
+        'filledParticipants': 0,
+        'hostBenefitsInfo': "Host provides: ${_estimatedPrize.toStringAsFixed(0)} value",
         'winnerCount': 1,
-        'winningBreakdown': [
+        'benefitTiers': [
            {'rankStart': 1, 'rankEnd': 1, 'amount': _estimatedPrize}
         ],
         'matchId': widget.match.id.toString(),
@@ -112,7 +111,7 @@ class _CreatePrivateContestScreenState extends ConsumerState<CreatePrivateContes
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(title: const Text("Create Private Contest"), backgroundColor: const Color(0xFF0B1E3C), foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text("Create Private Room"), backgroundColor: const Color(0xFF0B1E3C), foregroundColor: Colors.white),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -120,7 +119,7 @@ class _CreatePrivateContestScreenState extends ConsumerState<CreatePrivateContes
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Give your contest a name", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Give your room a name", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _nameController,
@@ -190,7 +189,7 @@ class _CreatePrivateContestScreenState extends ConsumerState<CreatePrivateContes
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("Total Prize Pool", style: TextStyle(fontSize: 16, color: Colors.grey)),
+                        const Text("Total Interaction Benefits", style: TextStyle(fontSize: 16, color: Colors.grey)),
                         Text("₹ ${_estimatedPrize.toStringAsFixed(0)}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green)),
                       ],
                     ),
@@ -213,7 +212,7 @@ class _CreatePrivateContestScreenState extends ConsumerState<CreatePrivateContes
                   ),
                   child: _isLoading 
                     ? const CircularProgressIndicator(color: Colors.white) 
-                    : const Text("CREATE CONTEST", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    : const Text("CREATE ROOM", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               )
             ],

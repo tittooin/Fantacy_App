@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:axevora11/features/contest/domain/user_contest_entity.dart';
 import 'package:axevora11/features/cricket_api/data/services/rapid_api_service.dart';
 import 'package:axevora11/features/user/presentation/providers/user_provider.dart';
-import 'package:axevora11/features/wallet/presentation/providers/wallet_provider.dart';
+import 'package:axevora11/features/access/presentation/providers/access_provider.dart';
 import 'package:axevora11/features/team/presentation/providers/team_provider.dart';
 
 class UserContestNotifier extends Notifier<List<UserContestEntity>> {
@@ -108,7 +108,7 @@ class UserContestNotifier extends Notifier<List<UserContestEntity>> {
 
       // Success - update local state and balance
       await _fetchJoinedContests();
-      ref.read(walletBalanceProvider.notifier).refresh();
+      // ref.read(accessCreditsProvider.notifier).refresh(); // TODO: Implement if access provider supports refresh
 
     } catch (e) {
       debugPrint("❌ Join Contest Failed: $e");
