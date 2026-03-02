@@ -197,7 +197,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
       },
       child: Column(
         children: [
-          if (showScore) MatchScoreHeader(matchId: widget.matchId),
+          if (showScore) MatchScoreHeader(matchId: widget.matchId, match: _effectiveMatch),
           // Filter Bar
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),

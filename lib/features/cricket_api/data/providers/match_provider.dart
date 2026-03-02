@@ -35,7 +35,7 @@ class MatchListNotifier extends StateNotifier<AsyncValue<List<Map<String, dynami
           // New mappings to fix "Mock" data
           'team1ShortName': m['team1ShortName'] ?? m['team_a'] ?? 'TBA',
           'team2ShortName': m['team2ShortName'] ?? m['team_b'] ?? 'TBA',
-          'score': m['score'] ?? m['last_score'] ?? '',
+          'score': m['score'] ?? m['lastScore'] ?? m['last_score'] ?? '',
           'teamAImg': m['teamAImg'] ?? m['team_a_img'] ?? '',
           'teamBImg': m['teamBImg'] ?? m['team_b_img'] ?? '',
         };

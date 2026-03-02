@@ -227,6 +227,16 @@ export default {
                 return await handleSocialPreview(matchId, env);
             }
 
+            if (path === '/debug-scag') {
+                try {
+                    const r = await fetch('https://www.cricbuzz.com/cricket-match/live-scores', { headers: { 'User-Agent': 'Mozilla/5.0' } });
+                    const t = await r.text();
+                    return new Response(t, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+                } catch (e) {
+                    return new Response(e.message, { status: 500 });
+                }
+            }
+
             if (path === '/api/test-force-sync') {
                 const mid = url.searchParams.get('matchId');
                 if (!mid) return new Response("Missing matchId", { status: 400 });

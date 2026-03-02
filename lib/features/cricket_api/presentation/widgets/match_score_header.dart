@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevora11/features/cricket_api/data/providers/scorecard_provider.dart';
+import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
 
 class MatchScoreHeader extends ConsumerWidget {
   final String matchId;
+  final CricketMatchModel? match; // Added
 
-  const MatchScoreHeader({super.key, required this.matchId});
+  const MatchScoreHeader({super.key, required this.matchId, this.match});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -15,12 +17,25 @@ class MatchScoreHeader extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       error: (_,__) => const SizedBox.shrink(), // Fail silently or show error
       data: (data) {
-         if (data == null) return const SizedBox.shrink();
+         // Fallback logic
+         String status = 'Live';
+         String t1Score = '';
+         String t2Score = '';
+         String genericScore = '';
          
-         final status = data['status_note'] ?? 'Live';
-         final t1Score = data['team_a_score'] ?? '';
-         final t2Score = data['team_b_score'] ?? '';
-         final over = data['current_over'] ?? '';
+         if (data != null) {
+           status = data['status_note'] ?? 'Live';
+           t1Score = data['team_a_score'] ?? '';
+           t2Score = data['team_b_score'] ?? '';
+         } else if (match != null) {
+           status = match!.status;
+           final matchScoreMap = match!.score;
+           if (matchScoreMap != null && matchScoreMap.containsKey('displayScore')) {
+              genericScore = matchScoreMap['displayScore'].toString();
+           }
+         } else {
+           return const SizedBox.shrink();
+         }
          
          // Basic display logic: Show team batting current (simplified)
          // For now, simpler than parsing: Show Team A vs Team B scores
@@ -61,25 +76,36 @@ class MatchScoreHeader extends ConsumerWidget {
                            fontSize: 12,
                          ),
                        ),
-                       const SizedBox(height: 8),
-                       if (t1Score.isNotEmpty)
-                       Text(
-                         t1Score, // e.g. "MI 120/4 (15)"
-                         style: const TextStyle(
-                               color: Colors.white,
-                               fontSize: 20,
-                               fontWeight: FontWeight.w900,
-                             ),
-                       ),
-                       if (t2Score.isNotEmpty && t2Score != 'Yet to Bat')
-                       Text(
-                         t2Score,
-                         style: const TextStyle(
-                               color: Colors.white70,
-                               fontSize: 16,
-                               fontWeight: FontWeight.bold,
-                             ),
-                       ),
+                       if (t1Score.isNotEmpty) ...[
+                         Text(
+                           t1Score, // e.g. "MI 120/4 (15)"
+                           style: const TextStyle(
+                                 color: Colors.white,
+                                 fontSize: 20,
+                                 fontWeight: FontWeight.w900,
+                               ),
+                         ),
+                         if (t2Score.isNotEmpty && t2Score != 'Yet to Bat')
+                         Text(
+                           t2Score,
+                           style: const TextStyle(
+                                 color: Colors.white70,
+                                 fontSize: 16,
+                                 fontWeight: FontWeight.bold,
+                               ),
+                         ),
+                       ] else if (genericScore.isNotEmpty) ...[
+                         Text(
+                           genericScore,
+                           style: const TextStyle(
+                                 color: Colors.white,
+                                 fontSize: 16,
+                                 fontWeight: FontWeight.w900,
+                               ),
+                           maxLines: 2,
+                           overflow: TextOverflow.ellipsis,
+                         ),
+                       ],
                      ],
                    ),
                    const Icon(Icons.analytics_outlined, color: Colors.orangeAccent, size: 28),

@@ -58,7 +58,7 @@ class PaymentRepository {
     }
     
     // SAFETY CHECK: Winning Balance
-    if (user.rewardBalance < amount) {
+    if (user.totalBalance < amount) {
       throw Exception("Insufficient Winning Balance.");
     }
 

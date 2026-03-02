@@ -1071,78 +1071,187 @@ async function fetchPublicLiveMatches(env) {
         }
 
         const data = await response.text();
-        const regex = /<a href="\/live-cricket-scores\/(\d+)\/([^"]+)"[^>]*title="([^"]+)"/g;
-        let m;
         const matches = [];
         const unique = new Set();
         const now = Date.now();
 
-        while ((m = regex.exec(data)) !== null) {
-            const matchId = m[1];
-            if (!unique.has(matchId)) {
-                unique.add(matchId);
+        // Extract embedded JSON from React state
+        const startStr = '\\"currentMatchesList\\":';
+        const startIndex = data.indexOf(startStr);
+        if (startIndex === -1) {
+            console.error("Scraper Error: currentMatchesList not found in HTML");
+            return [];
+        }
 
-                let team1 = "T1", team2 = "T2";
-                const teamMatch = m[2].match(/^([a-z]+)-vs-([a-z]+)/);
-                if (teamMatch) {
-                    team1 = teamMatch[1].toUpperCase();
-                    team2 = teamMatch[2].toUpperCase();
+        let searchStr = data.substring(startIndex + startStr.length);
+        let openBraces = 0;
+        let endIndex = -1;
+        let inString = false;
+        let escapeNext = false;
+
+        for (let i = 0; i < searchStr.length; i++) {
+            const char = searchStr[i];
+            if (escapeNext) { escapeNext = false; continue; }
+            if (char === '\\') { escapeNext = true; continue; }
+            if (char === '"') { inString = !inString; continue; }
+            if (!inString) {
+                if (char === '{') openBraces++;
+                if (char === '}') {
+                    openBraces--;
+                    if (openBraces === 0) { endIndex = i; break; }
                 }
+            }
+        }
 
-                // Determine basic status from title
-                const title = m[3];
-                let status = "Upcoming";
-                if (title.toLowerCase().includes('complete') || title.toLowerCase().includes('won')) status = "Completed";
-                else if (title.toLowerCase().includes('stumps') || title.toLowerCase().includes('live') || title.toLowerCase().includes('toss') || title.toLowerCase().includes('innings break')) status = "Live";
-                else if (title.toLowerCase().includes('abandon')) status = "Abandoned";
+        if (endIndex === -1) {
+            console.error("Scraper Error: Could not find end of JSON object");
+            return [];
+        }
 
-                // Premium Series Filter
-                const fullText = `${team1} ${team2} ${title}`.toUpperCase();
+        let rawJson = searchStr.substring(0, endIndex + 1);
+        let unescaped = rawJson.replace(/\\\\"/g, '\\"').replace(/\\"/g, '"').replace(/\\\\\\\\/g, '\\\\');
 
-                const isPremium = [
-                    'IPL', 'INDIAN PREMIER LEAGUE',
-                    'BBL', 'BIG BASH',
-                    'PSL', 'PAKISTAN SUPER LEAGUE',
-                    'BPL', 'BANGLADESH PREMIER LEAGUE',
-                    'SA20', 'CPL', 'HUNDRED', 'WPL',
-                    'WORLD CUP', 'ICC', 'ASIA CUP', 'CHAMPIONS TROPHY',
-                    'T20I', 'ODI', 'TEST', "WOMEN'S T20", "WOMEN'S ODI"
-                ].some(kw => fullText.includes(kw));
+        let parsedData;
+        try {
+            parsedData = JSON.parse(unescaped);
+        } catch (e) {
+            console.error("Scraper Parse Error:", e);
+            return [];
+        }
 
-                const isExcluded = [
-                    'DOMESTIC', 'SHIELD', 'PLUNKET', 'RANJI', 'BLAST', 'CHALLENGER',
-                    'TROPHY', 'CUP', 'LEAGUE'
-                ].some(kw => {
-                    if (kw === 'TROPHY' && fullText.includes('CHAMPIONS TROPHY')) return false;
-                    if (kw === 'CUP' && (fullText.includes('WORLD CUP') || fullText.includes('ASIA CUP'))) return false;
-                    if (kw === 'LEAGUE' && (fullText.includes('PREMIER LEAGUE') || fullText.includes('SUPER LEAGUE') || fullText.includes('BIG BASH LEAGUE'))) return false;
-                    return fullText.includes(kw);
-                });
+        if (!parsedData || !parsedData.typeMatches) return [];
 
-                if (!isPremium || isExcluded) {
-                    continue; // Skip non-premium match
+        for (const typeMatch of parsedData.typeMatches) {
+            if (!typeMatch.seriesMatches) continue;
+            for (const seriesMatch of typeMatch.seriesMatches) {
+                if (!seriesMatch.seriesAdWrapper || !seriesMatch.seriesAdWrapper.matches) continue;
+                for (const matchObj of seriesMatch.seriesAdWrapper.matches) {
+                    const info = matchObj.matchInfo;
+                    if (!info || !info.team1 || !info.team2) continue;
+
+                    const matchId = info.matchId ? info.matchId.toString() : "";
+                    if (!matchId || unique.has(matchId)) continue;
+
+                    const titleStr = info.status || "";
+                    const team1 = info.team1.teamSName || "T1";
+                    const team2 = info.team2.teamSName || "T2";
+                    const stateTitle = info.stateTitle || "";
+
+                    // Determine status more accurately
+                    let status = "Upcoming";
+                    const stateLower = (info.state || "").toLowerCase();
+                    if (stateLower === 'complete' || stateLower === 'abandon' || titleStr.toLowerCase().includes('won')) {
+                        status = "Completed";
+                    } else if (stateLower === 'inprogress' || stateLower === 'stumps' || titleStr.toLowerCase().includes('live') || stateTitle.toLowerCase() === 'live') {
+                        status = "Live";
+                    } else if (stateLower === 'upcoming') {
+                        status = "Upcoming";
+                    } else if (info.status && info.status.toLowerCase().includes('stumps')) {
+                        status = "Live";
+                    }
+
+                    // Score extraction
+                    let lastScore = status === 'Live' ? 'In Progress' : status;
+                    let lastWickets = 0;
+                    let lastOver = "0.0";
+                    let lastInnings = 1;
+
+                    if (matchObj.matchScore) {
+                        const ms = matchObj.matchScore;
+                        let r1 = 0, w1 = 0, o1 = "0.0";
+                        let r2 = 0, w2 = 0, o2 = "0.0";
+
+                        if (ms.team1Score && ms.team1Score.inngs1) {
+                            r1 = ms.team1Score.inngs1.runs || 0;
+                            w1 = ms.team1Score.inngs1.wickets || 0;
+                            o1 = ms.team1Score.inngs1.overs || "0.0";
+                            lastScore = `${team1} ${r1}/${w1} (${o1})`;
+                            lastInnings = 1;
+                            lastWickets = w1;
+                            lastOver = o1.toString();
+                        }
+                        if (ms.team1Score && ms.team1Score.inngs2) {
+                            // Second innings for team1
+                            const r = ms.team1Score.inngs2.runs || 0;
+                            const w = ms.team1Score.inngs2.wickets || 0;
+                            const o = ms.team1Score.inngs2.overs || "0.0";
+                            lastScore += ` & ${r}/${w}`;
+                        }
+                        if (ms.team2Score && ms.team2Score.inngs1) {
+                            r2 = ms.team2Score.inngs1.runs || 0;
+                            w2 = ms.team2Score.inngs1.wickets || 0;
+                            o2 = ms.team2Score.inngs1.overs || "0.0";
+                            lastScore += `, ${team2} ${r2}/${w2} (${o2})`;
+                            lastInnings = 2;
+                            lastWickets = w2;
+                            lastOver = o2.toString();
+                        }
+                        if (ms.team2Score && ms.team2Score.inngs2) {
+                            // Second innings for team2
+                            const r = ms.team2Score.inngs2.runs || 0;
+                            const w = ms.team2Score.inngs2.wickets || 0;
+                            const o = ms.team2Score.inngs2.overs || "0.0";
+                            lastScore += ` & ${r}/${w}`;
+                        }
+
+                        if (titleStr) {
+                            lastScore += ` - ${titleStr}`;
+                        }
+                    } else {
+                        // Fallback to title string if available
+                        if (titleStr) lastScore = titleStr;
+                    }
+
+                    // Premium Filter
+                    const fullText = `${team1} ${team2} ${info.seriesName || ""} ${titleStr}`.toUpperCase();
+
+                    const isPremium = [
+                        'IPL', 'INDIAN PREMIER LEAGUE',
+                        'BBL', 'BIG BASH',
+                        'PSL', 'PAKISTAN SUPER LEAGUE',
+                        'BPL', 'BANGLADESH PREMIER LEAGUE',
+                        'SA20', 'CPL', 'HUNDRED', 'WPL',
+                        'WORLD CUP', 'ICC', 'ASIA CUP', 'CHAMPIONS TROPHY',
+                        'T20I', 'ODI', 'TEST', "WOMEN'S T20", "WOMEN'S ODI"
+                    ].some(kw => fullText.includes(kw));
+
+                    const isExcluded = [
+                        'DOMESTIC', 'SHIELD', 'PLUNKET', 'RANJI', 'BLAST', 'CHALLENGER',
+                        'TROPHY', 'CUP', 'LEAGUE'
+                    ].some(kw => {
+                        if (kw === 'TROPHY' && fullText.includes('CHAMPIONS TROPHY')) return false;
+                        if (kw === 'CUP' && (fullText.includes('WORLD CUP') || fullText.includes('ASIA CUP'))) return false;
+                        if (kw === 'LEAGUE' && (fullText.includes('PREMIER LEAGUE') || fullText.includes('SUPER LEAGUE') || fullText.includes('BIG BASH LEAGUE'))) return false;
+                        return fullText.includes(kw);
+                    });
+
+                    if (!isPremium || isExcluded) {
+                        continue;
+                    }
+
+                    unique.add(matchId);
+
+                    matches.push({
+                        id: matchId,
+                        seriesId: info.seriesId ? info.seriesId.toString() : '0',
+                        seriesName: info.seriesName || 'Public Scrape',
+                        title: `${team1} vs ${team2}`,
+                        shortTitle: `${team1} vs ${team2}`,
+                        status: status,
+                        teamA: team1,
+                        teamB: team2,
+                        team1Id: info.team1.teamId ? info.team1.teamId.toString() : '0',
+                        team2Id: info.team2.teamId ? info.team2.teamId.toString() : '0',
+                        startTime: info.startDate ? parseInt(info.startDate, 10) : now,
+                        lastUpdated: now,
+                        lastScore: lastScore,
+                        lastWickets: lastWickets,
+                        lastOver: lastOver.toString(),
+                        lastInnings: lastInnings,
+                        teamAImg: '',
+                        teamBImg: ''
+                    });
                 }
-
-                matches.push({
-                    id: matchId,
-                    seriesId: '0',
-                    seriesName: 'Public Scrape',
-                    title: `${team1} vs ${team2}`,
-                    shortTitle: `${team1} vs ${team2}`,
-                    status: status,
-                    teamA: team1,
-                    teamB: team2,
-                    team1Id: '0',
-                    team2Id: '0',
-                    startTime: now,
-                    lastUpdated: now,
-                    lastScore: status === 'Live' ? 'In Progress' : status,
-                    lastWickets: 0,
-                    lastOver: "0.0",
-                    lastInnings: 1,
-                    teamAImg: '',
-                    teamBImg: ''
-                });
             }
         }
 
