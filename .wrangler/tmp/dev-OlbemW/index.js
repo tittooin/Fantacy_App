@@ -629,18 +629,13 @@ init_checked_fetch();
 init_modules_watch_stub();
 init_squad_engine();
 var API_LOCK_ACTIVE = false;
-var STALE_LIVE_RECONCILE_ENABLED = true;
 var UPCOMING_EMPTY_CHECK_KEY = "upcoming_empty_checked_at";
 var UPCOMING_EMPTY_CHECK_COOLDOWN_MS = 6 * 60 * 60 * 1e3;
 var PREDICTIVE_CHECK_COOLDOWN_MS = 5 * 60 * 1e3;
-var LIVE_SNAPSHOT_HASH_KEY = "live_snapshot_hash";
 var LIVE_SNAPSHOT_SKIP_WINDOW_MS = 60 * 60 * 1e3;
 var UPCOMING_SNAPSHOT_HASH_KEY = "upcoming_snapshot_hash";
 var UPCOMING_SNAPSHOT_SKIP_WINDOW_MS = 4 * 60 * 60 * 1e3;
 var MATCH_STATE_CLASS_PREFIX = "match_state_class:";
-var TERMINAL_COMPLETED_TOKENS = ["won", "beat", "defeated", "result", "match over", "innings win"];
-var TERMINAL_ABANDONED_TOKENS = ["abandoned", "no result", "cancelled", "match abandoned"];
-var NON_TERMINAL_STATE_TOKENS = ["rain", "delay", "delayed", "wet outfield", "inspection", "toss delayed", "start delayed", "bad light", "interruption"];
 async function processCricketData(env) {
   console.log("\u{1F3CF} Cricket Engine Shuru (Predictive Guarded Verification Mode)...");
   await verifySchema(env);
@@ -648,12 +643,10 @@ async function processCricketData(env) {
     console.log("[API_LOCK_ACTIVE] Sab external API calls band hain. Sirf DB se data return ho raha hai.");
     return await getMatchesFromDB(env);
   }
-  const apiKey = env.RAPID_API_KEY;
-  const apiHost = "cricbuzz-cricket.p.rapidapi.com";
   try {
-    const matches = await fetchMatchesWithPredictiveGuard(apiKey, apiHost, env);
+    const matches = await fetchPublicLiveMatches(env);
     if (matches && matches.length > 0) {
-      console.log(`\u{1F4E1} API se ${matches.length} matches mila`);
+      console.log(`\u{1F4E1} Scraper se ${matches.length} matches mila`);
       for (const match of matches.slice(0, 1)) {
         console.log("[CONTROL_UNLOCK_MATCH_ID] Syncing: " + match.id);
         await syncMatchToD1(match, env);
@@ -701,13 +694,7 @@ async function seedUpcomingMatches(env) {
     console.log("[UPCOMING_SEED_SKIP] Empty window cooldown active.");
     return;
   }
-  const apiKey = env.RAPID_API_KEY;
-  const apiHost = "cricbuzz-cricket.p.rapidapi.com";
-  if (!apiKey) {
-    console.log("[UPCOMING_SEED_SKIP] RAPID_API_KEY missing.");
-    return;
-  }
-  const incomingMatches = await fetchEndpoint("/matches/v1/upcoming", apiKey, apiHost);
+  const incomingMatches = await fetchPublicLiveMatches(env);
   if (!Array.isArray(incomingMatches) || incomingMatches.length === 0) {
     await writeSysConfigTimestamp(env, UPCOMING_EMPTY_CHECK_KEY, nowMs);
     const emptyHash = buildUpcomingSnapshotHash([]);
@@ -716,7 +703,7 @@ async function seedUpcomingMatches(env) {
       hash: emptyHash,
       stableUntil
     }));
-    console.log("[UPCOMING_SEED_NO_DATA] /upcoming returned no matches.");
+    console.log("[UPCOMING_SEED_NO_DATA] Scraper returned no upcoming matches.");
     return;
   }
   let inserted = 0;
@@ -1031,11 +1018,6 @@ async function syncMatchToD1(match, env) {
   }
 }
 __name(syncMatchToD1, "syncMatchToD1");
-async function updateDBTimestamp(env, key) {
-  const now = Date.now().toString();
-  await env.DB.prepare("INSERT OR REPLACE INTO sys_config (key, value, updated_at) VALUES (?, ?, ?)").bind(key, now, Date.now()).run();
-}
-__name(updateDBTimestamp, "updateDBTimestamp");
 async function readSysConfigTimestamp(env, key) {
   const row = await env.DB.prepare("SELECT value FROM sys_config WHERE key = ?").bind(key).first();
   if (!row || row.value === null || row.value === void 0) return 0;
@@ -1089,16 +1071,6 @@ function buildUpcomingSnapshotHash(matches) {
   return stableHash2(rows.join("||"));
 }
 __name(buildUpcomingSnapshotHash, "buildUpcomingSnapshotHash");
-function buildLiveSnapshotHash(matches) {
-  const rows = (Array.isArray(matches) ? matches : []).map((m) => {
-    const matchId = String(m?.id ?? "").trim();
-    const status = String(m?.status ?? "").trim();
-    const lastUpdated = normalizeSnapshotInt(m?.lastUpdated ?? m?.last_updated);
-    return `${matchId} | ${status} | ${lastUpdated}`;
-  }).filter(Boolean).sort();
-  return stableHash2(rows.join("||"));
-}
-__name(buildLiveSnapshotHash, "buildLiveSnapshotHash");
 function parseSnapshotState(rawValue) {
   if (!rawValue) return null;
   try {
@@ -1116,12 +1088,6 @@ function buildMatchStateClassKey(matchId) {
   return `${MATCH_STATE_CLASS_PREFIX}${String(matchId)}`;
 }
 __name(buildMatchStateClassKey, "buildMatchStateClassKey");
-async function readMatchStateClass(env, matchId) {
-  const key = buildMatchStateClassKey(matchId);
-  const row = await env.DB.prepare("SELECT value FROM sys_config WHERE key = ?").bind(key).first();
-  return String(row?.value || "").trim();
-}
-__name(readMatchStateClass, "readMatchStateClass");
 async function writeMatchStateClass(env, matchId, stateClass) {
   const key = buildMatchStateClassKey(matchId);
   await env.DB.prepare(
@@ -1129,367 +1095,117 @@ async function writeMatchStateClass(env, matchId, stateClass) {
   ).bind(key, String(stateClass || ""), Date.now()).run();
 }
 __name(writeMatchStateClass, "writeMatchStateClass");
-function normalizeStateText(value) {
-  return String(value || "").trim().toLowerCase();
-}
-__name(normalizeStateText, "normalizeStateText");
-function hasAnyToken(text, tokens) {
-  return tokens.some((token) => text.includes(token));
-}
-__name(hasAnyToken, "hasAnyToken");
-function classifyMatchStateClass(stateText, statusText) {
-  const haystack = `${normalizeStateText(stateText)} ${normalizeStateText(statusText)}`.trim();
-  if (!haystack) return "UNKNOWN";
-  if (hasAnyToken(haystack, TERMINAL_ABANDONED_TOKENS)) return "TERMINAL_ABANDONED";
-  if (hasAnyToken(haystack, TERMINAL_COMPLETED_TOKENS)) return "TERMINAL_COMPLETED";
-  if (hasAnyToken(haystack, NON_TERMINAL_STATE_TOKENS)) return "NON_TERMINAL";
-  return "UNKNOWN";
-}
-__name(classifyMatchStateClass, "classifyMatchStateClass");
-function deriveNonTerminalStatus(startTimeMs, nowMs) {
-  return startTimeMs > nowMs ? "Upcoming" : "Live";
-}
-__name(deriveNonTerminalStatus, "deriveNonTerminalStatus");
-async function persistLiveStateClasses(env, liveApiMatches) {
-  if (!Array.isArray(liveApiMatches) || liveApiMatches.length === 0) return;
-  const writes = [];
-  for (const match of liveApiMatches) {
-    const matchId = String(match?.id || "").trim();
-    const stateClass = String(match?.stateClass || "").trim();
-    if (!matchId || !stateClass) continue;
-    writes.push(writeMatchStateClass(env, matchId, stateClass));
-  }
-  if (writes.length > 0) {
-    await Promise.all(writes);
-  }
-}
-__name(persistLiveStateClasses, "persistLiveStateClasses");
-async function restoreTerminalStatusesFromNonTerminalApi(env, liveApiMatches, nowMs) {
-  if (!Array.isArray(liveApiMatches) || liveApiMatches.length === 0) return;
-  for (const match of liveApiMatches) {
-    const matchId = String(match?.id || "").trim();
-    if (!matchId) continue;
-    if (String(match?.stateClass || "") !== "NON_TERMINAL") continue;
-    const restoredStatus = deriveNonTerminalStatus(normalizeSnapshotInt(match?.startTime), nowMs);
-    await env.DB.prepare(`
-            UPDATE matches
-            SET status = ?, last_updated = ?
-        WHERE id = ?
-            AND status IN('Completed', 'Finished', 'Abandoned')
-        `).bind(restoredStatus, nowMs, matchId).run();
-  }
-}
-__name(restoreTerminalStatusesFromNonTerminalApi, "restoreTerminalStatusesFromNonTerminalApi");
-function buildPredictiveCheckedKey(matchId) {
-  return `predictive_checked: ${String(matchId)}`;
-}
-__name(buildPredictiveCheckedKey, "buildPredictiveCheckedKey");
-function normalizeSnapshotValue(value) {
-  if (value === null || value === void 0) return "";
-  return String(value);
-}
-__name(normalizeSnapshotValue, "normalizeSnapshotValue");
-function isPredictiveStateUnchanged(dbMatch, apiMatch) {
-  if (!dbMatch) return false;
-  if (!apiMatch) {
-    return String(dbMatch.status || "") === "Upcoming";
-  }
-  const dbStatus = normalizeSnapshotValue(dbMatch.status);
-  const apiStatus = normalizeSnapshotValue(apiMatch.status);
-  if (dbStatus !== apiStatus) return false;
-  const dbScore = normalizeSnapshotValue(dbMatch.last_score);
-  const apiScore = normalizeSnapshotValue(apiMatch.lastScore);
-  const dbWickets = Number(dbMatch.last_wickets || 0);
-  const apiWickets = Number(apiMatch.lastWickets || 0);
-  const dbOver = normalizeSnapshotValue(dbMatch.last_over);
-  const apiOver = normalizeSnapshotValue(apiMatch.lastOver);
-  const dbInnings = Number(dbMatch.last_innings || 0);
-  const apiInnings = Number(apiMatch.lastInnings || 0);
-  return dbScore === apiScore && dbWickets === apiWickets && dbOver === apiOver && dbInnings === apiInnings;
-}
-__name(isPredictiveStateUnchanged, "isPredictiveStateUnchanged");
-function buildStaleLiveKey(matchId) {
-  return `stale_live: ${String(matchId)}`;
-}
-__name(buildStaleLiveKey, "buildStaleLiveKey");
-async function clearStaleLiveTracker(env, key) {
-  await env.DB.prepare("DELETE FROM sys_config WHERE key = ?").bind(key).run();
-}
-__name(clearStaleLiveTracker, "clearStaleLiveTracker");
-async function selfHealStaleUpcomingMatches(env, nowMs) {
-  const SIX_HOURS = 6 * 60 * 60 * 1e3;
-  await env.DB.prepare(`
-        UPDATE matches
-        SET status = 'In Progress', last_updated = ?
-        WHERE status = 'Upcoming'
-        AND start_time IS NOT NULL
-        AND CAST(start_time AS INTEGER) > 0
-        AND CAST(start_time AS INTEGER) < ?
-        AND CAST(start_time AS INTEGER) >= ?
-        `).bind(nowMs, nowMs, nowMs - SIX_HOURS).run();
-  await env.DB.prepare(`
-        UPDATE matches
-        SET status = 'Completed', last_updated = ?
-        WHERE status = 'Upcoming'
-        AND start_time IS NOT NULL
-        AND CAST(start_time AS INTEGER) > 0
-        AND CAST(start_time AS INTEGER) < ?
-        `).bind(nowMs, nowMs - SIX_HOURS).run();
-}
-__name(selfHealStaleUpcomingMatches, "selfHealStaleUpcomingMatches");
-async function reconcileStaleLiveMatches(env, liveApiMatches, nowMs) {
-  if (STALE_LIVE_RECONCILE_ENABLED !== true) return;
-  if (!Array.isArray(liveApiMatches)) return;
-  const dbLive = await env.DB.prepare(`
-        SELECT id, status, start_time, last_updated
-        FROM matches
-        WHERE status IN('Live', 'In Progress', 'Innings Break')
-        `).all();
-  const dbLiveMatches = dbLive.results || [];
-  if (dbLiveMatches.length === 0) return;
-  for (const match of dbLiveMatches) {
-    const matchId = String(match.id ?? "").trim();
-    if (!matchId) continue;
-    const trackerKey = buildStaleLiveKey(matchId);
-    const stateClass = await readMatchStateClass(env, matchId);
-    if (stateClass === "NON_TERMINAL") {
-      console.log(`[RECONCILE_BLOCKED_NON_TERMINAL] matchId = ${matchId}`);
-      await clearStaleLiveTracker(env, trackerKey);
-      continue;
-    }
-    const closeAllowedByStateAuthority = stateClass === "TERMINAL_COMPLETED" || stateClass === "TERMINAL_ABANDONED";
-    if (!closeAllowedByStateAuthority) {
-      await clearStaleLiveTracker(env, trackerKey);
-      continue;
-    }
-    const terminalStatus = stateClass === "TERMINAL_ABANDONED" ? "Abandoned" : "Completed";
-    await env.DB.prepare(`
-            UPDATE matches
-            SET status = ?, last_updated = ?
-        WHERE id = ?
-            AND status IN('Live', 'In Progress', 'Innings Break')
-        `).bind(terminalStatus, nowMs, match.id).run();
-    await clearStaleLiveTracker(env, trackerKey);
-  }
-}
-__name(reconcileStaleLiveMatches, "reconcileStaleLiveMatches");
-async function fetchEndpoint(path, key, host) {
+async function fetchPublicLiveMatches(env) {
+  const HEADERS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+  ];
+  console.log("\u{1F680} Custom Scraper Triggered");
   try {
-    const url = `https://${host}${path}`;
-    const resp = await fetch(url, {
+    const response = await fetch("https://www.cricbuzz.com/cricket-match/live-scores", {
       headers: {
-        "x-rapidapi-key": key,
-        "x-rapidapi-host": host,
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": HEADERS[Math.floor(Math.random() * HEADERS.length)],
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
       }
     });
-    if (resp.ok) {
-      const data = await resp.json();
-      const matches = parseCricbuzzMatches(data);
-      console.log(`\u2705 ${path}: Found ${matches.length} matches`);
-      return matches;
-    } else {
-      console.error(`\u26A0\uFE0F API Error ${path}: ${resp.status}`);
-      return null;
-    }
-  } catch (e) {
-    console.error(`Fetch Failed ${path}:`, e);
-    return null;
-  }
-}
-__name(fetchEndpoint, "fetchEndpoint");
-async function fetchMatchesWithPredictiveGuard(key, host, env) {
-  let parsed = [];
-  const now = Date.now();
-  const FIVE_MINUTES = 5 * 60 * 1e3;
-  try {
-    await selfHealStaleUpcomingMatches(env, now);
-  } catch (_) {
-  }
-  const activeMatches = await env.DB.prepare(`
-        SELECT id, status, start_time, last_updated, last_score, last_wickets, last_over, last_innings
-        FROM matches
-        WHERE status IN ('Live', 'In Progress', 'Innings Break', 'Upcoming')
-    `).all();
-  const liveMatches = activeMatches.results.filter(
-    (m) => ["Live", "In Progress", "Innings Break"].includes(m.status)
-  );
-  const upcomingMatches = activeMatches.results.filter((m) => m.status === "Upcoming");
-  const liveSnapshotState = parseSnapshotState(
-    await readSysConfigValue(env, LIVE_SNAPSHOT_HASH_KEY)
-  );
-  if (liveMatches.length === 0) {
-    const startingMatch2 = upcomingMatches.find((m) => now >= m.start_time);
-    if (!startingMatch2) {
-      console.log("[CONTROL_UNLOCK_SKIP] DB mein koi live match nahi. 0 API calls.");
+    if (!response.ok) {
+      console.error(`Scraper HTTP Error: ${response.status}`);
       return [];
     }
-  }
-  if (liveSnapshotState && liveSnapshotState.stableUntil > now && liveSnapshotState.hash) {
-    return [];
-  }
-  await env.DB.prepare(
-    "INSERT OR IGNORE INTO sys_config (key, value, updated_at) VALUES ('last_live_api_call', '0', 0)"
-  ).run();
-  const lockResult = await env.DB.prepare(
-    `UPDATE sys_config
-         SET value = ?, updated_at = ?
-         WHERE key = 'last_live_api_call'
-         AND (value IS NULL OR CAST(value AS INTEGER) < ?)`
-  ).bind(now.toString(), now, now - FIVE_MINUTES).run();
-  if (!lockResult.meta || lockResult.meta.changes !== 1) {
-    const lockRow = await env.DB.prepare(
-      "SELECT value FROM sys_config WHERE key = 'last_live_api_call'"
-    ).first();
-    const remainSec = lockRow ? Math.ceil((FIVE_MINUTES - (now - parseInt(lockRow.value || "0"))) / 1e3) : 0;
-    console.log(`[CONTROL_UNLOCK_AUTORELOCK] D1 lock active. ~${remainSec}s remaining. 0 API calls.`);
-    return [];
-  }
-  const dueMatches = liveMatches.filter((m) => {
-    const lastFetch = m.last_updated || 0;
-    return now >= lastFetch + 12 * 60 * 1e3;
-  });
-  const predictiveCandidates = [];
-  for (const match of dueMatches) {
-    const checkedAt = await readSysConfigTimestamp(env, buildPredictiveCheckedKey(match.id));
-    if (checkedAt > 0 && now - checkedAt < PREDICTIVE_CHECK_COOLDOWN_MS) {
-      continue;
-    }
-    predictiveCandidates.push(match);
-  }
-  let startingMatch = upcomingMatches.find((m) => now >= m.start_time) || null;
-  if (startingMatch) {
-    const checkedAt = await readSysConfigTimestamp(env, buildPredictiveCheckedKey(startingMatch.id));
-    if (checkedAt > 0 && now - checkedAt < PREDICTIVE_CHECK_COOLDOWN_MS) {
-      startingMatch = null;
-    }
-  }
-  const shouldFetchLive = (predictiveCandidates.length > 0 || !!startingMatch) === true;
-  if (shouldFetchLive !== true) {
-    console.log("[CONTROL_UNLOCK_SKIP] Predictive window closed. 0 API calls.");
-    return [];
-  }
-  console.log("[CONTROL_UNLOCK_STARTED] Lock acquired. 1 API call allow: /live");
-  const data = await fetchEndpoint("/matches/v1/live", key, host);
-  if (data) {
-    await persistLiveStateClasses(env, data);
-    await restoreTerminalStatusesFromNonTerminalApi(env, data, now);
-    const liveSnapshotHash = buildLiveSnapshotHash(data);
-    const previousLiveHash = liveSnapshotState?.hash || "";
-    const sameLiveSnapshot = !!liveSnapshotHash && previousLiveHash === liveSnapshotHash;
-    await writeSysConfigValue(env, LIVE_SNAPSHOT_HASH_KEY, JSON.stringify({
-      hash: liveSnapshotHash,
-      stableUntil: sameLiveSnapshot ? now + LIVE_SNAPSHOT_SKIP_WINDOW_MS : 0
-    }));
-    if (sameLiveSnapshot) {
-      return [];
-    }
-    parsed.push(...data);
-    await updateDBTimestamp(env, "last_fetch_live");
-    const attempted = [...predictiveCandidates];
-    if (startingMatch && !attempted.some((m) => String(m.id) === String(startingMatch.id))) {
-      attempted.push(startingMatch);
-    }
-    const liveApiById = new Map((data || []).map((m) => [String(m?.id || ""), m]));
-    for (const candidate of attempted) {
-      const candidateId = String(candidate?.id || "").trim();
-      if (!candidateId) continue;
-      const apiMatch = liveApiById.get(candidateId);
-      const unchanged = isPredictiveStateUnchanged(candidate, apiMatch);
-      const keyName = buildPredictiveCheckedKey(candidateId);
-      if (unchanged) {
-        await writeSysConfigTimestamp(env, keyName, now);
-      } else {
-        await clearSysConfigTimestamp(env, keyName);
-      }
-    }
-    try {
-      await reconcileStaleLiveMatches(env, data, now);
-    } catch (_) {
-    }
-  }
-  console.log("[CONTROL_UNLOCK_DISABLED] /upcoming endpoint disabled.");
-  console.log("[CONTROL_UNLOCK_DISABLED] /recent endpoint disabled.");
-  if (parsed.length === 0) return [];
-  const unique = /* @__PURE__ */ new Map();
-  parsed.forEach((m) => {
-    if (m.id) unique.set(m.id, m);
-  });
-  return Array.from(unique.values());
-}
-__name(fetchMatchesWithPredictiveGuard, "fetchMatchesWithPredictiveGuard");
-function parseCricbuzzMatches(data) {
-  let matches = [];
-  if (data.typeMatches && Array.isArray(data.typeMatches)) {
-    data.typeMatches.forEach((tm) => {
-      if (tm.seriesMatches) {
-        tm.seriesMatches.forEach((sm) => {
-          const wrapper = sm.seriesAdWrapper || {};
-          if (wrapper.matches) {
-            wrapper.matches.forEach((m) => {
-              const parsed = formatCricbuzzMatch(m.matchInfo);
-              if (parsed) matches.push(parsed);
-            });
-          }
+    const data = await response.text();
+    const regex = /<a href="\/live-cricket-scores\/(\d+)\/([^"]+)"[^>]*title="([^"]+)"/g;
+    let m;
+    const matches = [];
+    const unique = /* @__PURE__ */ new Set();
+    const now = Date.now();
+    while ((m = regex.exec(data)) !== null) {
+      const matchId = m[1];
+      if (!unique.has(matchId)) {
+        unique.add(matchId);
+        let team1 = "T1", team2 = "T2";
+        const teamMatch = m[2].match(/^([a-z]+)-vs-([a-z]+)/);
+        if (teamMatch) {
+          team1 = teamMatch[1].toUpperCase();
+          team2 = teamMatch[2].toUpperCase();
+        }
+        const title = m[3];
+        let status = "Upcoming";
+        if (title.toLowerCase().includes("complete") || title.toLowerCase().includes("won")) status = "Completed";
+        else if (title.toLowerCase().includes("stumps") || title.toLowerCase().includes("live") || title.toLowerCase().includes("toss") || title.toLowerCase().includes("innings break")) status = "Live";
+        else if (title.toLowerCase().includes("abandon")) status = "Abandoned";
+        const fullText = `${team1} ${team2} ${title}`.toUpperCase();
+        const isPremium = [
+          "IPL",
+          "INDIAN PREMIER LEAGUE",
+          "BBL",
+          "BIG BASH",
+          "PSL",
+          "PAKISTAN SUPER LEAGUE",
+          "BPL",
+          "BANGLADESH PREMIER LEAGUE",
+          "SA20",
+          "CPL",
+          "HUNDRED",
+          "WPL",
+          "WORLD CUP",
+          "ICC",
+          "ASIA CUP",
+          "CHAMPIONS TROPHY",
+          "T20I",
+          "ODI",
+          "TEST",
+          "WOMEN'S T20",
+          "WOMEN'S ODI"
+        ].some((kw) => fullText.includes(kw));
+        const isExcluded = [
+          "DOMESTIC",
+          "SHIELD",
+          "PLUNKET",
+          "RANJI",
+          "BLAST",
+          "CHALLENGER",
+          "TROPHY",
+          "CUP",
+          "LEAGUE"
+        ].some((kw) => {
+          if (kw === "TROPHY" && fullText.includes("CHAMPIONS TROPHY")) return false;
+          if (kw === "CUP" && (fullText.includes("WORLD CUP") || fullText.includes("ASIA CUP"))) return false;
+          if (kw === "LEAGUE" && (fullText.includes("PREMIER LEAGUE") || fullText.includes("SUPER LEAGUE") || fullText.includes("BIG BASH LEAGUE"))) return false;
+          return fullText.includes(kw);
+        });
+        if (!isPremium || isExcluded) {
+          continue;
+        }
+        matches.push({
+          id: matchId,
+          seriesId: "0",
+          seriesName: "Public Scrape",
+          title: `${team1} vs ${team2}`,
+          shortTitle: `${team1} vs ${team2}`,
+          status,
+          teamA: team1,
+          teamB: team2,
+          team1Id: "0",
+          team2Id: "0",
+          startTime: now,
+          lastUpdated: now,
+          lastScore: status === "Live" ? "In Progress" : status,
+          lastWickets: 0,
+          lastOver: "0.0",
+          lastInnings: 1,
+          teamAImg: "",
+          teamBImg: ""
         });
       }
-    });
+    }
+    return matches;
+  } catch (e) {
+    console.error("Scraper Error:", e.message);
+    return [];
   }
-  return matches;
 }
-__name(parseCricbuzzMatches, "parseCricbuzzMatches");
-function formatCricbuzzMatch(info) {
-  if (!info || !info.matchId) return null;
-  let status = "Upcoming";
-  const state = String(info.state || "").trim();
-  const stateUpper = state.toUpperCase();
-  const rawStatusText = String(info.status || "").trim();
-  const startTimeMs = parseInt(info.startDate) || Date.now();
-  const nowMs = Date.now();
-  const stateClass = classifyMatchStateClass(state, rawStatusText);
-  if (stateClass === "TERMINAL_COMPLETED") status = "Completed";
-  else if (stateClass === "TERMINAL_ABANDONED") status = "Abandoned";
-  else if (stateClass === "NON_TERMINAL") status = deriveNonTerminalStatus(startTimeMs, nowMs);
-  else if (stateUpper === "IN PROGRESS" || stateUpper === "LIVE" || stateUpper === "TOSS" || stateUpper === "STUMPS" || stateUpper === "INNINGS BREAK") status = deriveNonTerminalStatus(startTimeMs, nowMs);
-  else if (stateUpper === "PREVIEW" || stateUpper === "UPCOMING") status = "Upcoming";
-  const t1 = info.team1 || {};
-  const t2 = info.team2 || {};
-  const score = rawStatusText;
-  return {
-    id: info.matchId.toString(),
-    seriesId: (info.seriesId || "0").toString(),
-    seriesName: info.seriesName || "Unknown Series",
-    title: `${t1.teamName || "T1"} vs ${t2.teamName || "T2"}`,
-    shortTitle: `${t1.teamSName || "T1"} vs ${t2.teamSName || "T2"}`,
-    status,
-    stateClass,
-    matchFormat: info.matchFormat ? info.matchFormat.toUpperCase() : "T20",
-    // COMPATIBILITY FIELDS
-    team1Name: t1.teamName || "Team A",
-    team2Name: t2.teamName || "Team B",
-    team1ShortName: t1.teamSName || "T1",
-    team2ShortName: t2.teamSName || "T2",
-    matchDesc: `${t1.teamName} vs ${t2.teamName}`,
-    startDate: startTimeMs,
-    endDate: parseInt(info.endDate) || parseInt(info.startDate) + 144e5,
-    venue: info.venueInfo ? info.venueInfo.ground : "TBD",
-    startTime: startTimeMs,
-    teamA: t1.teamName || "Team A",
-    teamB: t2.teamName || "Team B",
-    teamAImg: t1.imageId ? `https://static.cricbuzz.com/a/img/v1/i1/c${t1.imageId}/i.jpg` : "",
-    teamBImg: t2.imageId ? `https://static.cricbuzz.com/a/img/v1/i1/c${t2.imageId}/i.jpg` : "",
-    team1Id: (t1.teamId || "0").toString(),
-    team2Id: (t2.teamId || "0").toString(),
-    lastUpdated: normalizeSnapshotInt(
-      info.lastUpdated || info.lastUpdatedTime || info.lastUpdatedTs || info.startDate
-    ),
-    lastScore: score,
-    lastWickets: 0,
-    lastOver: "0.0",
-    lastInnings: 1
-  };
-}
-__name(formatCricbuzzMatch, "formatCricbuzzMatch");
+__name(fetchPublicLiveMatches, "fetchPublicLiveMatches");
 
 // workers/points_engine.js
 init_checked_fetch();
@@ -1889,555 +1605,8 @@ function processScorecardData(data) {
 }
 __name(processScorecardData, "processScorecardData");
 
-// workers/contest_engine.js
-init_checked_fetch();
-init_modules_watch_stub();
-
-// workers/payment_service.js
-init_checked_fetch();
-init_modules_watch_stub();
-async function createCashfreeOrder(userId, amount, env) {
-  try {
-    const appId = env.CASHFREE_APP_ID;
-    const secretKey = env.CASHFREE_SECRET_KEY;
-    const useSandbox = env.CASHFREE_IS_SANDBOX === "true";
-    if (!appId || !secretKey) {
-      throw new Error("Cashfree credentials missing in backend config");
-    }
-    const baseUrl = useSandbox ? "https://sandbox.cashfree.com/pg/orders" : "https://api.cashfree.com/pg/orders";
-    const orderId = `order_${Date.now()}_${userId.substring(0, 5)}`;
-    const payload = {
-      order_id: orderId,
-      order_amount: amount,
-      order_currency: "INR",
-      customer_details: {
-        customer_id: userId,
-        customer_phone: "9999999999",
-        customer_name: `User ${userId.substring(0, 5)}`
-      },
-      order_meta: {
-        return_url: `https://fantacy-app.pages.dev/wallet?order_id={order_id}`,
-        notify_url: `${env.WORKER_URL}/api/payment-webhook`
-      }
-    };
-    const response = await fetch(baseUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-client-id": appId,
-        "x-client-secret": secretKey,
-        "x-api-version": "2023-08-01"
-      },
-      body: JSON.stringify(payload)
-    });
-    const data = await response.json();
-    if (response.status === 200 || response.status === 201) {
-      const transactionData = await savePendingTransaction(userId, orderId, amount, env);
-      const sessionId = data.payment_session_id;
-      const wrapperLink = `${env.WORKER_URL}/pay?session_id=${sessionId}&env=${useSandbox ? "sandbox" : "prod"}`;
-      return {
-        success: true,
-        orderId,
-        transactionData,
-        paymentLink: wrapperLink,
-        // Return our Wrapper Link
-        raw: data
-      };
-    } else {
-      console.error("Cashfree Error:", data);
-      throw new Error(data.message || "Failed to create order");
-    }
-  } catch (error) {
-    console.error("Create Order Exception:", error);
-    return { success: false, error: error.message };
-  }
-}
-__name(createCashfreeOrder, "createCashfreeOrder");
-async function savePendingTransaction(userId, orderId, amount, env) {
-  const transaction = {
-    id: orderId,
-    // Vital: This ensures Firestore Doc ID matches Order ID
-    userId,
-    type: "deposit",
-    amount: Number(amount),
-    status: "pending",
-    orderId,
-    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-    gateway: "cashfree"
-  };
-  return transaction;
-}
-__name(savePendingTransaction, "savePendingTransaction");
-
-// workers/webhook_handler.js
-init_checked_fetch();
-init_modules_watch_stub();
-async function verifySignature(ts, body2, signature, secret) {
-  if (!ts || !signature || !secret) throw new Error("Missing verification headers/config");
-  const now = Math.floor(Date.now() / 1e3);
-  const webhookTimeMs = parseInt(ts, 10);
-  const webhookTimeSeconds = Math.floor(webhookTimeMs / 1e3);
-  if (Math.abs(now - webhookTimeSeconds) > 300) {
-    console.error(`Timestamp Expired: Now ${now}, Hook ${webhookTimeSeconds}`);
-    throw new Error("Webhook Timestamp expired");
-  }
-  const data = ts + body2;
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const msgData = encoder.encode(data);
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyData,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const sigBuf = await crypto.subtle.sign("HMAC", cryptoKey, msgData);
-  let binary = "";
-  const bytes = new Uint8Array(sigBuf);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  const computedSig = btoa(binary);
-  if (computedSig !== signature) {
-    throw new Error(`Signature Mismatch: Computed ${computedSig} vs Header ${signature}`);
-  }
-}
-__name(verifySignature, "verifySignature");
-async function handleCashfreeWebhook(request, env) {
-  try {
-    const signature = request.headers.get("x-webhook-signature");
-    const timestamp = request.headers.get("x-webhook-timestamp");
-    const bodyText = await request.text();
-    console.log(`[Webhook Debug] TS: ${timestamp}, Sig: ${signature ? "Present" : "Missing"}`);
-    try {
-      await verifySignature(timestamp, bodyText, signature, env.CASHFREE_SECRET_KEY);
-      console.log("\u2705 Webhook Verified/Authentic");
-    } catch (sigError) {
-      console.error(`[Webhook Sig Failed] ${sigError.message}`);
-      throw sigError;
-    }
-    const data = JSON.parse(bodyText);
-    if (data.type === "PAYMENT_SUCCESS_WEBHOOK" || data.type === "PAYMENT_SUCCESS") {
-      const orderId = data.data.order.order_id;
-      const amount = data.data.order.order_amount;
-      return {
-        action: "UPDATE_WALLET",
-        orderId,
-        amount,
-        status: "SUCCESS",
-        gatewayData: data
-      };
-    } else if (data.type === "PAYMENT_FAILED_WEBHOOK") {
-      return {
-        action: "UPDATE_TRANSACTION_FAILED",
-        orderId: data.data.order.order_id,
-        gatewayData: data
-      };
-    }
-    return { action: "IGNORE", reason: "Unknown Event Type" };
-  } catch (e) {
-    console.error("Webhook Verification Error:", e.message);
-    return { action: "ERROR", error: e.message };
-  }
-}
-__name(handleCashfreeWebhook, "handleCashfreeWebhook");
-
-// workers/leaderboard_engine.js
-init_checked_fetch();
-init_modules_watch_stub();
-async function processLeaderboards(env) {
-  console.log("Starting Leaderboard Calculation Cycle (Optimized)...");
-  try {
-    const recentCutoff = Date.now() - 20 * 60 * 1e3;
-    const { results: activeMatches } = await env.DB.prepare(
-      `SELECT id, status, last_updated FROM matches 
-             WHERE status = 'Live' 
-             OR (status = 'Completed' AND last_updated > ?)`
-    ).bind(recentCutoff).all();
-    if (!activeMatches || activeMatches.length === 0) {
-      console.log("No active matches to process.");
-      return;
-    }
-    for (const match of activeMatches) {
-      await calculateLeaderboardForMatch(env, match.id);
-    }
-  } catch (e) {
-    console.error("Leaderboard Cycle Error:", e);
-  }
-}
-__name(processLeaderboards, "processLeaderboards");
-async function calculateLeaderboardForMatch(env, matchId) {
-  console.log(`Calculating for Match: ${matchId}`);
-  const { results: pointRows } = await env.DB.prepare(
-    "SELECT player_id, points FROM fantasy_points WHERE match_id = ?"
-  ).bind(matchId).all();
-  const pointsMap = {};
-  pointRows.forEach((r) => pointsMap[r.player_id] = r.points || 0);
-  const { results: participants } = await env.DB.prepare(
-    "SELECT contest_id, user_id, team_name, player_ids, team_id FROM contest_participants WHERE match_id = ?"
-  ).bind(matchId).all();
-  if (!participants || participants.length === 0) return;
-  const contestGroups = {};
-  for (const p of participants) {
-    if (!contestGroups[p.contest_id]) contestGroups[p.contest_id] = [];
-    contestGroups[p.contest_id].push(p);
-  }
-  const stmt = env.DB.prepare(
-    "INSERT OR REPLACE INTO contest_leaderboards (contest_id, match_id, data, last_updated) VALUES (?, ?, ?, ?)"
-  );
-  const batch = [];
-  for (const contestId in contestGroups) {
-    const entries = contestGroups[contestId];
-    const leaderboard = entries.map((entry) => {
-      let total = 0;
-      let pIds = [];
-      try {
-        pIds = JSON.parse(entry.player_ids || "[]");
-      } catch (e) {
-        pIds = [];
-      }
-      pIds.forEach((pid) => {
-        total += pointsMap[pid] || 0;
-      });
-      return {
-        userId: entry.user_id,
-        teamName: entry.team_name,
-        points: total,
-        teamId: entry.team_id
-      };
-    });
-    leaderboard.sort((a, b) => b.points - a.points);
-    let rank = 1;
-    for (let i = 0; i < leaderboard.length; i++) {
-      if (i > 0 && leaderboard[i].points < leaderboard[i - 1].points) {
-        rank = i + 1;
-      }
-      leaderboard[i].rank = rank;
-    }
-    batch.push(stmt.bind(
-      contestId,
-      matchId,
-      JSON.stringify(leaderboard),
-      Date.now()
-    ));
-  }
-  if (batch.length > 0) {
-    await env.DB.batch(batch);
-    console.log(`Updated ${batch.length} contests for Match ${matchId}`);
-  }
-}
-__name(calculateLeaderboardForMatch, "calculateLeaderboardForMatch");
-
 // workers/index.js
 init_squad_engine();
-
-// workers/payout_engine.js
-init_checked_fetch();
-init_modules_watch_stub();
-async function processPayoutsForMatch(env, matchId) {
-  console.log(`\u{1F4B0} Starting Payout Cycle for Match: ${matchId}`);
-  try {
-    const match = await env.DB.prepare("SELECT status FROM matches WHERE id = ?").bind(matchId).first();
-    if (!match || match.status !== "Completed" && match.status !== "Finished") {
-      console.log("Match not completed yet. Skipping payouts.");
-      return;
-    }
-    const { results: contests } = await env.DB.prepare("SELECT * FROM contests WHERE match_id = ?").bind(matchId).all();
-    console.log(`Found ${contests.length} contests for match.`);
-    for (const contest of contests) {
-      if (contest.status === "Distributed" || contest.status === "Cancelled") {
-        continue;
-      }
-      await distributePrizes(env, contest);
-    }
-  } catch (e) {
-    console.error(`\u274C Payout Error for ${matchId}:`, e);
-  }
-}
-__name(processPayoutsForMatch, "processPayoutsForMatch");
-async function distributePrizes(env, contest) {
-  const contestId = contest.id;
-  const breakdown = parseWinningBreakdown(contest.winning_breakdown || contest.winningBreakdown);
-  if (!breakdown || breakdown.length === 0) {
-    console.log(`No payout structure for ${contestId}`);
-    return;
-  }
-  console.log(`\u{1F9EE} Calculating Payouts for Contest ${contestId}...`);
-  const lbRow = await env.DB.prepare("SELECT data FROM contest_leaderboards WHERE contest_id = ?").bind(contestId).first();
-  if (!lbRow || !lbRow.data) {
-    console.log(`No leaderboard found for ${contestId}. Skipping.`);
-    return;
-  }
-  const leaderboard = JSON.parse(lbRow.data);
-  const winners = [];
-  for (const entry of leaderboard) {
-    const rank = entry.rank;
-    const prize = getPrizeForRank(rank, breakdown);
-    if (prize > 0) {
-      winners.push({
-        userId: entry.userId || entry.user_id,
-        // Safety check for field name
-        amount: prize,
-        rank
-      });
-    }
-  }
-  if (winners.length === 0) {
-    console.log("No winners found.");
-    return;
-  }
-  console.log(`\u{1F4B8} Distributing to ${winners.length} winners...`);
-  await processD1Payouts(env, winners, contestId);
-  await env.DB.prepare("UPDATE contests SET status = 'Distributed' WHERE id = ?").bind(contestId).run();
-  console.log(`\u2705 Payouts Complete for ${contestId}`);
-}
-__name(distributePrizes, "distributePrizes");
-function getPrizeForRank(rank, breakdown) {
-  for (const tier of breakdown) {
-    if (rank >= tier.rankStart && rank <= tier.rankEnd) {
-      return tier.amount;
-    }
-  }
-  return 0;
-}
-__name(getPrizeForRank, "getPrizeForRank");
-function parseWinningBreakdown(field) {
-  if (!field) return [];
-  try {
-    if (typeof field === "string") return JSON.parse(field);
-    return field;
-  } catch (e) {
-    return [];
-  }
-}
-__name(parseWinningBreakdown, "parseWinningBreakdown");
-async function processD1Payouts(env, winners, contestId) {
-  for (const w of winners) {
-    const txnId = `win_${contestId}_${w.userId}`;
-    try {
-      await env.DB.prepare(`
-                UPDATE users SET winning_credits = winning_credits + ? WHERE id = ?
-            `).bind(w.amount, w.userId).run();
-      await env.DB.prepare(`
-                INSERT INTO transactions (id, user_id, type, amount, contest_id, created_at, status)
-                VALUES (?, ?, 'winnings', ?, ?, ?, 'success')
-            `).bind(txnId, w.userId, w.amount, contestId, Date.now()).run();
-    } catch (e) {
-      console.error(`Failed to payout user ${w.userId} for contest ${contestId}:`, e);
-    }
-  }
-}
-__name(processD1Payouts, "processD1Payouts");
-
-// workers/voucher_engine.js
-init_checked_fetch();
-init_modules_watch_stub();
-async function handleVoucherRequest(request, env) {
-  if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
-  try {
-    const { userId, brand, amount } = body;
-    if (!userId || !brand || !amount) return jsonResponse({ error: "Missing fields" }, 400);
-    const user = await env.DB.prepare("SELECT winning_credits FROM users WHERE id = ?").bind(userId).first();
-    const currentBenefits = user ? user.winning_credits || 0 : 0;
-    if (currentBenefits < amount) {
-      return jsonResponse({ error: "Insufficient Benefits for this claim" }, 402);
-    }
-    const reqId = `vr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    const statements = [
-      env.DB.prepare(`
-                UPDATE users SET winning_credits = winning_credits - ? 
-                WHERE id = ? AND winning_credits >= ?
-            `).bind(credits, userId, credits),
-      env.DB.prepare(`
-                INSERT INTO voucher_requests (id, user_id, brand, credits, status, created_at)
-                VALUES (?, ?, ?, ?, 'pending', ?)
-            `).bind(reqId, userId, brand, credits, Date.now()),
-      env.DB.prepare(`
-                INSERT INTO transactions (id, user_id, type, amount, created_at, status)
-                VALUES (?, ?, 'voucher_request', ?, ?, 'pending')
-            `).bind(reqId, userId, credits, Date.now())
-    ];
-    const results = await env.DB.batch(statements);
-    if (results[0].meta.changes === 0) {
-      return jsonResponse({ error: "Deduction failed (Balance changed or User not found)" }, 409);
-    }
-    return jsonResponse({ success: true, message: "Request Submitted", requestId: reqId });
-  } catch (e) {
-    return jsonResponse({ error: e.message }, 500);
-  }
-}
-__name(handleVoucherRequest, "handleVoucherRequest");
-async function handleVoucherUserHistory(userId, env) {
-  try {
-    const { results } = await env.DB.prepare(`
-            SELECT * FROM voucher_requests 
-            WHERE user_id = ? 
-            ORDER BY created_at DESC
-        `).bind(userId).all();
-    return jsonResponse({ success: true, history: results });
-  } catch (e) {
-    return jsonResponse({ error: e.message }, 500);
-  }
-}
-__name(handleVoucherUserHistory, "handleVoucherUserHistory");
-async function handleAdminVoucherList(env) {
-  try {
-    const pending = await env.DB.prepare("SELECT * FROM voucher_requests WHERE status = 'pending' ORDER BY created_at ASC").all();
-    const history = await env.DB.prepare("SELECT * FROM voucher_requests WHERE status != 'pending' ORDER BY created_at DESC LIMIT 20").all();
-    return jsonResponse({
-      success: true,
-      pending: pending.results,
-      history: history.results
-    });
-  } catch (e) {
-    return jsonResponse({ error: e.message }, 500);
-  }
-}
-__name(handleAdminVoucherList, "handleAdminVoucherList");
-async function handleAdminApproveVoucher(request, env) {
-  if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
-  try {
-    const body2 = await request.json();
-    const { requestId, code, action } = body2;
-    if (!requestId || !action) return jsonResponse({ error: "Missing fields" }, 400);
-    if (action === "approve") {
-      if (!code) return jsonResponse({ error: "Voucher Code Required" }, 400);
-      const statements = [
-        env.DB.prepare(`
-                    UPDATE voucher_requests 
-                    SET status = 'approved', voucher_code = ?, approved_at = ?
-                    WHERE id = ? AND status = 'pending'
-                `).bind(code, Date.now(), requestId),
-        env.DB.prepare("UPDATE transactions SET status = 'success' WHERE id = ?").bind(requestId)
-      ];
-      const results = await env.DB.batch(statements);
-      if (results[0].meta.changes === 0) return jsonResponse({ error: "ALREADY_PROCESSED" }, 409);
-      return jsonResponse({ success: true, message: "Voucher Approved" });
-    } else if (action === "reject") {
-      const req = await env.DB.prepare("SELECT user_id, credits FROM voucher_requests WHERE id = ? AND status = 'pending'").bind(requestId).first();
-      if (!req) return jsonResponse({ error: "Request not found or already processed" }, 404);
-      const statements = [
-        env.DB.prepare("UPDATE users SET winning_credits = winning_credits + ? WHERE id = ?").bind(req.credits, req.user_id),
-        env.DB.prepare(`
-                    UPDATE voucher_requests 
-                    SET status = 'rejected', approved_at = ?
-                    WHERE id = ? AND status = 'pending'
-                 `).bind(Date.now(), requestId),
-        env.DB.prepare("UPDATE transactions SET status = 'rejected' WHERE id = ?").bind(requestId)
-      ];
-      const results = await env.DB.batch(statements);
-      if (results[1].meta.changes === 0) return jsonResponse({ error: "ALREADY_PROCESSED" }, 409);
-      return jsonResponse({ success: true, message: "Request Rejected & Refunded" });
-    }
-    return jsonResponse({ error: "Invalid Action" }, 400);
-  } catch (e) {
-    return jsonResponse({ error: e.message }, 500);
-  }
-}
-__name(handleAdminApproveVoucher, "handleAdminApproveVoucher");
-
-// workers/economy_engine.js
-init_checked_fetch();
-init_modules_watch_stub();
-async function processEconomy(env) {
-  console.log("\u{1F3ED} Economy Engine Triggered");
-  try {
-    const { results: upcomingMatches } = await env.DB.prepare(
-      "SELECT id, title, start_time FROM matches WHERE status = 'Upcoming'"
-    ).all();
-    console.log(`\u{1F50D} Found ${upcomingMatches.length} upcoming matches.`);
-    for (const match of upcomingMatches) {
-      await initializeMatch(env, match);
-      await monitorTraffic(env, match.id);
-    }
-  } catch (e) {
-    console.error("\u274C Economy Engine Error:", e);
-  }
-}
-__name(processEconomy, "processEconomy");
-async function initializeMatch(env, match) {
-  const matchId = match.id.toString();
-  const state = await env.DB.prepare("SELECT * FROM auto_contests WHERE match_id = ?").bind(matchId).first();
-  if (!state) {
-    console.log(`\u{1F195} Initializing Economy for Match: ${match.title} (${matchId})`);
-    await createContestIdempotent(env, matchId, 0, "Practice Arena", 100);
-    await createContestIdempotent(env, matchId, 5, "Starter Contest", 100);
-    await createContestIdempotent(env, matchId, 10, "Head to Head", 2);
-    await env.DB.prepare("INSERT INTO auto_contests (match_id, last_tier_unlocked, created_at) VALUES (?, ?, ?)").bind(matchId, 10, Date.now()).run();
-  }
-}
-__name(initializeMatch, "initializeMatch");
-async function monitorTraffic(env, matchId) {
-  const state = await env.DB.prepare("SELECT * FROM auto_contests WHERE match_id = ?").bind(matchId).first();
-  if (!state) return;
-  let currentTier = state.last_tier_unlocked || 0;
-  let nextTierFee = 0;
-  let nextTierName = "";
-  let nextTierSpots = 100;
-  if (currentTier === 10) {
-    nextTierFee = 29;
-    nextTierName = "Hot Contest";
-  } else if (currentTier === 29) {
-    nextTierFee = 49;
-    nextTierName = "Mega Contest";
-  } else {
-    return;
-  }
-  const { results: activeContests } = await env.DB.prepare(
-    "SELECT filled_spots, total_spots FROM contests WHERE match_id = ? AND entry_fee = ?"
-  ).bind(matchId, currentTier).all();
-  let shouldUnlock = false;
-  for (const c of activeContests) {
-    if (c.total_spots > 0 && c.filled_spots / c.total_spots > 0.5) {
-      shouldUnlock = true;
-      break;
-    }
-  }
-  if (shouldUnlock) {
-    console.log(`\u{1F680} Traffic Detected! Unlocking \u20B9${nextTierFee} for ${matchId}`);
-    const success = await createContestIdempotent(env, matchId, nextTierFee, nextTierName, nextTierSpots);
-    if (success) {
-      await env.DB.prepare("UPDATE auto_contests SET last_tier_unlocked = ? WHERE match_id = ?").bind(nextTierFee, matchId).run();
-    }
-  }
-}
-__name(monitorTraffic, "monitorTraffic");
-async function createContestIdempotent(env, matchId, entryFee, category, totalSpots) {
-  const existing = await env.DB.prepare(
-    "SELECT id FROM contests WHERE match_id = ? AND entry_fee = ?"
-  ).bind(matchId, entryFee).first();
-  if (existing) {
-    return false;
-  }
-  const contestId = crypto.randomUUID();
-  const isPractice = entryFee === 0;
-  await env.DB.prepare(`
-        INSERT INTO contests (
-            id, match_id, entry_fee, total_spots, filled_spots, 
-            category, is_guaranteed, is_flexible, 
-            status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-    contestId,
-    matchId,
-    entryFee,
-    totalSpots,
-    0,
-    // filled_spots
-    category,
-    0,
-    // is_guaranteed (False)
-    1,
-    // is_flexible (True - important for dynamic pool)
-    "Upcoming",
-    Date.now()
-  ).run();
-  console.log(`\u2705 Created Contest: ${category} (\u20B9${entryFee}) for ${matchId}`);
-  return true;
-}
-__name(createContestIdempotent, "createContestIdempotent");
 
 // workers/load_test_engine.js
 init_checked_fetch();
@@ -2565,7 +1734,7 @@ async function processPlayerStats(env) {
           continue;
         }
         const data = await resp.json();
-        const { rating, credits: credits2 } = calculateRating(data);
+        const { rating, credits } = calculateRating(data);
         const role = normalizeRole(data.role);
         await env.DB.prepare(`
                     INSERT INTO player_stats (player_id, fantasy_rating, credits, role_normalized, last_updated)
@@ -2575,8 +1744,8 @@ async function processPlayerStats(env) {
                         credits = excluded.credits,
                         role_normalized = excluded.role_normalized,
                         last_updated = excluded.last_updated
-                `).bind(pid, rating, credits2, role, now).run();
-        logs.push(`\u2705 Saved ${pid}: Rating=${rating}, Credits=${credits2}`);
+                `).bind(pid, rating, credits, role, now).run();
+        logs.push(`\u2705 Saved ${pid}: Rating=${rating}, Credits=${credits}`);
       } catch (e) {
         logs.push(`\u26A0\uFE0F Error processing ${pid}: ${e.message}`);
       }
@@ -2590,7 +1759,7 @@ async function processPlayerStats(env) {
 __name(processPlayerStats, "processPlayerStats");
 function calculateRating(data) {
   let rating = 50;
-  let credits2 = 8.5;
+  let credits = 8.5;
   try {
     let impactScore = 0;
     if (data.bat && Array.isArray(data.bat)) {
@@ -2613,12 +1782,12 @@ function calculateRating(data) {
     if (impactScore < 20) impactScore = 40 + Math.random() * 10;
     if (impactScore > 100) impactScore = 95;
     rating = parseFloat(impactScore.toFixed(1));
-    credits2 = 8 + (rating - 40) * 0.0416;
-    credits2 = Math.min(10.5, Math.max(8, credits2));
-    credits2 = Math.round(credits2 * 2) / 2;
+    credits = 8 + (rating - 40) * 0.0416;
+    credits = Math.min(10.5, Math.max(8, credits));
+    credits = Math.round(credits * 2) / 2;
   } catch (e) {
   }
-  return { rating, credits: credits2 };
+  return { rating, credits };
 }
 __name(calculateRating, "calculateRating");
 function normalizeRole(rawRole) {
@@ -2631,142 +1800,12 @@ function normalizeRole(rawRole) {
 }
 __name(normalizeRole, "normalizeRole");
 
-// workers/refund_engine.js
-init_checked_fetch();
-init_modules_watch_stub();
-
 // workers/index.js
 var corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "*"
 };
-var MAJOR_LEAGUE_SERIES_KEYWORDS = [
-  "IPL",
-  "INDIAN PREMIER",
-  "PSL",
-  "PAKISTAN SUPER",
-  "BIG BASH",
-  "BBL",
-  "THE HUNDRED",
-  "WOMEN'S PREMIER",
-  "WPL",
-  "SA20",
-  "ILT20",
-  "CARIBBEAN PREMIER",
-  "CPL",
-  "MAJOR LEAGUE CRICKET",
-  "MLC",
-  "LANKA PREMIER",
-  "LPL"
-];
-var INTERNATIONAL_TEAM_NAMES = /* @__PURE__ */ new Set([
-  "AFGHANISTAN",
-  "AFG",
-  "AUSTRALIA",
-  "AUS",
-  "BANGLADESH",
-  "BAN",
-  "CANADA",
-  "CAN",
-  "ENGLAND",
-  "ENG",
-  "HONG KONG",
-  "HKG",
-  "INDIA",
-  "IND",
-  "IRELAND",
-  "IRE",
-  "NAMIBIA",
-  "NAM",
-  "NETHERLANDS",
-  "NED",
-  "NEPAL",
-  "NEP",
-  "NEW ZEALAND",
-  "NZ",
-  "OMAN",
-  "OMA",
-  "PAKISTAN",
-  "PAK",
-  "PAPUA NEW GUINEA",
-  "PNG",
-  "SCOTLAND",
-  "SCO",
-  "SOUTH AFRICA",
-  "SA",
-  "SRI LANKA",
-  "SL",
-  "UNITED ARAB EMIRATES",
-  "UAE",
-  "USA",
-  "WEST INDIES",
-  "WI",
-  "ZIMBABWE",
-  "ZIM"
-]);
-function normalizeMatchFilterText(value) {
-  return String(value || "").trim().toUpperCase();
-}
-__name(normalizeMatchFilterText, "normalizeMatchFilterText");
-function normalizeMatchStatus(value) {
-  return String(value || "").trim().toUpperCase();
-}
-__name(normalizeMatchStatus, "normalizeMatchStatus");
-function isActiveStatusBypass(status) {
-  return status === "LIVE" || status === "STARTED" || status === "IN PROGRESS" || status === "INNINGS BREAK";
-}
-__name(isActiveStatusBypass, "isActiveStatusBypass");
-function isTerminalVisibilityStatus(status) {
-  return status === "COMPLETED" || status === "FINISHED" || status === "ABANDONED" || status === "CANCELLED" || status === "CANCELED";
-}
-__name(isTerminalVisibilityStatus, "isTerminalVisibilityStatus");
-function isAboutToStartBypass(status, startTime, nowMs) {
-  const start = Number(startTime || 0);
-  if (!Number.isFinite(start) || start <= 0) return false;
-  const activeOrUpcoming = status === "UPCOMING" || isActiveStatusBypass(status);
-  return activeOrUpcoming && start <= nowMs + 15 * 60 * 1e3;
-}
-__name(isAboutToStartBypass, "isAboutToStartBypass");
-function isStartedBypass(status, startTime, nowMs) {
-  const start = Number(startTime || 0);
-  if (!Number.isFinite(start) || start <= 0) return false;
-  return start <= nowMs && !isTerminalVisibilityStatus(status);
-}
-__name(isStartedBypass, "isStartedBypass");
-function isMajorLeagueSeries(seriesName) {
-  const normalizedSeries = normalizeMatchFilterText(seriesName);
-  if (!normalizedSeries) return false;
-  return MAJOR_LEAGUE_SERIES_KEYWORDS.some((keyword) => normalizedSeries.includes(keyword));
-}
-__name(isMajorLeagueSeries, "isMajorLeagueSeries");
-function isInternationalTeamName(teamName) {
-  const normalizedTeam = normalizeMatchFilterText(teamName);
-  if (!normalizedTeam) return false;
-  if (INTERNATIONAL_TEAM_NAMES.has(normalizedTeam)) return true;
-  const withoutWomenSuffix = normalizedTeam.replace(/\s+WOMEN$/, "").replace(/\s+W$/, "");
-  if (INTERNATIONAL_TEAM_NAMES.has(withoutWomenSuffix)) return true;
-  const withoutAgeSuffix = withoutWomenSuffix.replace(/\s+U19$/, "").replace(/\s+UNDER[\s-]?19$/, "");
-  return INTERNATIONAL_TEAM_NAMES.has(withoutAgeSuffix);
-}
-__name(isInternationalTeamName, "isInternationalTeamName");
-function shouldServeCuratedMatch(matchRow) {
-  if (!matchRow || typeof matchRow !== "object") return false;
-  const seriesName = matchRow.series_name || matchRow.seriesName || matchRow.title || "";
-  if (isPrioritySeries(seriesName) || isMajorLeagueSeries(seriesName)) {
-    return true;
-  }
-  const teamA = matchRow.team_a || matchRow.teamA || "";
-  const teamB = matchRow.team_b || matchRow.teamB || "";
-  if (isInternationalTeamName(teamA) && isInternationalTeamName(teamB)) {
-    return true;
-  }
-  if (teamA && teamB && teamA !== "TBA" && teamB !== "TBA" && teamA !== "T1" && teamB !== "T2") {
-    return true;
-  }
-  return false;
-}
-__name(shouldServeCuratedMatch, "shouldServeCuratedMatch");
 var workers_default = {
   async scheduled(event, env, ctx) {
     console.log("CRON ENTRY START");
@@ -2781,9 +1820,6 @@ var workers_default = {
     await safeRun("UPCOMING_SEED_ENGINE", () => seedUpcomingMatches(env));
     await safeRun("SQUAD_WARMUP_ENGINE", () => warmupMissingUpcomingSquads(env));
     ctx.waitUntil(safeRun("CRICKET_ENGINE", () => processCricketData(env)));
-    ctx.waitUntil(safeRun("POINTS_ENGINE", () => processLivePoints(env)));
-    ctx.waitUntil(safeRun("LEADERBOARD_ENGINE", () => processLeaderboards(env)));
-    ctx.waitUntil(safeRun("ECONOMY_ENGINE", () => processEconomy(env)));
     ctx.waitUntil(safeRun("PLAYER_STATS_ENGINE", () => processPlayerStats(env)));
     ctx.waitUntil(safeRun("REPAIR_QUEUE", () => processRepairQueue(env)));
     ctx.waitUntil(safeRun("SQUAD_ENGINE", async () => {
@@ -2831,22 +1867,6 @@ var workers_default = {
       if (url.pathname === "/api/teams/save") return await handleSaveTeam(request, env);
       if (url.pathname === "/api/teams/get") return await handleGetTeams(url.searchParams, env);
       if (url.pathname === "/api/room/ranking") return await handleGetRoomRanking(url.searchParams, env);
-      if (url.pathname === "/api/wallet/balance") {
-        const uid = url.searchParams.get("userId");
-        if (!uid) return jsonResponse({ error: "userId required" }, 400);
-        return await handleGetWalletBalance(uid.trim(), env);
-      }
-      if (url.pathname === "/api/wallet/transactions" || url.pathname === "/api/transactions/my") {
-        const uid = url.searchParams.get("userId");
-        if (!uid) return jsonResponse({ error: "userId required" }, 400);
-        return await handleGetTransactionHistory(uid.trim(), env);
-      }
-      if (url.pathname === "/api/wallet/withdraw") return await handleWithdrawRequest(request, env);
-      if (url.pathname === "/api/admin/withdrawals") return await handleAdminListWithdrawals(request, env);
-      if (url.pathname === "/api/admin/payout/status") return await handleAdminUpdateWithdrawalStatus(request, env);
-      if (url.pathname === "/api/admin/payout/reward") return await handleAdminIssueReward(request, env);
-      if (url.pathname === "/api/admin/user/search") return await handleAdminUserSearch(request, env);
-      if (url.pathname === "/api/admin/users") return await handleAdminListUsers(request, env);
       if (path === "/" || path === "") return new Response("AxevoraLabs Social Interaction API - v3.0", { status: 200 });
       if (path === "/terms" || path === "/terms-and-conditions") return handleStaticPage("terms");
       if (path === "/refund" || path === "/refund-policy" || path === "/cancellation") return handleStaticPage("refund");
@@ -2898,9 +1918,6 @@ var workers_default = {
           return new Response("Failed to fetch image", { status: 500, headers: corsHeaders });
         }
       }
-      if (path === "/pay") return handlePaymentRedirect(url.searchParams, env);
-      if (path === "/api/create-payment") return handleCreatePayment(request, env);
-      if (path === "/api/payment-webhook") return handlePaymentWebhook(request, env);
       if (path === "/api/ranking") {
         return jsonResponse({ success: false, error: "RANKING_RESTRICTED", message: "Rankings are only available inside Private Rooms for informational purposes." }, 403);
       }
@@ -2911,34 +1928,15 @@ var workers_default = {
       if (path === "/api/admin/stats") {
         return handleAdminStats(env);
       }
-      if (path === "/api/admin/payouts/distribute") {
-        if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
-        const body2 = await request.json();
-        if (!body2.matchId) return jsonResponse({ error: "Match ID required" }, 400);
-        await processPayoutsForMatch(env, body2.matchId);
-        return jsonResponse({ success: true, message: `Payout Process Initiated for ${body2.matchId}` });
-      }
       if (path === "/api/admin/match/squad") return handleAdminSaveSquad(request, env);
       if (path === "/api/admin/match/participants") {
         const matchId = url.searchParams.get("matchId");
         if (!matchId) return jsonResponse({ success: false, error: "matchId required" }, 400);
         return handleGetMatchParticipants(matchId, env);
       }
-      if (path === "/api/voucher/request") return handleVoucherRequest(request, env);
-      if (path === "/api/voucher/my") {
-        const uid = url.searchParams.get("userId");
-        if (!uid) return jsonResponse({ error: "UserId required" }, 400);
-        return handleVoucherUserHistory(uid, env);
-      }
-      if (path === "/api/debug/all-users") {
-        const { results } = await env.DB.prepare("SELECT * FROM users").all();
-        return jsonResponse({ users: results });
-      }
       if (path === "/api/user/sync") {
         return handleUserSync(request, env);
       }
-      if (path === "/api/admin/voucher/list") return handleAdminVoucherList(env);
-      if (path === "/api/admin/voucher/approve") return handleAdminApproveVoucher(request, env);
       if (path === "/api/rooms/create") return await handleCreateRoom(request, env);
       if (path === "/api/rooms" || path === "/api/rooms/list") {
         const matchId = url.searchParams.get("matchId");
@@ -2965,9 +1963,19 @@ var workers_default = {
         if (!userId) return jsonResponse({ success: false, error: "userId required" }, 400);
         return handleGetUserRooms(userId, env);
       }
+      if (path === "/api/chat/send") return await handleSendChatMessage(request, env);
+      if (path === "/api/chat/sync" || path === "/api/chat/messages") {
+        const roomId = url.searchParams.get("roomId");
+        const lastUpdated = url.searchParams.get("after") || "0";
+        if (!roomId) return jsonResponse({ success: false, error: "roomId required" }, 400);
+        return handleSyncChatMessages(roomId, lastUpdated, env);
+      }
       if (path === "/diag") return handleGlobalDiag(env);
       if (path === "/stats-metrics") return handleGetStatsMetrics(url.searchParams.get("match_id"), env);
       if (path === "/debug-api" || path === "/api/debug-api") return handleDebugApi(env);
+      if (path === "/api/matches" || path === "/api/v2/matches") {
+        return handleGetMatches(env);
+      }
       if (path.startsWith("/api/")) {
         return jsonResponse({ success: false, error: `API Route Not Found: ${path}` }, 404);
       }
@@ -2978,6 +1986,98 @@ var workers_default = {
     }
   }
 };
+async function handleGetMatches(env) {
+  try {
+    const { results } = await env.DB.prepare(`
+            SELECT id, series_id, series_name, title, short_title, status, start_time, team_a, team_b, team_a_img, team_b_img, team_a_id, team_b_id, last_updated, last_score, last_wickets, last_over, last_innings 
+            FROM matches 
+            WHERE status IN ('Live', 'In Progress', 'Innings Break', 'Upcoming', 'Completed', 'Abandoned')
+            ORDER BY 
+                CASE status 
+                    WHEN 'Live' THEN 1 
+                    WHEN 'In Progress' THEN 2 
+                    WHEN 'Innings Break' THEN 3
+                    WHEN 'Upcoming' THEN 4 
+                    ELSE 5 
+                END, 
+                start_time ASC 
+            LIMIT 50
+        `).all();
+    const activeMatches = (results || []).filter((m) => {
+      const fullText = `${m.team_a || ""} ${m.team_b || ""} ${m.title || ""} ${m.series_name || ""}`.toUpperCase();
+      const isPremium = [
+        "IPL",
+        "INDIAN PREMIER LEAGUE",
+        "BBL",
+        "BIG BASH",
+        "PSL",
+        "PAKISTAN SUPER LEAGUE",
+        "BPL",
+        "BANGLADESH PREMIER LEAGUE",
+        "SA20",
+        "CPL",
+        "HUNDRED",
+        "WPL",
+        "WORLD CUP",
+        "ICC",
+        "ASIA CUP",
+        "CHAMPIONS TROPHY",
+        "T20I",
+        "ODI",
+        "TEST",
+        "WOMEN'S T20",
+        "WOMEN'S ODI"
+      ].some((kw) => fullText.includes(kw));
+      const isExcluded = [
+        "DOMESTIC",
+        "SHIELD",
+        "PLUNKET",
+        "RANJI",
+        "BLAST",
+        "CHALLENGER",
+        "TROPHY",
+        "CUP",
+        "LEAGUE"
+      ].some((kw) => {
+        if (kw === "TROPHY" && fullText.includes("CHAMPIONS TROPHY")) return false;
+        if (kw === "CUP" && (fullText.includes("WORLD CUP") || fullText.includes("ASIA CUP"))) return false;
+        if (kw === "LEAGUE" && (fullText.includes("PREMIER LEAGUE") || fullText.includes("SUPER LEAGUE") || fullText.includes("BIG BASH LEAGUE"))) return false;
+        return fullText.includes(kw);
+      });
+      return isPremium && !isExcluded;
+    });
+    const matches = activeMatches.map((m) => ({
+      id: m.id,
+      seriesId: m.series_id,
+      seriesName: m.series_name,
+      matchDesc: m.title,
+      matchFormat: "T20",
+      // Default or fetch from db if added later
+      startDate: m.start_time,
+      endDate: m.start_time + 144e5,
+      status: m.status,
+      team1Name: m.team_a,
+      team2Name: m.team_b,
+      team1ShortName: m.team_a,
+      team2ShortName: m.team_b,
+      team1Id: m.team_a_id,
+      team2Id: m.team_b_id,
+      teamAImg: m.team_a_img,
+      teamBImg: m.team_b_img,
+      lastScore: m.last_score,
+      lastWickets: m.last_wickets,
+      lastOver: m.last_over,
+      lastInnings: m.last_innings
+    }));
+    return jsonResponse({
+      success: true,
+      matches
+    });
+  } catch (e) {
+    return jsonResponse({ success: false, error: e.message }, 500);
+  }
+}
+__name(handleGetMatches, "handleGetMatches");
 async function handleDebugApi(env) {
   const key = env.RAPID_API_KEY;
   const hosts = [
@@ -3032,60 +2132,6 @@ async function handleDebugApi(env) {
   });
 }
 __name(handleDebugApi, "handleDebugApi");
-async function handleCreatePayment(request, env) {
-  try {
-    const body2 = await request.json();
-    const { userId, amount } = body2;
-    if (!userId || !amount) {
-      return jsonResponse({ success: false, error: "UserId and Amount required" }, 400);
-    }
-    const result = await createCashfreeOrder(userId, amount, env);
-    if (result.success && result.transactionData) {
-      const t = result.transactionData;
-      await env.DB.prepare(`
-                INSERT INTO transactions (id, user_id, type, amount, created_at, status)
-                VALUES (?, ?, 'deposit', ?, ?, 'pending')
-            `).bind(t.id, t.userId, t.amount, Date.now()).run();
-      delete result.transactionData;
-    }
-    return jsonResponse(result);
-  } catch (e) {
-    return jsonResponse({ success: false, error: e.message }, 500);
-  }
-}
-__name(handleCreatePayment, "handleCreatePayment");
-async function handlePaymentWebhook(request, env) {
-  try {
-    const result = await handleCashfreeWebhook(request, env);
-    if (result.action === "UPDATE_WALLET") {
-      const { orderId, amount } = result;
-      const updateRes = await env.DB.prepare(`
-                UPDATE transactions 
-                SET status = 'success' 
-                WHERE id = ? AND status = 'pending'
-            `).bind(orderId).run();
-      if (updateRes.meta.changes > 0) {
-        const txn = await env.DB.prepare("SELECT user_id FROM transactions WHERE id = ?").bind(orderId).first();
-        const userId = txn.user_id;
-        await env.DB.prepare(`
-                    UPDATE users SET deposit_credits = deposit_credits + ? WHERE id = ?
-                `).bind(amount, userId).run();
-        console.log(`\u2705 Wallet Updated for ${userId}: +${amount}`);
-      } else {
-        console.log(`\u26A0\uFE0F Transaction ${orderId} already processed or not found.`);
-      }
-    } else if (result.action === "UPDATE_TRANSACTION_FAILED") {
-      await env.DB.prepare(`
-                UPDATE transactions SET status = 'failed' WHERE id = ?
-            `).bind(result.orderId).run();
-    }
-    return new Response("OK", { status: 200 });
-  } catch (e) {
-    console.error("Webhook Handler Failed:", e);
-    return new Response("Error", { status: 500 });
-  }
-}
-__name(handlePaymentWebhook, "handlePaymentWebhook");
 async function handleAdminStats(env) {
   try {
     const matchesCount = await env.DB.prepare("SELECT COUNT(*) as c FROM matches WHERE status='Live'").first();
@@ -3123,35 +2169,6 @@ async function handleGetMatchParticipants(matchId, env) {
   }
 }
 __name(handleGetMatchParticipants, "handleGetMatchParticipants");
-async function handleGetMatches(env) {
-  try {
-    const { results } = await env.DB.prepare("SELECT * FROM matches ORDER BY start_time ASC").all();
-    const { results: lineupRows } = await env.DB.prepare(`
-            SELECT DISTINCT CAST(match_id AS TEXT) AS match_id
-            FROM match_squads
-            WHERE playing_11_a IS NOT NULL OR playing_11_b IS NOT NULL
-        `).all();
-    const { results: joinedRows } = await env.DB.prepare(`
-            SELECT DISTINCT CAST(match_id AS TEXT) AS match_id
-            FROM contest_participants
-        `).all();
-    const lineupMatchSet = new Set((lineupRows || []).map((r) => String(r.match_id || "").trim()).filter(Boolean));
-    const joinedMatchSet = new Set((joinedRows || []).map((r) => String(r.match_id || "").trim()).filter(Boolean));
-    const nowMs = Date.now();
-    const curatedMatches = Array.isArray(results) ? results.filter((match) => {
-      const matchId = String(match?.id || "").trim();
-      const status = normalizeMatchStatus(match?.status);
-      const startTime = Number(match?.start_time || 0);
-      const activeMatchBypass = isActiveStatusBypass(status) || lineupMatchSet.has(matchId) || joinedMatchSet.has(matchId) || isAboutToStartBypass(status, startTime, nowMs) || isStartedBypass(status, startTime, nowMs);
-      if (activeMatchBypass) return true;
-      return shouldServeCuratedMatch(match);
-    }) : [];
-    return jsonResponse({ success: true, matches: curatedMatches });
-  } catch (error) {
-    return jsonResponse({ success: false, error: error.message });
-  }
-}
-__name(handleGetMatches, "handleGetMatches");
 async function handleGetScorecard(matchId, env) {
   try {
     const score = await env.DB.prepare("SELECT * FROM live_scores WHERE match_id = ?").bind(matchId).first();
@@ -3244,14 +2261,14 @@ async function handleGetSquads(rawMatchId, env, request) {
       const stat = statsMap.get(pid);
       const pidHash = simpleHash(pid);
       const role = p.role || stat?.role_normalized || "BAT";
-      let credits2 = 8;
+      let credits = 8;
       let rating = 50;
       if (stat) {
-        credits2 = stat.credits || 8;
+        credits = stat.credits || 8;
         rating = stat.fantasy_rating || 50;
       } else {
         const baseCredit = role === "AR" ? 8.5 : 8;
-        credits2 = baseCredit + pidHash % 6 * 0.5;
+        credits = baseCredit + pidHash % 6 * 0.5;
         let baseRating = 50;
         if (role === "WK") baseRating = 55;
         if (role === "AR") baseRating = 60;
@@ -3262,7 +2279,7 @@ async function handleGetSquads(rawMatchId, env, request) {
         id: pid,
         name: p.name,
         role,
-        credits: credits2,
+        credits,
         fantasy_rating: rating,
         teamId: (p.teamId || (allMap.get(pid) === p ? team1Id : team2Id)).toString(),
         teamShortName: p.teamShortName,
@@ -3328,8 +2345,8 @@ __name(generateDummySquad, "generateDummySquad");
 async function handleAdminSaveSquad(request, env) {
   if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
   try {
-    const body2 = await request.json();
-    const { matchId, teamA, teamB, xiA, xiB } = body2;
+    const body = await request.json();
+    const { matchId, teamA, teamB, xiA, xiB } = body;
     if (!matchId || !teamA || !teamB) {
       return jsonResponse({ success: false, error: "Missing required fields: matchId, teamA, teamB" }, 400);
     }
@@ -3369,31 +2386,6 @@ async function handleGlobalDiag(env) {
   return jsonResponse({ status: "ok" });
 }
 __name(handleGlobalDiag, "handleGlobalDiag");
-async function handleGetWalletBalance(userId, env) {
-  try {
-    console.log(`D1: Fetching balance for [${userId}]`);
-    const user = await ensureUserInD1(userId, env);
-    if (!user) {
-      console.log(`D1: User NOT found for [${userId}] after sync attempt`);
-    } else {
-      console.log(`D1: Found user, winnings: ${user.winning_credits}`);
-    }
-    const deposit = user ? user.deposit_credits || 0 : 0;
-    const winnings = user ? user.winning_credits || 0 : 0;
-    return jsonResponse({
-      success: true,
-      balance: {
-        deposit,
-        winnings,
-        total: deposit + winnings
-      }
-    });
-  } catch (e) {
-    console.error("D1 Error:", e);
-    return jsonResponse({ success: false, error: e.message }, 500);
-  }
-}
-__name(handleGetWalletBalance, "handleGetWalletBalance");
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -3407,71 +2399,6 @@ function jsonResponse(data, status = 200) {
   });
 }
 __name(jsonResponse, "jsonResponse");
-function handlePaymentRedirect(params, env) {
-  const sessionId = params.get("session_id");
-  const environment = params.get("env") || "prod";
-  if (!sessionId) return new Response("Missing Session ID", { status: 400 });
-  const sdkUrl = "https://sdk.cashfree.com/js/v3/cashfree.js";
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Prevent Caching -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    <title>Redirecting to Payment...</title>
-    <script src="${sdkUrl}"><\/script>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .container { text-align: center; }
-        p { margin-top: 20px; color: #555; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="loader" style="margin:0 auto;"></div>
-        <p>Redirecting to Secure Payment Gateway...</p>
-        <p style="font-size:12px; color:#999">Session: ${sessionId.substring(0, 10)}...</p>
-    </div>
-    <script>
-        window.onload = function() {
-            try {
-                console.log("Initializing Cashfree v3...");
-                // V3 Factory - try without new first, or check type
-                const cashfree = Cashfree({
-                    mode: "${environment === "sandbox" ? "sandbox" : "production"}"
-                });
-                console.log("Cashfree Instance:", cashfree); 
-                console.log("Redirecting...");
-                cashfree.checkout({
-                    paymentSessionId: "${sessionId}",
-                    redirectTarget: "_self"
-                });
-            } catch(e) {
-                console.error("Initialization Error:", e);
-                document.body.innerHTML = "<p style='color:red; text-align:center'>Error: " + e.message + "<br><br>Check Console for details.</p>";
-            }
-        };
-    <\/script>
-</body>
-</html>
-    `;
-  return new Response(html, {
-    headers: {
-      "Content-Type": "text/html",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      "Pragma": "no-cache",
-      "Expires": "0",
-      ...corsHeaders
-    }
-  });
-}
-__name(handlePaymentRedirect, "handlePaymentRedirect");
 function handleStaticPage(type) {
   let title = "Fantasy Cricket API";
   let content = "";
@@ -3560,20 +2487,6 @@ function handleStaticPage(type) {
   });
 }
 __name(handleStaticPage, "handleStaticPage");
-async function handleGetTransactions(userId, env) {
-  try {
-    const { results } = await env.DB.prepare(
-      "SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50"
-    ).bind(userId).all();
-    return jsonResponse({
-      success: true,
-      transactions: results
-    });
-  } catch (e) {
-    return jsonResponse({ success: false, error: e.message }, 500);
-  }
-}
-__name(handleGetTransactions, "handleGetTransactions");
 async function handleUserSync(request, env) {
   try {
     const { userId, email, displayName } = await request.json();
@@ -3595,34 +2508,10 @@ async function handleUserSync(request, env) {
   }
 }
 __name(handleUserSync, "handleUserSync");
-async function ensureUserInD1(userId, env) {
-  if (!userId) return null;
-  return await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
-}
-__name(ensureUserInD1, "ensureUserInD1");
-async function processLivePoints(env) {
-  console.log("\u{1F504} Processing Live Points for all active matches...");
-  try {
-    const { results: liveMatches } = await env.DB.prepare(
-      "SELECT id FROM matches WHERE status = 'Live' OR status = 'Upcoming'"
-      // Also check Upcoming in case of early start
-    ).all();
-    if (!liveMatches || liveMatches.length === 0) {
-      console.log("No live matches to sync points for.");
-      return;
-    }
-    for (const match of liveMatches) {
-      await syncMatchPointsToD1(match.id, env);
-    }
-  } catch (e) {
-    console.error("processLivePoints Error:", e);
-  }
-}
-__name(processLivePoints, "processLivePoints");
 async function handleSaveTeam(request, env) {
   try {
-    const body2 = await request.json();
-    const { id, userId, matchId, teamName, players, captainId, viceCaptainId } = body2;
+    const body = await request.json();
+    const { id, userId, matchId, teamName, players, captainId, viceCaptainId } = body;
     const payloadPlayers = Array.isArray(players) ? players : [];
     if (!userId || !matchId || !players) {
       return jsonResponse({ success: false, error: "Missing required fields" }, 400);
@@ -3744,97 +2633,6 @@ async function handleGetRoomLeaderboard(queryParams, env) {
   }
 }
 __name(handleGetRoomLeaderboard, "handleGetRoomLeaderboard");
-async function handleWithdrawRequest(request, env) {
-  if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
-  try {
-    const { userId, amount, method, details } = await request.json();
-    if (!userId || !amount || !method) return jsonResponse({ success: false, error: "MISSING_FIELDS" }, 400);
-    const user = await env.DB.prepare("SELECT winning_credits FROM users WHERE id = ?").bind(userId).first();
-    if (!user || user.winning_credits < amount) {
-      return jsonResponse({ success: false, error: "INSUFFICIENT_WINNINGS" }, 200);
-    }
-    const requestId = `payout_${Date.now()}_${userId}`;
-    const statements = [
-      env.DB.prepare("UPDATE users SET winning_credits = winning_credits - ? WHERE id = ? AND winning_credits >= ?").bind(amount, userId, amount),
-      env.DB.prepare("INSERT INTO payout_requests (id, user_id, amount, method, details, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)").bind(requestId, userId, amount, method, details || "", Date.now()),
-      env.DB.prepare("INSERT INTO transactions (id, user_id, type, amount, created_at, status) VALUES (?, ?, 'withdrawal_request', ?, ?, 'pending')").bind(requestId, userId, amount, Date.now())
-    ];
-    const results = await env.DB.batch(statements);
-    if (results[0].meta.changes === 0) throw new Error("INSUFFICIENT_BALANCE_RACE");
-    return jsonResponse({ success: true, message: "Withdrawal requested" });
-  } catch (e) {
-    return jsonResponse({ success: false, error: e.message }, 500);
-  }
-}
-__name(handleWithdrawRequest, "handleWithdrawRequest");
-async function handleAdminListWithdrawals(request, env) {
-  try {
-    const { results } = await env.DB.prepare("SELECT * FROM payout_requests WHERE status = 'pending' ORDER BY created_at ASC").all();
-    return jsonResponse({ success: true, withdrawals: results });
-  } catch (e) {
-    return jsonResponse({ success: false, error: e.message }, 500);
-  }
-}
-__name(handleAdminListWithdrawals, "handleAdminListWithdrawals");
-async function handleAdminUpdateWithdrawalStatus(request, env) {
-  if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
-  try {
-    const { requestId, status, note } = await request.json();
-    if (!requestId || !status) return jsonResponse({ success: false, error: "MISSING_FIELDS" }, 400);
-    const pr = await env.DB.prepare("SELECT * FROM payout_requests WHERE id = ?").bind(requestId).first();
-    if (!pr) return jsonResponse({ success: false, error: "REQUEST_NOT_FOUND" }, 404);
-    if (pr.status !== "pending") return jsonResponse({ success: false, error: "ALREADY_PROCESSED" }, 400);
-    if (status === "approved") {
-      const statements = [
-        env.DB.prepare("UPDATE payout_requests SET status = 'approved', admin_note = ?, processed_at = ? WHERE id = ? AND status = 'pending'").bind(note || "Processed", Date.now(), requestId),
-        env.DB.prepare("UPDATE transactions SET status = 'success' WHERE id = ?").bind(requestId)
-      ];
-      const results = await env.DB.batch(statements);
-      if (results[0].meta.changes === 0) return jsonResponse({ success: false, error: "ALREADY_PROCESSED_OR_NOT_FOUND" }, 409);
-    } else if (status === "rejected") {
-      const statements = [
-        env.DB.prepare("UPDATE users SET winning_credits = winning_credits + ? WHERE id = ?").bind(pr.amount, pr.user_id),
-        env.DB.prepare("UPDATE payout_requests SET status = 'rejected', admin_note = ?, processed_at = ? WHERE id = ? AND status = 'pending'").bind(note || "Rejected by Admin", Date.now(), requestId),
-        env.DB.prepare("UPDATE transactions SET status = 'rejected' WHERE id = ?").bind(requestId)
-      ];
-      const results = await env.DB.batch(statements);
-      if (results[1].meta.changes === 0) {
-        return jsonResponse({ success: false, error: "ALREADY_PROCESSED" }, 409);
-      }
-    }
-    return jsonResponse({ success: true, message: `Status updated to ${status}` });
-  } catch (e) {
-    return jsonResponse({ success: false, error: e.message }, 500);
-  }
-}
-__name(handleAdminUpdateWithdrawalStatus, "handleAdminUpdateWithdrawalStatus");
-async function handleAdminIssueReward(request, env) {
-  if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
-  try {
-    const { userId, amount, note } = await request.json();
-    if (!userId || !amount) return jsonResponse({ success: false, error: "MISSING_FIELDS" }, 400);
-    await env.DB.prepare("UPDATE users SET winning_credits = winning_credits + ? WHERE id = ?").bind(amount, userId).run();
-    const txnId = `reward_${Date.now()}_${userId}`;
-    await env.DB.prepare("INSERT INTO transactions (id, user_id, type, amount, created_at, status) VALUES (?, ?, 'reward', ?, ?, 'success')").bind(txnId, userId, amount, Date.now()).run();
-    return jsonResponse({ success: true, message: "Reward issued" });
-  } catch (e) {
-    return jsonResponse({ success: false, error: e.message }, 500);
-  }
-}
-__name(handleAdminIssueReward, "handleAdminIssueReward");
-async function handleAdminUserSearch(request, env) {
-  const url = new URL(request.url);
-  const email = url.searchParams.get("email");
-  if (!email) return jsonResponse({ success: false, error: "Email required" }, 400);
-  try {
-    const user = await env.DB.prepare("SELECT id, name, email FROM users WHERE email = ?").bind(email).first();
-    if (!user) return jsonResponse({ success: false, message: "User not found" });
-    return jsonResponse({ success: true, user });
-  } catch (e) {
-    return jsonResponse({ success: false, error: e.message }, 500);
-  }
-}
-__name(handleAdminUserSearch, "handleAdminUserSearch");
 async function handleSocialPreview(matchId, env) {
   try {
     const match = await env.DB.prepare("SELECT * FROM matches WHERE id = ?").bind(matchId).first();
@@ -3869,15 +2667,6 @@ async function handleSocialPreview(matchId, env) {
   }
 }
 __name(handleSocialPreview, "handleSocialPreview");
-async function handleAdminListUsers(request, env) {
-  try {
-    const { results } = await env.DB.prepare("SELECT id, name, email, deposit_credits, winning_credits, joined_at FROM users ORDER BY joined_at DESC LIMIT 200").all();
-    return jsonResponse({ success: true, users: results });
-  } catch (e) {
-    return jsonResponse({ success: false, error: e.message }, 500);
-  }
-}
-__name(handleAdminListUsers, "handleAdminListUsers");
 async function handleGetRoomRanking(queryParams, env) {
   const matchId = queryParams.get("matchId");
   const roomId = queryParams.get("roomId");
@@ -3914,8 +2703,8 @@ __name(handleGetRoomRanking, "handleGetRoomRanking");
 async function handleCreateRoom(request, env) {
   if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
   try {
-    const body2 = await request.json();
-    const { matchId, creatorId, roomName, roomType, inviteCode, maxMembers } = body2;
+    const body = await request.json();
+    const { matchId, creatorId, roomName, roomType, inviteCode, maxMembers } = body;
     if (!matchId || !creatorId || !roomName) {
       return jsonResponse({ success: false, error: "matchId, creatorId, and roomName are required" }, 400);
     }
@@ -3964,8 +2753,8 @@ __name(handleGetRooms, "handleGetRooms");
 async function handleJoinRoom(request, env) {
   if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
   try {
-    const body2 = await request.json();
-    const { roomId, userId, inviteCode } = body2;
+    const body = await request.json();
+    const { roomId, userId, inviteCode } = body;
     if (!roomId || !userId) return jsonResponse({ success: false, error: "roomId and userId are required" }, 400);
     const room = await env.DB.prepare("SELECT * FROM rooms WHERE id = ?").bind(roomId).first();
     if (!room) return jsonResponse({ success: false, error: "ROOM_NOT_FOUND" }, 404);
@@ -4019,6 +2808,45 @@ async function handleGetUserRooms(userId, env) {
   }
 }
 __name(handleGetUserRooms, "handleGetUserRooms");
+async function handleSendChatMessage(request, env) {
+  if (request.method !== "POST") return jsonResponse({ error: "Method Not Allowed" }, 405);
+  try {
+    const body = await request.json();
+    const { roomId, userId, content, messageType } = body;
+    if (!roomId || !userId || !content) {
+      return jsonResponse({ success: false, error: "roomId, userId, and content required" }, 400);
+    }
+    const msgId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const now = Date.now();
+    await env.DB.prepare(`
+            INSERT INTO chat_messages (id, room_id, user_id, message_type, content, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).bind(msgId, roomId, userId, messageType || "text", content, now).run();
+    return jsonResponse({ success: true, messageId: msgId, timestamp: now });
+  } catch (e) {
+    console.error("handleSendChatMessage Error:", e);
+    return jsonResponse({ success: false, error: e.message }, 500);
+  }
+}
+__name(handleSendChatMessage, "handleSendChatMessage");
+async function handleSyncChatMessages(roomId, lastUpdated, env) {
+  try {
+    const afterMs = parseInt(lastUpdated) || 0;
+    const { results } = await env.DB.prepare(`
+            SELECT c.*, u.name as user_name, u.photo_url as user_photo
+            FROM chat_messages c
+            LEFT JOIN users u ON c.user_id = u.id
+            WHERE c.room_id = ? AND c.created_at > ?
+            ORDER BY c.created_at ASC
+            LIMIT 100
+        `).bind(roomId, afterMs).all();
+    return jsonResponse({ success: true, messages: results || [] });
+  } catch (e) {
+    console.error("handleSyncChatMessages Error:", e);
+    return jsonResponse({ success: false, error: e.message }, 500);
+  }
+}
+__name(handleSyncChatMessages, "handleSyncChatMessages");
 async function handleGetStatsMetrics(matchId, env) {
   if (!matchId) return jsonResponse({ success: false, error: "match_id required" }, 400);
   try {
@@ -4031,10 +2859,6 @@ async function handleGetStatsMetrics(matchId, env) {
   }
 }
 __name(handleGetStatsMetrics, "handleGetStatsMetrics");
-async function handleGetTransactionHistory(userId, env) {
-  return handleGetTransactions(userId, env);
-}
-__name(handleGetTransactionHistory, "handleGetTransactionHistory");
 
 // C:/Users/tittoo/AppData/Local/npm-cache/_npx/32026684e21afda6/node_modules/wrangler/templates/middleware/middleware-ensure-req-body-drained.ts
 init_checked_fetch();

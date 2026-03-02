@@ -204,7 +204,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
            if (_isMe) ...[
              ElevatedButton(onPressed: () => _showEditProfileDialog(user), child: const Text("Edit Profile")),
              const SizedBox(height: 12),
-             _buildMenuItem(Icons.account_balance_wallet_rounded, "Access Hub", () => context.push('/wallet')),
+
              if (_isAdmin)
                _buildMenuItem(Icons.admin_panel_settings, "Admin Dashboard", () => context.push('/admin')),
            ] else

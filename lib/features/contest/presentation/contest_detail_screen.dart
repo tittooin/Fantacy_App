@@ -656,10 +656,10 @@ class _ContestDetailScreenState extends ConsumerState<ContestDetailScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              context.push('/wallet'); // Navigate to Add Cash
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shop coming soon...')));
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-            child: const Text("ADD AXE"), // Consistent with Wallet
+            child: const Text("GET CREDITS"),
           )
         ],
       )

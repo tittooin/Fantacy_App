@@ -12,8 +12,6 @@ import 'package:axevora11/features/admin/presentation/admin_users_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_match_contests_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_players_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_manage_squad_screen.dart'; // Added
-import 'package:axevora11/features/admin/presentation/admin_voucher_screen.dart'; // Added
-import 'package:axevora11/features/admin/presentation/admin_payout_leaderboard_screen.dart'; // Added
 import 'package:axevora11/features/legal/presentation/legal_pages.dart';
 import 'package:axevora11/features/legal/presentation/faq_screen.dart';
 import 'package:axevora11/features/cricket_api/domain/cricket_match_model.dart';
@@ -39,14 +37,11 @@ import 'package:axevora11/features/team/presentation/team_builder_screen.dart';
 import 'package:axevora11/features/team/presentation/team_preview_screen.dart';
 import 'package:axevora11/features/team/presentation/captain_selection_screen.dart';
 import 'package:axevora11/features/team/domain/player_model.dart';
-import 'package:axevora11/features/access/presentation/access_hub_screen.dart';
-import 'package:axevora11/features/access/presentation/benefit_claim_screen.dart'; // Added
 import 'package:axevora11/features/user/presentation/profile_screen.dart';
 import 'package:axevora11/features/legal/presentation/legal_pages.dart';
 import 'package:axevora11/features/legal/presentation/social_safety_screen.dart';
 import 'package:axevora11/features/kyc/presentation/kyc_screen.dart';
 import 'package:axevora11/features/admin/presentation/kyc/admin_kyc_screen.dart';
-import 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart';
 import 'package:axevora11/features/rooms/presentation/global_room_screen.dart';
 import 'package:axevora11/features/rooms/presentation/private_room_screen.dart';
 import 'package:axevora11/features/rooms/presentation/team_selection_screen.dart';
@@ -153,14 +148,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (context, state) => const LoginScreen(),
       ),
-      GoRoute(
-        path: '/wallet', // Path kept for deep-link compatibility, screen renamed
-      builder: (context, state) => const AccessHubScreen(),
-      ),
-      GoRoute(
-        path: '/redeem',
-        builder: (context, state) => const RedeemScreen(),
-      ),
+
+
       GoRoute(
         path: '/location-verify',
         builder: (context, state) => const StateSelectionScreen(),
@@ -244,10 +233,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final matchId = state.pathParameters['matchId']!;
           CricketMatchModel? match;
           final extra = state.extra;
+          
           if (extra is CricketMatchModel) {
             match = extra;
-          } else if (extra is Map) {
-            match = CricketMatchModel.fromMap(Map<String, dynamic>.from(extra));
+          } else if (extra != null && extra is Map) {
+            try {
+              // Convert any Map (like IdentityMap) into a standard Map<String, dynamic>
+              final mapData = Map<String, dynamic>.from(extra);
+              match = CricketMatchModel.fromMap(mapData);
+            } catch (e) {
+              debugPrint("Router Error parsing match Map: $e");
+            }
           }
           return MatchDetailScreen(matchId: matchId, match: match);
         },
@@ -462,10 +458,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const AdminUsersScreen(),
           ),
           GoRoute(
-            path: '/admin/wallet',
-            builder: (context, state) => const AdminAccessScreen(),
-          ),
-          GoRoute(
             path: '/admin/kyc',
             builder: (context, state) => const AdminKYCScreen(),
           ),
@@ -493,19 +485,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                return AdminMatchContestsScreen(matchId: matchId, match: match);
             },
           ),
-          GoRoute(
-            path: '/admin/matches/:matchId/contests/:contestId/payout',
-            builder: (context, state) {
-              final matchId = state.pathParameters['matchId']!;
-              final contestId = state.pathParameters['contestId']!;
-              final contest = state.extra as CricketRoomModel?;
-              return AdminPayoutLeaderboardScreen(
-                matchId: matchId,
-                contestId: contestId,
-                contest: contest,
-              );
-            },
-          ),
+
            GoRoute(
             path: '/admin/matches/:matchId/players',
             builder: (context, state) {
@@ -551,10 +531,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/leagues',
             builder: (context, state) => const LeagueManagementScreen(),
-          ),
-          GoRoute(
-            path: '/admin/vouchers',
-            builder: (context, state) => const AdminVoucherScreen(),
           ),
         ],
       ),

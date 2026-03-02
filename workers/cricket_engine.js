@@ -49,15 +49,12 @@ export async function processCricketData(env) {
         return await getMatchesFromDB(env);
     }
 
-    const apiKey = env.RAPID_API_KEY;
-    const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
-
     try {
-        // Fetch Logic using Predictive Guard
-        const matches = await fetchMatchesWithPredictiveGuard(apiKey, apiHost, env);
+        // Fetch Logic using Custom Zero-Cost Scraper
+        const matches = await fetchPublicLiveMatches(env);
 
         if (matches && matches.length > 0) {
-            console.log(`📡 API se ${matches.length} matches mila`);
+            console.log(`📡 Scraper se ${matches.length} matches mila`);
 
             // CONTROLLED UNLOCK: LIMIT 1 match sync per cron
             for (const match of matches.slice(0, 1)) {
@@ -121,15 +118,7 @@ export async function seedUpcomingMatches(env) {
         return;
     }
 
-    const apiKey = env.RAPID_API_KEY;
-    const apiHost = 'cricbuzz-cricket.p.rapidapi.com';
-
-    if (!apiKey) {
-        console.log('[UPCOMING_SEED_SKIP] RAPID_API_KEY missing.');
-        return;
-    }
-
-    const incomingMatches = await fetchEndpoint('/matches/v1/upcoming', apiKey, apiHost);
+    const incomingMatches = await fetchPublicLiveMatches(env); // Fallback to live scraper for upcoming if needed
     if (!Array.isArray(incomingMatches) || incomingMatches.length === 0) {
         await writeSysConfigTimestamp(env, UPCOMING_EMPTY_CHECK_KEY, nowMs);
         const emptyHash = buildUpcomingSnapshotHash([]);
@@ -140,7 +129,7 @@ export async function seedUpcomingMatches(env) {
             hash: emptyHash,
             stableUntil
         }));
-        console.log('[UPCOMING_SEED_NO_DATA] /upcoming returned no matches.');
+        console.log('[UPCOMING_SEED_NO_DATA] Scraper returned no upcoming matches.');
         return;
     }
 
@@ -1056,4 +1045,110 @@ function formatCricbuzzMatch(info) {
         lastOver: "0.0",
         lastInnings: 1
     };
+}
+
+// --- ZERO-COST CUSTOM SMART SCRAPER ---
+async function fetchPublicLiveMatches(env) {
+    const HEADERS = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0'
+    ];
+
+    console.log("🚀 Custom Scraper Triggered");
+
+    try {
+        const response = await fetch('https://www.cricbuzz.com/cricket-match/live-scores', {
+            headers: {
+                'User-Agent': HEADERS[Math.floor(Math.random() * HEADERS.length)],
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            }
+        });
+
+        if (!response.ok) {
+            console.error(`Scraper HTTP Error: ${response.status}`);
+            return [];
+        }
+
+        const data = await response.text();
+        const regex = /<a href="\/live-cricket-scores\/(\d+)\/([^"]+)"[^>]*title="([^"]+)"/g;
+        let m;
+        const matches = [];
+        const unique = new Set();
+        const now = Date.now();
+
+        while ((m = regex.exec(data)) !== null) {
+            const matchId = m[1];
+            if (!unique.has(matchId)) {
+                unique.add(matchId);
+
+                let team1 = "T1", team2 = "T2";
+                const teamMatch = m[2].match(/^([a-z]+)-vs-([a-z]+)/);
+                if (teamMatch) {
+                    team1 = teamMatch[1].toUpperCase();
+                    team2 = teamMatch[2].toUpperCase();
+                }
+
+                // Determine basic status from title
+                const title = m[3];
+                let status = "Upcoming";
+                if (title.toLowerCase().includes('complete') || title.toLowerCase().includes('won')) status = "Completed";
+                else if (title.toLowerCase().includes('stumps') || title.toLowerCase().includes('live') || title.toLowerCase().includes('toss') || title.toLowerCase().includes('innings break')) status = "Live";
+                else if (title.toLowerCase().includes('abandon')) status = "Abandoned";
+
+                // Premium Series Filter
+                const fullText = `${team1} ${team2} ${title}`.toUpperCase();
+
+                const isPremium = [
+                    'IPL', 'INDIAN PREMIER LEAGUE',
+                    'BBL', 'BIG BASH',
+                    'PSL', 'PAKISTAN SUPER LEAGUE',
+                    'BPL', 'BANGLADESH PREMIER LEAGUE',
+                    'SA20', 'CPL', 'HUNDRED', 'WPL',
+                    'WORLD CUP', 'ICC', 'ASIA CUP', 'CHAMPIONS TROPHY',
+                    'T20I', 'ODI', 'TEST', "WOMEN'S T20", "WOMEN'S ODI"
+                ].some(kw => fullText.includes(kw));
+
+                const isExcluded = [
+                    'DOMESTIC', 'SHIELD', 'PLUNKET', 'RANJI', 'BLAST', 'CHALLENGER',
+                    'TROPHY', 'CUP', 'LEAGUE'
+                ].some(kw => {
+                    if (kw === 'TROPHY' && fullText.includes('CHAMPIONS TROPHY')) return false;
+                    if (kw === 'CUP' && (fullText.includes('WORLD CUP') || fullText.includes('ASIA CUP'))) return false;
+                    if (kw === 'LEAGUE' && (fullText.includes('PREMIER LEAGUE') || fullText.includes('SUPER LEAGUE') || fullText.includes('BIG BASH LEAGUE'))) return false;
+                    return fullText.includes(kw);
+                });
+
+                if (!isPremium || isExcluded) {
+                    continue; // Skip non-premium match
+                }
+
+                matches.push({
+                    id: matchId,
+                    seriesId: '0',
+                    seriesName: 'Public Scrape',
+                    title: `${team1} vs ${team2}`,
+                    shortTitle: `${team1} vs ${team2}`,
+                    status: status,
+                    teamA: team1,
+                    teamB: team2,
+                    team1Id: '0',
+                    team2Id: '0',
+                    startTime: now,
+                    lastUpdated: now,
+                    lastScore: status === 'Live' ? 'In Progress' : status,
+                    lastWickets: 0,
+                    lastOver: "0.0",
+                    lastInnings: 1,
+                    teamAImg: '',
+                    teamBImg: ''
+                });
+            }
+        }
+
+        return matches;
+    } catch (e) {
+        console.error("Scraper Error:", e.message);
+        return [];
+    }
 }

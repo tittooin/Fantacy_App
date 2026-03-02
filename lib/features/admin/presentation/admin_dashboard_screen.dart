@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:axevora11/features/admin/presentation/admin_wallet_screen.dart';
 import 'package:axevora11/features/admin/presentation/admin_logs_screen.dart';
 import 'package:axevora11/features/admin/presentation/scoring_console_screen.dart';
 import 'package:axevora11/features/cricket_api/presentation/room_creator_screen.dart';
@@ -229,9 +228,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   onTap: () => setState(() => _selectedTab = 1) // Switch to Upcoming Tab
                 ),
                 _DashboardCard(title: "Contests", value: "$_activeContests", icon: Icons.emoji_events, color: Colors.amber, onTap: () => context.push('/admin/contests')),
-                _DashboardCard(title: "Pending Payouts", value: "$_pendingPayouts", icon: Icons.account_balance_wallet, color: Colors.orange, onTap: () => context.push('/admin/wallet')),
                 _DashboardCard(title: "KYC Requests", value: "$_kycPending", icon: Icons.verified_user, color: Colors.purpleAccent, onTap: () => context.push('/admin/kyc')),
-                _DashboardCard(title: "Voucher Requests", value: "Manage", icon: Icons.card_giftcard, color: Colors.teal, onTap: () => context.push('/admin/vouchers')),
               ],
             ),
 

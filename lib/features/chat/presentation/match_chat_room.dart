@@ -49,17 +49,24 @@ class _MatchChatRoomState extends ConsumerState<MatchChatRoom> {
 
   @override
   Widget build(BuildContext context) {
-    final messagesAsync = ref.watch(chatMessagesProvider(widget.matchId));
+    final chatState = ref.watch(chatMessagesProvider(widget.matchId));
     final currentUser = ref.watch(userEntityProvider).value;
 
     return Column(
       children: [
         // Chat List
         Expanded(
-          child: messagesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text("Error loading messages: $err")),
-            data: (messages) {
+          child: Builder(
+            builder: (context) {
+              if (chatState.isLoading && chatState.messages.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (chatState.error != null && chatState.messages.isEmpty) {
+                return Center(child: Text("Error loading messages: ${chatState.error}"));
+              }
+
+              final messages = chatState.messages;
+
               if (messages.isEmpty) {
                 return Center(
                   child: Column(

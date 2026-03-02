@@ -140,88 +140,32 @@ class _ContestCardState extends State<ContestCard> {
        return;
      }
 
-     final allTeams = ref.read(teamProvider);
-     final myTeams = allTeams.where((t) => t.matchId == widget.matchId).toList(); 
-
-     // Check which teams already joined THIS contest
+     // Check if already joined THIS room
      final allJoined = ref.read(userContestProvider);
-     final joinedTeamIds = allJoined
-         .where((uc) => uc.contestId == widget.contest.id)
-         .map((uc) => uc.teamId)
-         .toSet();
+     final hasJoined = allJoined.any((uc) => uc.contestId == widget.contest.id);
 
-     if (joinedTeamIds.length >= 20) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Max 20 teams allowed per contest.")));
+     if (hasJoined) {
+        // Already unlocked/joined, just navigate into the room
+        context.push('/contest/${widget.contest.id}', extra: {
+          'contestId': widget.contest.id, 
+          'matchId': widget.matchId,
+        });
         return;
      }
 
-     // Always show selection dialog
-     showModalBottomSheet(
-       context: context,
-       builder: (ctx) => Container(
-         padding: const EdgeInsets.all(16),
-         height: 400,
-         child: Column(
-           mainAxisSize: MainAxisSize.min,
-           children: [
-             Row(
-               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-               children: [
-                 const Text("Confirm Participation", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                 TextButton.icon(
-                   onPressed: () {
-                     Navigator.pop(ctx);
-                     if (widget.match != null) {
-                        context.push('/match/${widget.match!.id}/create-team', extra: widget.match!);
-                     }
-                   },
-                   icon: const Icon(Icons.add, size: 18),
-                   label: const Text("Create New Team"),
-                 )
-               ],
-             ),
-             const SizedBox(height: 16),
-             if (myTeams.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Text("No teams created yet."),
-                )
-             else
-               Expanded(
-                 child: ListView.builder(
-                   itemCount: myTeams.length,
-                   itemBuilder: (ctx, index) {
-                     final team = myTeams[index];
-                     final isJoined = joinedTeamIds.contains(team.id);
-
-                     final captain = team.players.firstWhere((p) => p.id == team.captainId, orElse: () => team.players.first);
-                     final viceCaptain = team.players.firstWhere((p) => p.id == team.viceCaptainId, orElse: () => team.players.last);
-
-                     return ListTile(
-                       title: Text(team.teamName),
-                       subtitle: Text("C: ${captain.name} | VC: ${viceCaptain.name}"),
-                       trailing: ElevatedButton(
-                         onPressed: isJoined 
-                           ? null 
-                           : () { 
-                                Navigator.pop(ctx);
-                                _confirmContestJoin(context, team, ref, widget.contest, widget.matchId);
-                              },
-                         style: ElevatedButton.styleFrom(
-                           backgroundColor: isJoined ? Colors.grey : Colors.green,
-                           foregroundColor: Colors.white,
-                           elevation: 0,
-                         ),
-                         child: Text(isJoined ? "Joined" : "Select"),
-                       ),
-                     );
-                   },
-                 ),
-               ),
-           ],
-         ),
-       )
+     // Bypass Team Selection - Social Rooms don't need Fantasy Teams
+     final dummyTeam = TeamEntity(
+        id: 'no_team_required',
+        userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+        matchId: widget.matchId,
+        teamName: 'Social Spectator',
+        players: [],
+        captainId: '',
+        viceCaptainId: '',
+        totalStats: 0.0,
      );
+
+     _confirmContestJoin(context, dummyTeam, ref, widget.contest, widget.matchId);
   }
 
   void _showLowBalanceDialog(BuildContext context, double deficit) {

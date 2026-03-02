@@ -56,88 +56,56 @@ CREATE TABLE IF NOT EXISTS fantasy_points (
     PRIMARY KEY (match_id, player_id)
 );
 
--- 6. Leaderboards (Computed)
-CREATE TABLE IF NOT EXISTS leaderboards (
-    match_id INTEGER,
-    contest_id TEXT,                 -- Firestore Contest ID
-    user_id TEXT,                    -- Firestore User UID
-    total_points REAL,
-    rank INTEGER,
-    PRIMARY KEY (match_id, contest_id, user_id)
-);
-CREATE INDEX IF NOT EXISTS idx_lb_contest ON leaderboards(contest_id, rank);
-
--- 7. Vouchers (Legacy - Keep for record)
-CREATE TABLE IF NOT EXISTS vouchers (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    code TEXT UNIQUE NOT NULL,
-    brand TEXT NOT NULL,
-    value INTEGER NOT NULL,
-    status TEXT DEFAULT 'active',
+-- 6. Social Rooms (New Architecture)
+CREATE TABLE IF NOT EXISTS social_rooms (
+    id TEXT PRIMARY KEY,             -- Unique Room ID
+    match_id INTEGER NOT NULL,
+    host_id TEXT NOT NULL,           -- User who created the room
+    room_type TEXT DEFAULT 'public', -- 'public' or 'private'
+    title TEXT NOT NULL,             -- E.g. "Global Discussion", "Rahul's Lounge"
+    description TEXT,                -- Host Benefits Info / Rules
+    max_capacity INTEGER DEFAULT 10000,
+    active_members INTEGER DEFAULT 0,
     created_at INTEGER NOT NULL,
-    redeemed_at INTEGER
+    FOREIGN KEY (match_id) REFERENCES matches(id)
 );
-CREATE INDEX IF NOT EXISTS idx_voucher_user ON vouchers(user_id);
+CREATE INDEX IF NOT EXISTS idx_rooms_match ON social_rooms(match_id);
 
--- 8. Voucher Requests (New Manual Redemption)
-CREATE TABLE IF NOT EXISTS voucher_requests (
-    id TEXT PRIMARY KEY,
+-- 7. Room Members
+CREATE TABLE IF NOT EXISTS room_members (
+    room_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
-    brand TEXT NOT NULL,
-    credits INTEGER NOT NULL,
-    status TEXT DEFAULT 'pending', -- pending, approved, rejected
-    voucher_code TEXT,             -- Filled by Admin
-    created_at INTEGER NOT NULL,
-    approved_at INTEGER
+    role TEXT DEFAULT 'participant', -- 'host', 'moderator', 'participant', 'viewer'
+    joined_at INTEGER NOT NULL,
+    PRIMARY KEY (room_id, user_id),
+    FOREIGN KEY (room_id) REFERENCES social_rooms(id)
 );
-CREATE INDEX IF NOT EXISTS idx_vr_user ON voucher_requests(user_id);
-CREATE INDEX IF NOT EXISTS idx_vr_status ON voucher_requests(status);
 
--- 9. Users Table (D1 Wallet Master)
+-- 8. Users Table (Simplified Profile)
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT,
     email TEXT,
     photo_url TEXT,
-    deposit_credits REAL DEFAULT 0,  -- For Joining Contests
-    winning_credits REAL DEFAULT 0,  -- For Redemption
+    access_credits INTEGER DEFAULT 0, -- Virtual Goods/Passes ONLY (No withdraw)
     joined_at INTEGER,
     last_active INTEGER,
     is_restricted BOOLEAN DEFAULT 0
 );
 
--- 10. Transactions (Audit Trail)
-CREATE TABLE IF NOT EXISTS transactions (
+-- 9. Chat Messages (D1 Batched)
+CREATE TABLE IF NOT EXISTS chat_messages (
     id TEXT PRIMARY KEY,
+    room_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
-    type TEXT NOT NULL,              -- 'deposit', 'contest_join', 'winnings', 'refund', 'withdrawal_request'
-    amount REAL NOT NULL,
-    match_id INTEGER,
-    contest_id TEXT,
+    message_type TEXT DEFAULT 'text', -- 'text', 'sound', 'poll'
+    content TEXT,                     -- Payload ("Hello", "dhol_sound1", etc)
     created_at INTEGER NOT NULL,
-    status TEXT DEFAULT 'success'
+    FOREIGN KEY (room_id) REFERENCES social_rooms(id)
 );
-CREATE INDEX IF NOT EXISTS idx_txn_user ON transactions(user_id);
--- 11. Contests Table (Core logic)
-CREATE TABLE IF NOT EXISTS contests (
-    id TEXT PRIMARY KEY,
-    match_id INTEGER NOT NULL,
-    entry_fee REAL DEFAULT 0,
-    total_spots INTEGER DEFAULT 0,
-    filled_spots INTEGER DEFAULT 0,
-    prize_pool REAL DEFAULT 0,
-    category TEXT,
-    is_guaranteed BOOLEAN DEFAULT 0,
-    is_flexible BOOLEAN DEFAULT 0,
-    winning_breakdown TEXT,          -- JSON string mapping ranks to prizes
-    status TEXT DEFAULT 'Upcoming',  -- Upcoming, Live, Completed
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (match_id) REFERENCES matches(id)
-);
-CREATE INDEX IF NOT EXISTS idx_contests_match ON contests(match_id);
+CREATE INDEX IF NOT EXISTS idx_chat_room_time ON chat_messages(room_id, created_at);
 
--- 12. Teams Table (D1-Only)
+-- 10. Teams Table (For Interaction Points Only)
 CREATE TABLE IF NOT EXISTS teams (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -153,41 +121,4 @@ CREATE TABLE IF NOT EXISTS teams (
 );
 CREATE INDEX IF NOT EXISTS idx_teams_user_match ON teams(user_id, match_id);
 
--- 12. Contest Participants (Join link)
-CREATE TABLE IF NOT EXISTS contest_participants (
-    id TEXT PRIMARY KEY,             -- Unique Entry ID
-    contest_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    team_id TEXT NOT NULL,
-    match_id INTEGER NOT NULL,
-    player_ids TEXT,                 -- Legacy/Audit: Snapshot of players at join
-    team_name TEXT,
-    joined_at INTEGER NOT NULL,
-    FOREIGN KEY (match_id) REFERENCES matches(id)
-);
-CREATE INDEX IF NOT EXISTS idx_participants_contest ON contest_participants(contest_id);
-CREATE INDEX IF NOT EXISTS idx_participants_user ON contest_participants(user_id);
 
--- 13. Contest Leaderboards (Consolidated JSON for fast reads)
-CREATE TABLE IF NOT EXISTS contest_leaderboards (
-    contest_id TEXT PRIMARY KEY,
-    match_id INTEGER NOT NULL,
-    data TEXT,                       -- JSON: [{userId, teamName, points, rank, teamId}]
-    last_updated INTEGER NOT NULL
-);
-
--- 14. Payout Requests (Manual Withdrawals)
-CREATE TABLE IF NOT EXISTS payout_requests (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    amount REAL NOT NULL,
-    method TEXT NOT NULL,           -- UPI, Bank, etc.
-    details TEXT,                    -- Account details
-    status TEXT DEFAULT 'pending',   -- pending, approved, rejected
-    admin_note TEXT,
-    created_at INTEGER NOT NULL,
-    processed_at INTEGER,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_payout_user ON payout_requests(user_id);
-CREATE INDEX IF NOT EXISTS idx_payout_status ON payout_requests(status);

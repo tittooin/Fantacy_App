@@ -57,15 +57,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         _buildMatchTabItem("LIVE / IN-PROGRESS", 0),
                         const SizedBox(width: 16),
                         _buildMatchTabItem("UPCOMING", 1),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Schedule access is coming soon!"), behavior: SnackBarBehavior.floating)
-                            );
-                          },
-                          child: Text("See All", style: GoogleFonts.inter(color: AppColors.skyBlue, fontWeight: FontWeight.bold)),
-                        ),
                       ],
                     ),
                   ),
@@ -97,7 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           // Navigate to match selection for room creation
           if (matchesAsync.value?.isNotEmpty == true) {
             final featured = matchesAsync.value!.first;
-            context.push('/match/${featured['id']}/create-room', extra: featured);
+            context.push('/match/${featured['id']}', extra: featured);
           }
         },
         backgroundColor: AppColors.skyBlue,
@@ -634,7 +625,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           return GestureDetector(
             onTap: () {
-              context.push('/match/$matchId/create-room', extra: match);
+              context.push('/match/$matchId', extra: match);
             },
             child: Container(
               width: 170, // Increased width slightly
@@ -672,11 +663,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(team1, style: GoogleFonts.oswald(fontSize: 18, color: AppColors.textDark, fontWeight: FontWeight.bold)),
-                                  const SizedBox(width: 8),
-                                  Text("vs", style: GoogleFonts.oswald(fontSize: 12, color: AppColors.textLight, fontWeight: FontWeight.bold)),
-                                  const SizedBox(width: 8),
-                                  Text(team2, style: GoogleFonts.oswald(fontSize: 18, color: AppColors.textDark, fontWeight: FontWeight.bold)),
+                                  Flexible(child: Text(team1, style: GoogleFonts.oswald(fontSize: 18, color: AppColors.textDark, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 6),
+                                    child: Text("vs", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                  ),
+                                  Flexible(child: Text(team2, style: GoogleFonts.oswald(fontSize: 18, color: AppColors.textDark, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                 ],
                         ),
                       ),
@@ -689,9 +681,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         Row(
                           children: [
-                            _buildBadge(
-                              isLive ? '• LIVE' : 'UPCOMING',
-                              isLive ? AppColors.accentRed : AppColors.skyBlue,
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: (isLive ? AppColors.accentRed : AppColors.skyBlue).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                isLive ? '• LIVE' : 'UPCOMING',
+                                style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: isLive ? AppColors.accentRed : AppColors.skyBlue),
+                              ),
                             ),
                           ],
                         ),
@@ -854,7 +853,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              context.push('/match/$matchId/create-room');
+              context.push('/match/$matchId');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: isLocked ? AppColors.glassWhite : AppColors.skyBlue,

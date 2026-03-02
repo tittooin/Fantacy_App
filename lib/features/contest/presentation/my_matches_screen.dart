@@ -64,7 +64,7 @@ class MyMatchesScreen extends ConsumerWidget {
                   ],
                 ),
                 child: ListTile(
-                  onTap: () => context.push('/match/${lounge.matchId}/create-room'),
+                  onTap: () => context.push('/match/${lounge.matchId}'),
                   contentPadding: const EdgeInsets.all(16),
                   leading: Container(
                     padding: const EdgeInsets.all(12),

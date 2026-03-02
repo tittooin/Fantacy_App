@@ -9,21 +9,10 @@
 
 import { processCricketData, seedUpcomingMatches, warmupMissingUpcomingSquads } from './cricket_engine.js';
 import { calculateStatsMetrics } from './points_engine.js';
-import { processLiveContests } from './contest_engine.js';
-import { createCashfreeOrder } from './payment_service.js';
-import { handleCashfreeWebhook } from './webhook_handler.js';
-import { processLeaderboards } from './leaderboard_engine.js';
 import { processSquads, syncMatchSquad, processRepairQueue, isPrioritySeries } from './squad_engine.js';
-import { processPayoutsForMatch } from './payout_engine.js';
-import { handleVoucherRequest, handleVoucherUserHistory, handleAdminVoucherList, handleAdminApproveVoucher } from './voucher_engine.js';
 import { syncMatchMetricsToD1 } from './points_engine.js';
-import { processEconomy } from './economy_engine.js';
 import { executeLoadTest } from './load_test_engine.js';
-import { processPlayerStats } from './player_stats_engine.js'; // NEW
-import { processAutoRefunds } from './refund_engine.js'; // AUTO REFUND
-
-
-// ...
+import { processPlayerStats } from './player_stats_engine.js';
 
 // ... (CORS Headers kept same)
 
@@ -204,9 +193,6 @@ export default {
 
         // Existing background tasks (Strictly Isolated)
         ctx.waitUntil(safeRun("CRICKET_ENGINE", () => processCricketData(env)));
-        ctx.waitUntil(safeRun("POINTS_ENGINE", () => processLivePoints(env)));
-        ctx.waitUntil(safeRun("LEADERBOARD_ENGINE", () => processLeaderboards(env)));
-        ctx.waitUntil(safeRun("ECONOMY_ENGINE", () => processEconomy(env)));
         ctx.waitUntil(safeRun("PLAYER_STATS_ENGINE", () => processPlayerStats(env)));
         ctx.waitUntil(safeRun("REPAIR_QUEUE", () => processRepairQueue(env)));
         ctx.waitUntil(safeRun("SQUAD_ENGINE", async () => {
@@ -268,25 +254,7 @@ export default {
             // POLICY: Room ranking is only served for Private Rooms
             if (url.pathname === '/api/room/ranking') return await handleGetRoomRanking(url.searchParams, env);
 
-            // Wallet API (User)
-            if (url.pathname === '/api/wallet/balance') {
-                const uid = url.searchParams.get('userId');
-                if (!uid) return jsonResponse({ error: 'userId required' }, 400);
-                return await handleGetWalletBalance(uid.trim(), env);
-            }
-            if (url.pathname === '/api/wallet/transactions' || url.pathname === '/api/transactions/my') {
-                const uid = url.searchParams.get('userId');
-                if (!uid) return jsonResponse({ error: 'userId required' }, 400);
-                return await handleGetTransactionHistory(uid.trim(), env);
-            }
-            if (url.pathname === '/api/wallet/withdraw') return await handleWithdrawRequest(request, env);
-
-            // Admin Wallet API (D1 Only)
-            if (url.pathname === '/api/admin/withdrawals') return await handleAdminListWithdrawals(request, env);
-            if (url.pathname === '/api/admin/payout/status') return await handleAdminUpdateWithdrawalStatus(request, env);
-            if (url.pathname === '/api/admin/payout/reward') return await handleAdminIssueReward(request, env);
-            if (url.pathname === '/api/admin/user/search') return await handleAdminUserSearch(request, env);
-            if (url.pathname === '/api/admin/users') return await handleAdminListUsers(request, env);
+            // Wallet legacy APIs removed
             // --- ROOT & COMPLIANCE (For Domain Verification) ---
             if (path === '/' || path === '') return new Response("AxevoraLabs Social Interaction API - v3.0", { status: 200 });
             if (path === '/terms' || path === '/terms-and-conditions') return handleStaticPage('terms');
@@ -358,10 +326,7 @@ export default {
             }
 
 
-            // --- PAYMENT ROUTES ---
-            if (path === '/pay') return handlePaymentRedirect(url.searchParams, env);
-            if (path === '/api/create-payment') return handleCreatePayment(request, env);
-            if (path === '/api/payment-webhook') return handlePaymentWebhook(request, env);
+            // --- PAYMENT ROUTES REMOVED ---
 
             // Contest routes moved to section below
 
@@ -380,18 +345,6 @@ export default {
                 return handleAdminStats(env);
             }
 
-            // --- MANUAL PAYOUT TRIGGER (Safety Wrapper) ---
-            if (path === '/api/admin/payouts/distribute') {
-                // Expect POST with matchId
-                if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
-                const body = await request.json();
-                if (!body.matchId) return jsonResponse({ error: 'Match ID required' }, 400);
-
-                // Trigger Payout Logic
-                await processPayoutsForMatch(env, body.matchId);
-                return jsonResponse({ success: true, message: `Payout Process Initiated for ${body.matchId}` });
-            }
-
             // --- MANUAL SQUAD ENTRY (Admin) ---
             if (path === '/api/admin/match/squad') return handleAdminSaveSquad(request, env);
 
@@ -402,32 +355,10 @@ export default {
                 return handleGetMatchParticipants(matchId, env);
             }
 
-            // --- VOUCHER ROUTES ---
-
-
-
-            // --- VOUCHER ROUTES ---
-            if (path === '/api/voucher/request') return handleVoucherRequest(request, env);
-            if (path === '/api/voucher/my') {
-                const uid = url.searchParams.get('userId');
-                if (!uid) return jsonResponse({ error: 'UserId required' }, 400);
-                return handleVoucherUserHistory(uid, env);
-            }
-
-            // All routes handled above in consolidated section
-            if (path === '/api/debug/all-users') {
-                const { results } = await env.DB.prepare("SELECT * FROM users").all();
-                return jsonResponse({ users: results });
-            }
-
             // --- USER SYNC ROUTE (Auto-create user in D1) ---
             if (path === '/api/user/sync') {
                 return handleUserSync(request, env);
             }
-
-            // --- ADMIN VOUCHER ROUTES ---
-            if (path === '/api/admin/voucher/list') return handleAdminVoucherList(env);
-            if (path === '/api/admin/voucher/approve') return handleAdminApproveVoucher(request, env);
 
             // --- CONTEST ROUTES (D1-Only) ---
             if (path === '/api/rooms/create') return await handleCreateRoom(request, env);
@@ -458,9 +389,23 @@ export default {
                 return handleGetUserRooms(userId, env);
             }
 
+            // --- CHAT ROUTES (D1-Backed Polling) ---
+            if (path === '/api/chat/send') return await handleSendChatMessage(request, env);
+            if (path === '/api/chat/sync' || path === '/api/chat/messages') {
+                const roomId = url.searchParams.get('roomId');
+                const lastUpdated = url.searchParams.get('after') || '0';
+                if (!roomId) return jsonResponse({ success: false, error: 'roomId required' }, 400);
+                return handleSyncChatMessages(roomId, lastUpdated, env);
+            }
+
             if (path === '/diag') return handleGlobalDiag(env);
             if (path === '/stats-metrics') return handleGetStatsMetrics(url.searchParams.get('match_id'), env);
             if (path === '/debug-api' || path === '/api/debug-api') return handleDebugApi(env);
+
+            // --- CUSTOM MATCHES API (D1 ONLY) ---
+            if (path === '/api/matches' || path === '/api/v2/matches') {
+                return handleGetMatches(env);
+            }
 
             if (path.startsWith('/api/')) {
                 return jsonResponse({ success: false, error: `API Route Not Found: ${path}` }, 404);
@@ -479,6 +424,85 @@ export default {
 // ... Helper Functions ...
 
 // --- HANDLERS ---
+
+// --- MATCHES HANDLER ---
+async function handleGetMatches(env) {
+    try {
+        const { results } = await env.DB.prepare(`
+            SELECT id, series_id, series_name, title, short_title, status, start_time, team_a, team_b, team_a_img, team_b_img, team_a_id, team_b_id, last_updated, last_score, last_wickets, last_over, last_innings 
+            FROM matches 
+            WHERE status IN ('Live', 'In Progress', 'Innings Break', 'Upcoming', 'Completed', 'Abandoned')
+            ORDER BY 
+                CASE status 
+                    WHEN 'Live' THEN 1 
+                    WHEN 'In Progress' THEN 2 
+                    WHEN 'Innings Break' THEN 3
+                    WHEN 'Upcoming' THEN 4 
+                    ELSE 5 
+                END, 
+                start_time ASC 
+            LIMIT 50
+        `).all();
+
+        // Filter for strictly Premium series/matches
+        const activeMatches = (results || []).filter(m => {
+            const fullText = `${m.team_a || ''} ${m.team_b || ''} ${m.title || ''} ${m.series_name || ''}`.toUpperCase();
+
+            const isPremium = [
+                'IPL', 'INDIAN PREMIER LEAGUE',
+                'BBL', 'BIG BASH',
+                'PSL', 'PAKISTAN SUPER LEAGUE',
+                'BPL', 'BANGLADESH PREMIER LEAGUE',
+                'SA20', 'CPL', 'HUNDRED', 'WPL',
+                'WORLD CUP', 'ICC', 'ASIA CUP', 'CHAMPIONS TROPHY',
+                'T20I', 'ODI', 'TEST', "WOMEN'S T20", "WOMEN'S ODI"
+            ].some(kw => fullText.includes(kw));
+
+            const isExcluded = [
+                'DOMESTIC', 'SHIELD', 'PLUNKET', 'RANJI', 'BLAST', 'CHALLENGER',
+                'TROPHY', 'CUP', 'LEAGUE'
+            ].some(kw => {
+                if (kw === 'TROPHY' && fullText.includes('CHAMPIONS TROPHY')) return false;
+                if (kw === 'CUP' && (fullText.includes('WORLD CUP') || fullText.includes('ASIA CUP'))) return false;
+                if (kw === 'LEAGUE' && (fullText.includes('PREMIER LEAGUE') || fullText.includes('SUPER LEAGUE') || fullText.includes('BIG BASH LEAGUE'))) return false;
+                return fullText.includes(kw);
+            });
+
+            return isPremium && !isExcluded;
+        });
+
+        // Map to expected frontend format 
+        const matches = activeMatches.map(m => ({
+            id: m.id,
+            seriesId: m.series_id,
+            seriesName: m.series_name,
+            matchDesc: m.title,
+            matchFormat: "T20", // Default or fetch from db if added later
+            startDate: m.start_time,
+            endDate: m.start_time + 14400000,
+            status: m.status,
+            team1Name: m.team_a,
+            team2Name: m.team_b,
+            team1ShortName: m.team_a,
+            team2ShortName: m.team_b,
+            team1Id: m.team_a_id,
+            team2Id: m.team_b_id,
+            teamAImg: m.team_a_img,
+            teamBImg: m.team_b_img,
+            lastScore: m.last_score,
+            lastWickets: m.last_wickets,
+            lastOver: m.last_over,
+            lastInnings: m.last_innings
+        }));
+
+        return jsonResponse({
+            success: true,
+            matches: matches
+        });
+    } catch (e) {
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
 
 async function handleDebugApi(env) {
     const key = env.RAPID_API_KEY;
@@ -1080,45 +1104,6 @@ async function handleGetLeaderboard(contestId, env) {
 
 // --- D1 HANDLERS ---
 
-async function handleGetMatches(env) {
-    try {
-        const { results } = await env.DB.prepare('SELECT * FROM matches ORDER BY start_time ASC').all();
-        const { results: lineupRows } = await env.DB.prepare(`
-            SELECT DISTINCT CAST(match_id AS TEXT) AS match_id
-            FROM match_squads
-            WHERE playing_11_a IS NOT NULL OR playing_11_b IS NOT NULL
-        `).all();
-        const { results: joinedRows } = await env.DB.prepare(`
-            SELECT DISTINCT CAST(match_id AS TEXT) AS match_id
-            FROM contest_participants
-        `).all();
-
-        const lineupMatchSet = new Set((lineupRows || []).map(r => String(r.match_id || '').trim()).filter(Boolean));
-        const joinedMatchSet = new Set((joinedRows || []).map(r => String(r.match_id || '').trim()).filter(Boolean));
-        const nowMs = Date.now();
-
-        const curatedMatches = Array.isArray(results)
-            ? results.filter((match) => {
-                const matchId = String(match?.id || '').trim();
-                const status = normalizeMatchStatus(match?.status);
-                const startTime = Number(match?.start_time || 0);
-
-                const activeMatchBypass =
-                    isActiveStatusBypass(status) ||
-                    lineupMatchSet.has(matchId) ||
-                    joinedMatchSet.has(matchId) ||
-                    isAboutToStartBypass(status, startTime, nowMs) ||
-                    isStartedBypass(status, startTime, nowMs);
-
-                if (activeMatchBypass) return true;
-                return shouldServeCuratedMatch(match);
-            })
-            : [];
-        return jsonResponse({ success: true, matches: curatedMatches });
-    } catch (error) {
-        return jsonResponse({ success: false, error: error.message });
-    }
-}
 
 // ... (Other handlers kept as is, but remove old processLiveMatches logic)
 
@@ -2003,88 +1988,7 @@ async function handleGetRoomLeaderboard(queryParams, env) {
     }
 }
 
-// --- WALLET: WITHDRAW REQUEST (User) ---
-async function handleWithdrawRequest(request, env) {
-    if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
-    try {
-        const { userId, amount, method, details } = await request.json();
-        if (!userId || !amount || !method) return jsonResponse({ success: false, error: 'MISSING_FIELDS' }, 400);
-
-        // 1. Check Winning Balance
-        const user = await env.DB.prepare("SELECT winning_credits FROM users WHERE id = ?").bind(userId).first();
-        if (!user || user.winning_credits < amount) {
-            return jsonResponse({ success: false, error: 'INSUFFICIENT_WINNINGS' }, 200);
-        }
-
-        const requestId = `payout_${Date.now()}_${userId}`;
-
-        // 2. Atomic Deduction and Request Insertion
-        const statements = [
-            env.DB.prepare("UPDATE users SET winning_credits = winning_credits - ? WHERE id = ? AND winning_credits >= ?")
-                .bind(amount, userId, amount),
-            env.DB.prepare("INSERT INTO payout_requests (id, user_id, amount, method, details, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)")
-                .bind(requestId, userId, amount, method, details || '', Date.now()),
-            env.DB.prepare("INSERT INTO transactions (id, user_id, type, amount, created_at, status) VALUES (?, ?, 'withdrawal_request', ?, ?, 'pending')")
-                .bind(requestId, userId, amount, Date.now())
-        ];
-
-        const results = await env.DB.batch(statements);
-        if (results[0].meta.changes === 0) throw new Error('INSUFFICIENT_BALANCE_RACE');
-
-        return jsonResponse({ success: true, message: 'Withdrawal requested' });
-    } catch (e) {
-        return jsonResponse({ success: false, error: e.message }, 500);
-    }
-}
-
-// --- ADMIN: WALLET ACTIONS ---
-async function handleAdminListWithdrawals(request, env) {
-    try {
-        const { results } = await env.DB.prepare("SELECT * FROM payout_requests WHERE status = 'pending' ORDER BY created_at ASC").all();
-        return jsonResponse({ success: true, withdrawals: results });
-    } catch (e) {
-        return jsonResponse({ success: false, error: e.message }, 500);
-    }
-}
-
-async function handleAdminUpdateWithdrawalStatus(request, env) {
-    if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
-    try {
-        const { requestId, status, note } = await request.json(); // status: approved, rejected
-        if (!requestId || !status) return jsonResponse({ success: false, error: 'MISSING_FIELDS' }, 400);
-
-        const pr = await env.DB.prepare("SELECT * FROM payout_requests WHERE id = ?").bind(requestId).first();
-        if (!pr) return jsonResponse({ success: false, error: 'REQUEST_NOT_FOUND' }, 404);
-        if (pr.status !== 'pending') return jsonResponse({ success: false, error: 'ALREADY_PROCESSED' }, 400);
-
-        if (status === 'approved') {
-            const statements = [
-                env.DB.prepare("UPDATE payout_requests SET status = 'approved', admin_note = ?, processed_at = ? WHERE id = ? AND status = 'pending'")
-                    .bind(note || 'Processed', Date.now(), requestId),
-                env.DB.prepare("UPDATE transactions SET status = 'success' WHERE id = ?")
-                    .bind(requestId)
-            ];
-            const results = await env.DB.batch(statements);
-            if (results[0].meta.changes === 0) return jsonResponse({ success: false, error: 'ALREADY_PROCESSED_OR_NOT_FOUND' }, 409);
-        } else if (status === 'rejected') {
-            const statements = [
-                env.DB.prepare("UPDATE users SET winning_credits = winning_credits + ? WHERE id = ?").bind(pr.amount, pr.user_id),
-                env.DB.prepare("UPDATE payout_requests SET status = 'rejected', admin_note = ?, processed_at = ? WHERE id = ? AND status = 'pending'")
-                    .bind(note || 'Rejected by Admin', Date.now(), requestId),
-                env.DB.prepare("UPDATE transactions SET status = 'rejected' WHERE id = ?")
-                    .bind(requestId)
-            ];
-            const results = await env.DB.batch(statements);
-            if (results[1].meta.changes === 0) {
-                return jsonResponse({ success: false, error: 'ALREADY_PROCESSED' }, 409);
-            }
-        }
-
-        return jsonResponse({ success: true, message: `Status updated to ${status}` });
-    } catch (e) {
-        return jsonResponse({ success: false, error: e.message }, 500);
-    }
-}
+// --- RMG LOGIC REMOVED ---
 
 // --- MANUAL TRIGGERS ---
 async function handleManualSquadSync(env) {
@@ -2432,6 +2336,54 @@ async function handleGetUserRooms(userId, env) {
 // The /api/ranking route is blocked directly at the router level (HTTP 403 RANKING_RESTRICTED).
 // No function definition needed — see lines 251 and 359.
 
+
+// --- CHAT HANDLERS (D1-Backed) ---
+
+async function handleSendChatMessage(request, env) {
+    if (request.method !== 'POST') return jsonResponse({ error: 'Method Not Allowed' }, 405);
+    try {
+        const body = await request.json();
+        const { roomId, userId, content, messageType } = body;
+
+        if (!roomId || !userId || !content) {
+            return jsonResponse({ success: false, error: 'roomId, userId, and content required' }, 400);
+        }
+
+        const msgId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const now = Date.now();
+
+        await env.DB.prepare(`
+            INSERT INTO chat_messages (id, room_id, user_id, message_type, content, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).bind(msgId, roomId, userId, messageType || 'text', content, now).run();
+
+        // Optional: Update active_members or last_activity in room
+        return jsonResponse({ success: true, messageId: msgId, timestamp: now });
+    } catch (e) {
+        console.error('handleSendChatMessage Error:', e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
+
+async function handleSyncChatMessages(roomId, lastUpdated, env) {
+    try {
+        const afterMs = parseInt(lastUpdated) || 0;
+
+        const { results } = await env.DB.prepare(`
+            SELECT c.*, u.name as user_name, u.photo_url as user_photo
+            FROM chat_messages c
+            LEFT JOIN users u ON c.user_id = u.id
+            WHERE c.room_id = ? AND c.created_at > ?
+            ORDER BY c.created_at ASC
+            LIMIT 100
+        `).bind(roomId, afterMs).all();
+
+        return jsonResponse({ success: true, messages: results || [] });
+    } catch (e) {
+        console.error('handleSyncChatMessages Error:', e);
+        return jsonResponse({ success: false, error: e.message }, 500);
+    }
+}
 
 /**
  * Fetch stats metrics for a match (for Internal/Admin use)
